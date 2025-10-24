@@ -1,0 +1,83 @@
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+.venv/
+# mypy
+.mypy_cache/
+.dmypy.json
+.pyre/
+# Pyre type checker
+.pyre/
+# Celery
+celerybeat-schedule
+celerybeat.pid
+# Sphinx documentation
+docs/_build/
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+# Translations
+*.mo
+# Jupyter Notebook
+.ipynb_checkpoints
+# pyenv
+.python-version
+# pipenv
+Pipfile.lock
+# poetry
+poetry.lock
+# PEP 582; used by e.g. github.com/David-OConnor/python-isort
+__pypackages__/
+# dotenv
+.env
+.venv/
+# Spyder project settings
+.spyderproject
+.spyproject
+
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
