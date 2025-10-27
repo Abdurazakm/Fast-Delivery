@@ -1,4 +1,4 @@
-const express = require("express"); 
+const express = require("express");
 const router = express.Router();
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
@@ -199,7 +199,6 @@ router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
     }
 
     if (dateStr) {
-      // Filter orders by the selected day
       const start = new Date(dateStr + "T00:00:00.000Z");
       const end = new Date(dateStr + "T23:59:59.999Z");
       where.createdAt = { gte: start, lte: end };
@@ -299,6 +298,35 @@ router.post("/resend-sms", authMiddleware, adminMiddleware, async (req, res) => 
   } catch (err) {
     console.error("❌ Error resending SMS:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+/**
+ * ------------------------
+ *  Delete Order (Admin)
+ * ------------------------
+ */
+router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Try to find the order first
+    const order = await prisma.order.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Delete the order
+    await prisma.order.delete({
+      where: { id: parseInt(id) },
+    });
+
+    res.json({ message: "Order deleted successfully" });
+  } catch (err) {
+    console.error("❌ Error deleting order:", err);
+    res.status(500).json({ message: "Server error while deleting order" });
   }
 });
 
