@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 
 export default function Order() {
@@ -21,7 +21,32 @@ export default function Order() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [reviewMode, setReviewMode] = useState(false); // ✅ new step toggle
+  const [reviewMode, setReviewMode] = useState(false);
+
+  // ✅ Fetch registered user info (auto-fill)
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const token = localStorage.getItem("token"); // must be stored at login
+        if (!token) return; // not logged in, skip
+
+        const res = await axios.get("http://localhost:4000/api/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = res.data;
+        setCustomer({
+          customerName: data.name || "",
+          phone: data.phone || "",
+          location: data.location || "",
+        });
+      } catch (err) {
+        console.error("Failed to load user info:", err);
+      }
+    };
+
+    fetchUserInfo();
+  }, []);
 
   // Price calculator for each item
   const getUnitPrice = (item) => {
@@ -69,7 +94,7 @@ export default function Order() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Get a readable description for the item
+  // Describe order item
   const describeItem = (item) => {
     let desc = `${item.quantity} × ${item.ertibType} Ertib`;
 
@@ -90,7 +115,7 @@ export default function Order() {
     setReviewMode(true);
   };
 
-  // Final submit
+  // Confirm final order
   const handleConfirmOrder = async () => {
     setLoading(true);
     setMessage("");
@@ -110,7 +135,11 @@ export default function Order() {
     };
 
     try {
-      await axios.post("http://localhost:4000/api/orders", payload);
+      const token = localStorage.getItem("token");
+      await axios.post("http://localhost:4000/api/orders", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
       setMessage("✅ Order placed successfully!");
       setCustomer({ customerName: "", phone: "", location: "" });
       setItems([
@@ -280,9 +309,7 @@ export default function Order() {
               {items.map((item, i) => (
                 <p key={i} className="border p-2 rounded-lg text-sm">
                   {describeItem(item)} —{" "}
-                  <strong>
-                    {getUnitPrice(item) * item.quantity} Birr
-                  </strong>
+                  <strong>{getUnitPrice(item) * item.quantity} Birr</strong>
                 </p>
               ))}
             </div>

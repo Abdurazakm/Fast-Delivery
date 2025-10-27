@@ -77,14 +77,14 @@ const Register = () => {
           </div>
 
           <div>
-            <label className="block font-medium text-gray-700">Email (optional)</label>
+            <label className="block font-medium text-gray-700">Block Number</label>
             <input
-              type="email"
-              name="email"
-              value={formData.email}
+              type="text"
+              name="blockNumber"
+              value={formData.blockNumber}
               onChange={handleChange}
               className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-400"
-              placeholder="example@email.com"
+              placeholder="e.g. B12"
             />
           </div>
 
@@ -104,7 +104,7 @@ const Register = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-500 text-white py-2 rounded-lg font-semibold hover:bg-green-600 transition disabled:opacity-60"
+            className="w-full bg-amber-700 text-white py-2 rounded-lg font-semibold hover:bg-amber-600 transition disabled:opacity-60"
           >
             {loading ? "Registering..." : "Register"}
           </button>
@@ -112,7 +112,7 @@ const Register = () => {
 
         <p className="mt-4 text-center text-gray-600 text-sm">
           Already have an account?{" "}
-          <Link to="/login" className="text-green-600 font-medium hover:underline">
+          <Link to="/login" className="text-amber-700 font-medium hover:underline">
             Login here
           </Link>
         </p>
