@@ -1,47 +1,54 @@
 const express = require("express");
 const router = express.Router();
-const User = require("../models/User");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { normalizePhone } = require("../utils/phone");
 
-// ✅ Register route (for both normal user and admin creation)
+// ✅ Register route
 router.post("/register", async (req, res) => {
   try {
-    const { name, phone, password, role, blockNumber } = req.body;
+    const { name, phone, password, role, block } = req.body;
 
     // Validate required fields
     if (!name || !phone || !password) {
-      return res
-        .status(400)
-        .json({ message: "Please fill all required fields (name, phone, password)." });
+      return res.status(400).json({
+        message: "Please fill all required fields (name, phone, password).",
+      });
     }
 
     const normalized = normalizePhone(phone);
 
-    // Check if phone already registered
-    const existing = await User.findOne({ phone: normalized });
+    // Check if phone already exists
+    const existing = await prisma.user.findUnique({
+      where: { phone: normalized },
+    });
     if (existing) {
       return res.status(400).json({ message: "Phone number already registered." });
     }
 
-    // Create user
-    const user = new User({
-      name,
-      phone: normalized,
-      password,
-      blockNumber: blockNumber || "",
-      role: role || "user",
-    });
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    await user.save();
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        name,
+        phone: normalized,
+        block: block || "",
+        password: hashedPassword,
+        role: role || "user",
+      },
+    });
 
     return res.status(201).json({
       message: "Registration successful.",
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         phone: user.phone,
-        blockNumber: user.blockNumber,
+        block: user.block,
         role: user.role,
       },
     });
@@ -57,25 +64,25 @@ router.post("/login", async (req, res) => {
     const { phone, password } = req.body;
 
     if (!phone || !password) {
-      return res
-        .status(400)
-        .json({ message: "Please enter both phone and password." });
+      return res.status(400).json({ message: "Please enter both phone and password." });
     }
 
     const normalized = normalizePhone(phone);
-    const user = await User.findOne({ phone: normalized });
+    const user = await prisma.user.findUnique({
+      where: { phone: normalized },
+    });
 
     if (!user) {
       return res.status(400).json({ message: "Invalid phone or password." });
     }
 
-    const match = await user.comparePassword(password);
+    const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(400).json({ message: "Invalid phone or password." });
     }
 
     const token = jwt.sign(
-      { id: user._id, role: user.role, name: user.name },
+      { id: user.id, role: user.role, name: user.name },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -84,11 +91,11 @@ router.post("/login", async (req, res) => {
       message: "Login successful.",
       token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         role: user.role,
         phone: user.phone,
-        blockNumber: user.blockNumber,
+        block: user.block,
       },
     });
   } catch (err) {

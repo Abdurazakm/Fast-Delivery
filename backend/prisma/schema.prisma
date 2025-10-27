@@ -1,0 +1,51 @@
+// Prisma schema for your Ertib Delivery backend
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// ======================
+// User Model
+// ======================
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String   @unique
+  block     String
+  password  String
+  role      String   @default("user")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders    Order[]  // Relation to orders
+}
+
+//
+// ======================
+// Order Model
+// ======================
+model Order {
+  id           Int        @id @default(autoincrement())
+  customerName String
+  phone        String
+  location     String
+  source       String      @default("online")
+  total        Float
+  status       String      @default("pending")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relation
+  userId       Int?
+  user         User?       @relation(fields: [userId], references: [id])
+
+  // JSON fields (for arrays in MongoDB)
+  items        Json
+  smsHistory   Json
+}

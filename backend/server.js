@@ -4,7 +4,6 @@ require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
-const connectDB = require('./src/config/db'); // ✅ FIXED PATH
 
 // Import routes
 const authRoutes = require('./src/routes/authRoutes');
@@ -12,9 +11,6 @@ const orderRoutes = require('./src/routes/orderRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 
 const app = express();
-
-// Connect to MongoDB
-connectDB();
 
 // Middleware
 app.use(cors());
@@ -36,7 +32,7 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-// Global error handler (optional, good practice)
+// Global error handler
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err.stack);
   res.status(500).json({ message: 'Server error', error: err.message });

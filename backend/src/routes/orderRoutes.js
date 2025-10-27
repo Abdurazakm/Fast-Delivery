@@ -1,15 +1,13 @@
-const express = require("express");
+const express = require("express"); 
 const router = express.Router();
-const Order = require("../models/Order");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 const { normalizePhone, isValidPhone } = require("../utils/phone");
 const checkServiceAvailability = require("../middlewares/serviceAvailability");
 const { sendSMS } = require("../services/smsService");
 const { authMiddleware, adminMiddleware } = require("../middlewares/authMiddleware");
-const jwt = require("jsonwebtoken");
 
-/**
- * Helper: calculate price for an item
- */
+// Helper: calculate price for an item
 function calcUnitPrice(item) {
   let base = item.ertibType === "special" ? 135 : 110;
   if (item.extraKetchup) base += 10;
@@ -17,18 +15,17 @@ function calcUnitPrice(item) {
   return base;
 }
 
-/**
- * Prevent duplicate orders: same phone + similar items within last 2 minutes
- */
+// Prevent duplicate orders (same phone + similar items within 2 minutes)
 async function isDuplicate(phone, items) {
   const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-
-  const recent = await Order.findOne({
-    phone,
-    createdAt: { $gte: twoMinutesAgo },
+  const recentOrders = await prisma.order.findMany({
+    where: {
+      phone,
+      createdAt: { gte: twoMinutesAgo },
+    },
   });
 
-  if (!recent) return false;
+  if (!recentOrders.length) return false;
 
   const formatItems = (arr) =>
     JSON.stringify(
@@ -42,7 +39,7 @@ async function isDuplicate(phone, items) {
       }))
     );
 
-  return formatItems(recent.items) === formatItems(items);
+  return recentOrders.some((o) => formatItems(o.items) === formatItems(items));
 }
 
 /**
@@ -59,15 +56,12 @@ router.post("/", checkServiceAvailability, async (req, res) => {
     }
 
     const normalizedPhone = normalizePhone(phone);
-    if (!isValidPhone(normalizedPhone)) {
-      return res.status(400).json({ message: "Invalid phone number" });
-    }
+    if (!isValidPhone(normalizedPhone)) return res.status(400).json({ message: "Invalid phone number" });
 
     if (await isDuplicate(normalizedPhone, items)) {
       return res.status(400).json({ message: "Duplicate order detected" });
     }
 
-    // Build items + calculate total
     let total = 0;
     const builtItems = items.map((it) => {
       const unitPrice = calcUnitPrice(it);
@@ -87,28 +81,33 @@ router.post("/", checkServiceAvailability, async (req, res) => {
       };
     });
 
-    const order = new Order({
-      customerName,
-      phone: normalizedPhone,
-      location,
-      items: builtItems,
-      total,
-      source: "online",
+    const order = await prisma.order.create({
+      data: {
+        customerName,
+        phone: normalizedPhone,
+        location,
+        source: "online",
+        items: builtItems,
+        smsHistory: [],
+        total,
+      },
     });
-
-    await order.save();
 
     // Send confirmation SMS (non-blocking)
     const text = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. We'll prepare it shortly.`;
     const smsResp = await sendSMS(normalizedPhone, text);
-    order.smsHistory.push({
-      type: "confirmation",
-      providerResponse: smsResp.info,
-      status: smsResp.status,
-    });
-    await order.save();
 
-    res.json({ message: "Order placed successfully", orderId: order._id });
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        smsHistory: [
+          ...order.smsHistory,
+          { type: "confirmation", providerResponse: smsResp.info, status: smsResp.status },
+        ],
+      },
+    });
+
+    res.json({ message: "Order placed successfully", orderId: order.id });
   } catch (err) {
     console.error("❌ Error creating order:", err);
     res.status(500).json({ message: "Server error" });
@@ -129,9 +128,7 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
     }
 
     const normalizedPhone = normalizePhone(phone);
-    if (!isValidPhone(normalizedPhone)) {
-      return res.status(400).json({ message: "Invalid phone number" });
-    }
+    if (!isValidPhone(normalizedPhone)) return res.status(400).json({ message: "Invalid phone number" });
 
     let total = 0;
     const builtItems = items.map((it) => {
@@ -151,27 +148,32 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
       };
     });
 
-    const order = new Order({
-      customerName,
-      phone: normalizedPhone,
-      location,
-      items: builtItems,
-      total,
-      source: "manual",
+    const order = await prisma.order.create({
+      data: {
+        customerName,
+        phone: normalizedPhone,
+        location,
+        source: "manual",
+        items: builtItems,
+        smsHistory: [],
+        total,
+      },
     });
-
-    await order.save();
 
     const text = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr.`;
     const smsResp = await sendSMS(normalizedPhone, text);
-    order.smsHistory.push({
-      type: "confirmation",
-      providerResponse: smsResp.info,
-      status: smsResp.status,
-    });
-    await order.save();
 
-    res.json({ message: "Manual order created", orderId: order._id });
+    await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        smsHistory: [
+          ...order.smsHistory,
+          { type: "confirmation", providerResponse: smsResp.info, status: smsResp.status },
+        ],
+      },
+    });
+
+    res.json({ message: "Manual order created", orderId: order.id });
   } catch (err) {
     console.error("❌ Manual order error:", err);
     res.status(500).json({ message: "Server error" });
@@ -180,21 +182,37 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
 
 /**
  * ------------------------
- *  List Orders (Admin)
+ *  List Orders (Admin) with Date Filter
  * ------------------------
  */
 router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const page = parseInt(req.query.page || "1");
     const limit = parseInt(req.query.limit || "20");
-    const filter = req.query.status ? { status: req.query.status } : {};
+    const filterStatus = req.query.status;
+    const dateStr = req.query.date; // YYYY-MM-DD format from frontend
+
+    let where = {};
+
+    if (filterStatus) {
+      where.status = filterStatus;
+    }
+
+    if (dateStr) {
+      // Filter orders by the selected day
+      const start = new Date(dateStr + "T00:00:00.000Z");
+      const end = new Date(dateStr + "T23:59:59.999Z");
+      where.createdAt = { gte: start, lte: end };
+    }
 
     const [orders, total] = await Promise.all([
-      Order.find(filter)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit),
-      Order.countDocuments(filter),
+      prisma.order.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.order.count({ where }),
     ]);
 
     res.json({ data: orders, total, page, limit });
@@ -222,29 +240,25 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
       "canceled",
       "no_show",
     ];
+    if (!allowedStatuses.includes(status)) return res.status(400).json({ message: "Invalid status" });
 
-    if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid status" });
-    }
-
-    const order = await Order.findById(id);
+    const order = await prisma.order.findUnique({ where: { id: parseInt(id) } });
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    order.status = status;
-    await order.save();
+    let smsHistory = [...order.smsHistory];
 
     if (status === "arrived") {
       const text = `📍 Hi ${order.customerName}, your Ertib has arrived. Please come and take it.`;
       const smsResp = await sendSMS(order.phone, text);
-      order.smsHistory.push({
-        type: "arrival",
-        providerResponse: smsResp.info,
-        status: smsResp.status,
-      });
-      await order.save();
+      smsHistory.push({ type: "arrival", providerResponse: smsResp.info, status: smsResp.status });
     }
 
-    res.json({ message: "Status updated", orderId: order._id });
+    await prisma.order.update({
+      where: { id: parseInt(id) },
+      data: { status, smsHistory },
+    });
+
+    res.json({ message: "Status updated", orderId: order.id });
   } catch (err) {
     console.error("❌ Error updating status:", err);
     res.status(500).json({ message: "Server error" });
@@ -261,7 +275,7 @@ router.post("/resend-sms", authMiddleware, adminMiddleware, async (req, res) => 
     const { orderId, type } = req.body;
     if (!orderId || !type) return res.status(400).json({ message: "Missing fields" });
 
-    const order = await Order.findById(orderId);
+    const order = await prisma.order.findUnique({ where: { id: parseInt(orderId) } });
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     let text;
@@ -274,12 +288,12 @@ router.post("/resend-sms", authMiddleware, adminMiddleware, async (req, res) => 
     }
 
     const smsResp = await sendSMS(order.phone, text);
-    order.smsHistory.push({
-      type,
-      providerResponse: smsResp.info,
-      status: smsResp.status,
+    const smsHistory = [...order.smsHistory, { type, providerResponse: smsResp.info, status: smsResp.status }];
+
+    await prisma.order.update({
+      where: { id: parseInt(orderId) },
+      data: { smsHistory },
     });
-    await order.save();
 
     res.json({ message: "SMS resent", status: smsResp.status });
   } catch (err) {
