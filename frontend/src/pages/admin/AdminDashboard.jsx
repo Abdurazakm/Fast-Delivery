@@ -19,7 +19,7 @@ export default function AdminDashboard() {
       setMessage("");
       const token = localStorage.getItem("token");
 
-      const res = await axios.get("http://localhost:4000/api/orders", {
+      const res = await axios.get("http://localhost:4800/api/orders", {
         headers: { Authorization: `Bearer ${token}` },
         params: { date: date.format("YYYY-MM-DD") },
       });
@@ -48,7 +48,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://localhost:4000/api/orders/${id}/status`,
+        `http://localhost:4800/api/orders/${id}/status`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -80,7 +80,7 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:4000/api/orders/${selectedOrderId}`, {
+      await axios.delete(`http://localhost:4800/api/orders/${selectedOrderId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setMessage("🗑️ Order deleted successfully");

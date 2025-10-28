@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+import API from "../api"; // import your Axios instance
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -8,6 +8,7 @@ const Register = () => {
     phone: "",
     email: "",
     password: "",
+    blockNumber: "", // added here
   });
 
   const [loading, setLoading] = useState(false);
@@ -24,7 +25,7 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:4000/api/auth/register", formData);
+      const res = await API.post("/auth/register", formData); // use Axios instance
       if (res.status === 201 || res.status === 200) {
         alert("🎉 Registration successful! You can now log in.");
         navigate("/login");

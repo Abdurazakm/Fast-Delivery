@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
+import API from "../api"; // import your Axios instance
 
 const Login = () => {
   const [formData, setFormData] = useState({ phone: "", password: "" });
@@ -18,8 +18,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:4000/api/auth/login", formData);
-
+      const res = await API.post("/auth/login", formData); // use Axios instance
       const { token, role, name } = res.data;
 
       // Save token & user info in localStorage
