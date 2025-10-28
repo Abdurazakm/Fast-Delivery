@@ -148,7 +148,7 @@ export default function AdminDashboard() {
             onClick={prevDay}
             className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
           >
-            Previous Day
+            ⬅️
           </button>
           <span className="font-medium">
             {selectedDate.format("YYYY-MM-DD")}
@@ -162,7 +162,7 @@ export default function AdminDashboard() {
                 : "bg-gray-300 hover:bg-gray-400"
             }`}
           >
-            Next Day
+            ➡️
           </button>
           {/* <button onClick={() => fetchOrders(selectedDate)} className="bg-amber-700 text-white px-4 py-2 rounded-lg hover:bg-amber-800">
             Refresh
