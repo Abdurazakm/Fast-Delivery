@@ -63,7 +63,7 @@ const Login = () => {
               value={formData.phone}
               onChange={handleChange}
               required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-400"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
               placeholder="e.g. +251900000000"
             />
           </div>
@@ -76,7 +76,7 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-400"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
               placeholder="Your password"
             />
           </div>
@@ -84,7 +84,7 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-500 text-white py-2 rounded-lg font-semibold hover:bg-green-600 transition disabled:opacity-60"
+            className="w-full bg-amber-500 text-white py-2 rounded-lg font-semibold hover:bg-amber-600 transition disabled:opacity-60"
           >
             {loading ? "Logging in..." : "Login"}
           </button>
@@ -92,7 +92,7 @@ const Login = () => {
 
         <p className="mt-4 text-center text-gray-600 text-sm">
           Don’t have an account?{" "}
-          <Link to="/register" className="text-green-600 font-medium hover:underline">
+          <Link to="/register" className="text-amber-600 font-medium hover:underline">
             Create one here
           </Link>
         </p>

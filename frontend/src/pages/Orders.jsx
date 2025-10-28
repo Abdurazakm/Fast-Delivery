@@ -167,31 +167,36 @@ export default function Order() {
   const handleBack = () => setReviewMode(false);
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-6 bg-gradient-to-br from-amber-600 via-orange-500 to-red-600">
-      {/* ✅ Auth Buttons */}
-      <div className="absolute top-4 right-6">
-        {!user ? (
-          <Link
-            to="/login"
-            className="px-4 py-2 bg-white/20 backdrop-blur-md border border-white text-white rounded-full hover:bg-white/30 transition"
-          >
-            Login
-          </Link>
-        ) : (
-          <div className="flex items-center gap-3">
-            <span className="text-white font-medium">Hi, {user.name}</span>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
-            >
-              Logout
-            </button>
-          </div>
-        )}
+<div className="min-h-screen relative flex flex-col items-center justify-start p-6 bg-gradient-to-br from-amber-600 via-orange-500 to-red-600">
+  {/* ✅ Auth Buttons */}
+  <div className="w-full flex justify-end mb-4 sm:mb-6">
+    {!user ? (
+      <Link
+        to="/login"
+        className="px-5 py-3 bg-white/20 backdrop-blur-md border border-white text-white rounded-full hover:bg-white/30 transition text-sm sm:text-base"
+      >
+        Login
+      </Link>
+    ) : (
+      <div className="flex items-center gap-3">
+        <span className="text-white font-medium text-sm sm:text-base">
+          Hi, {user.name}
+        </span>
+        <button
+          onClick={handleLogout}
+          className="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition text-sm sm:text-base"
+        >
+          Logout
+        </button>
       </div>
+    )}
+  </div>
 
       {/* ✅ Main Order Form */}
-      <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-8 w-full max-w-lg border border-white/30">
+  <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
+          {/* <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
+          🥙 WELLCOME TO  Place Your Ertib Order
+        </h1> */}
         <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
           🥙 Place Your Ertib Order
         </h1>

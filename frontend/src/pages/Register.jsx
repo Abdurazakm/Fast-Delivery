@@ -59,7 +59,7 @@ const Register = () => {
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-400"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
@@ -71,7 +71,7 @@ const Register = () => {
               value={formData.phone}
               onChange={handleChange}
               required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-400"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
               placeholder="e.g. +251900000000"
             />
           </div>
@@ -83,7 +83,7 @@ const Register = () => {
               name="blockNumber"
               value={formData.blockNumber}
               onChange={handleChange}
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-400"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
               placeholder="e.g. B12"
             />
           </div>
@@ -97,7 +97,7 @@ const Register = () => {
               onChange={handleChange}
               required
               minLength={6}
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-400"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
             />
           </div>
 
