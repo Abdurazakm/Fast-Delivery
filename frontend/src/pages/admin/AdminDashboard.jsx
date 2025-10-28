@@ -19,10 +19,13 @@ export default function AdminDashboard() {
       setMessage("");
       const token = localStorage.getItem("token");
 
-      const res = await axios.get("http://localhost:4800/api/orders", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { date: date.format("YYYY-MM-DD") },
-      });
+      const res = await axios.get(
+        "https://fast-delivery-4gog.onrender.com/api/orders",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { date: date.format("YYYY-MM-DD") },
+        }
+      );
 
       const ordersArray = res.data.data || [];
       setOrders(ordersArray);
@@ -48,7 +51,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://localhost:4800/api/orders/${id}/status`,
+        `https://fast-delivery-4gog.onrender.com/api/orders/${id}/status`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -80,9 +83,12 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:4800/api/orders/${selectedOrderId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.delete(
+        `https://fast-delivery-4gog.onrender.com/api/orders/${selectedOrderId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setMessage("🗑️ Order deleted successfully");
       fetchOrders(selectedDate);
     } catch (err) {
@@ -109,7 +115,15 @@ export default function AdminDashboard() {
 
   orders.forEach((order) => {
     order.items.forEach((item) => {
-      let key = `${item.ertibType} ${item.ketchup && item.spices ? "Both" : item.ketchup ? "Ketchup" : item.spices ? "Spices" : "Plain"}`;
+      let key = `${item.ertibType} ${
+        item.ketchup && item.spices
+          ? "Both"
+          : item.ketchup
+          ? "Ketchup"
+          : item.spices
+          ? "Spices"
+          : "Plain"
+      }`;
       if (item.extraKetchup) key += " + Extra Ketchup";
       if (item.extraFelafil) key += " + Extra Felafil";
 
@@ -123,19 +137,30 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto bg-white p-6 rounded-2xl shadow-md">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-amber-700">📦 Admin Dashboard</h1>
+          <h1 className="text-2xl font-bold text-amber-700">
+            📦 Admin Dashboard
+          </h1>
         </div>
 
         {/* Day navigation */}
         <div className="flex items-center space-x-2 mb-4">
-          <button onClick={prevDay} className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400">
+          <button
+            onClick={prevDay}
+            className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
+          >
             Previous Day
           </button>
-          <span className="font-medium">{selectedDate.format("YYYY-MM-DD")}</span>
+          <span className="font-medium">
+            {selectedDate.format("YYYY-MM-DD")}
+          </span>
           <button
             onClick={nextDay}
             disabled={selectedDate.isSame(dayjs(), "day")}
-            className={`px-3 py-1 rounded ${selectedDate.isSame(dayjs(), "day") ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-gray-300 hover:bg-gray-400"}`}
+            className={`px-3 py-1 rounded ${
+              selectedDate.isSame(dayjs(), "day")
+                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                : "bg-gray-300 hover:bg-gray-400"
+            }`}
           >
             Next Day
           </button>
@@ -147,11 +172,18 @@ export default function AdminDashboard() {
         {/* Summary card */}
         {orders.length > 0 && (
           <div className="bg-amber-100 p-4 rounded-lg mb-4 shadow">
-            <h2 className="font-semibold text-lg mb-2">📊 Today's Order Summary</h2>
+            <h2 className="font-semibold text-lg mb-2">
+              📊 Today's Order Summary
+            </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
               {Object.keys(summary).map((key) => (
-                <div key={key} className="bg-white p-2 rounded shadow text-center">
-                  <p className="font-medium">{summary[key]} × {key}</p>
+                <div
+                  key={key}
+                  className="bg-white p-2 rounded shadow text-center"
+                >
+                  <p className="font-medium">
+                    {summary[key]} × {key}
+                  </p>
                 </div>
               ))}
             </div>
@@ -190,10 +222,17 @@ export default function AdminDashboard() {
                       <td className="p-3">{order.location}</td>
                       <td className="p-3">
                         {order.items.map((item, idx) => (
-                          <div key={idx} className="text-xs border border-gray-200 rounded-md p-2 mb-1 bg-gray-50">
-                            <p className="font-semibold text-gray-800">{item.quantity} × {item.ertibType} Ertib</p>
+                          <div
+                            key={idx}
+                            className="text-xs border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
+                          >
+                            <p className="font-semibold text-gray-800">
+                              {item.quantity} × {item.ertibType} Ertib
+                            </p>
                             <ul className="text-gray-600 list-disc list-inside">
-                              {item.ketchup && item.spices ? <li>With Both</li> : (
+                              {item.ketchup && item.spices ? (
+                                <li>With Both</li>
+                              ) : (
                                 <>
                                   {item.ketchup && <li>With Ketchup</li>}
                                   {item.spices && <li>With Spices</li>}
@@ -203,21 +242,46 @@ export default function AdminDashboard() {
                               {item.extraFelafil && <li>Extra Felafil</li>}
                             </ul>
                             <p className="text-gray-500">
-                              Unit Price: <span className="font-medium">{item.unitPrice} Birr</span> | Line Total: <span className="font-medium">{item.lineTotal} Birr</span>
+                              Unit Price:{" "}
+                              <span className="font-medium">
+                                {item.unitPrice} Birr
+                              </span>{" "}
+                              | Line Total:{" "}
+                              <span className="font-medium">
+                                {item.lineTotal} Birr
+                              </span>
                             </p>
                           </div>
                         ))}
                       </td>
                       <td className="p-3 font-semibold">{order.total} Birr</td>
                       <td className="p-3">
-                        <select value={order.status} onChange={(e) => updateStatus(order.id, e.target.value)} className="border p-1 rounded-md">
-                          {["pending", "in_progress", "arrived", "delivered", "canceled", "no_show"].map((s) => (
-                            <option key={s} value={s}>{s}</option>
+                        <select
+                          value={order.status}
+                          onChange={(e) =>
+                            updateStatus(order.id, e.target.value)
+                          }
+                          className="border p-1 rounded-md"
+                        >
+                          {[
+                            "pending",
+                            "in_progress",
+                            "arrived",
+                            "delivered",
+                            "canceled",
+                            "no_show",
+                          ].map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
                           ))}
                         </select>
                       </td>
                       <td className="p-3 space-x-2">
-                        <button onClick={() => openDeleteModal(orderId)} className="text-red-600 hover:underline text-sm">
+                        <button
+                          onClick={() => openDeleteModal(orderId)}
+                          className="text-red-600 hover:underline text-sm"
+                        >
                           Delete
                         </button>
                       </td>
@@ -233,17 +297,33 @@ export default function AdminDashboard() {
         {deleteModalOpen && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div className="bg-white p-6 rounded-xl shadow-lg w-80 text-center">
-              <h2 className="text-lg font-bold mb-4 text-red-600">Confirm Deletion</h2>
-              <p className="mb-6">Are you sure you want to delete this order?</p>
+              <h2 className="text-lg font-bold mb-4 text-red-600">
+                Confirm Deletion
+              </h2>
+              <p className="mb-6">
+                Are you sure you want to delete this order?
+              </p>
               <div className="flex justify-center space-x-4">
-                <button onClick={confirmDelete} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Yes, Delete</button>
-                <button onClick={closeDeleteModal} className="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                <button
+                  onClick={confirmDelete}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                >
+                  Yes, Delete
+                </button>
+                <button
+                  onClick={closeDeleteModal}
+                  className="bg-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400"
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {orders.length > 0 && message && <p className="mt-4 text-center text-gray-700 text-sm">{message}</p>}
+        {orders.length > 0 && message && (
+          <p className="mt-4 text-center text-gray-700 text-sm">{message}</p>
+        )}
       </div>
     </div>
   );
