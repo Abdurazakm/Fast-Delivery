@@ -139,9 +139,9 @@ export default function AdminDashboard() {
           >
             Next Day
           </button>
-          <button onClick={() => fetchOrders(selectedDate)} className="bg-amber-700 text-white px-4 py-2 rounded-lg hover:bg-amber-800">
+          {/* <button onClick={() => fetchOrders(selectedDate)} className="bg-amber-700 text-white px-4 py-2 rounded-lg hover:bg-amber-800">
             Refresh
-          </button>
+          </button> */}
         </div>
 
         {/* Summary card */}

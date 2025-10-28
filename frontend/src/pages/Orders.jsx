@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 
 export default function Order() {
   const [customer, setCustomer] = useState({
@@ -8,6 +9,7 @@ export default function Order() {
     location: "",
   });
 
+  const [user, setUser] = useState(null);
   const [items, setItems] = useState([
     {
       ertibType: "normal",
@@ -23,32 +25,40 @@ export default function Order() {
   const [message, setMessage] = useState("");
   const [reviewMode, setReviewMode] = useState(false);
 
-  // ✅ Fetch registered user info (auto-fill)
+  // ✅ Fetch logged-in user info
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      try {
-        const token = localStorage.getItem("token"); // must be stored at login
-        if (!token) return; // not logged in, skip
+    const fetchUser = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
 
-        const res = await axios.get("http://localhost:4000/api/users/me", {
+      try {
+        // ✅ updated to /api/auth/me
+        const res = await axios.get("http://localhost:4000/api/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        const data = res.data;
+        setUser(res.data);
         setCustomer({
-          customerName: data.name || "",
-          phone: data.phone || "",
-          location: data.location || "",
+          customerName: res.data.name || "",
+          phone: res.data.phone || "",
+          location: res.data.location || "",
         });
       } catch (err) {
-        console.error("Failed to load user info:", err);
+        console.error("❌ Failed to load user:", err);
       }
     };
 
-    fetchUserInfo();
+    fetchUser();
   }, []);
 
-  // Price calculator for each item
+  // ✅ Logout
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    setCustomer({ customerName: "", phone: "", location: "" });
+  };
+
+  // ✅ Price calculator
   const getUnitPrice = (item) => {
     let base = item.ertibType === "normal" ? 110 : 135;
     if (item.extraKetchup) base += 10;
@@ -56,13 +66,11 @@ export default function Order() {
     return base;
   };
 
-  // Handle customer info change
   const handleCustomerChange = (e) => {
     const { name, value } = e.target;
     setCustomer((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle item field change
   const handleItemChange = (index, e) => {
     const { name, value, type, checked } = e.target;
     setItems((prev) =>
@@ -74,7 +82,6 @@ export default function Order() {
     );
   };
 
-  // Add new item
   const addItem = () => {
     setItems((prev) => [
       ...prev,
@@ -89,12 +96,10 @@ export default function Order() {
     ]);
   };
 
-  // Remove item
   const removeItem = (index) => {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Describe order item
   const describeItem = (item) => {
     let desc = `${item.quantity} × ${item.ertibType} Ertib`;
 
@@ -109,13 +114,11 @@ export default function Order() {
     return desc;
   };
 
-  // Review step trigger
   const handleReview = (e) => {
     e.preventDefault();
     setReviewMode(true);
   };
 
-  // Confirm final order
   const handleConfirmOrder = async () => {
     setLoading(true);
     setMessage("");
@@ -154,28 +157,47 @@ export default function Order() {
       ]);
       setReviewMode(false);
     } catch (err) {
+      console.error("❌ Order failed:", err);
       setMessage("❌ Failed to place order. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Go back to edit
-  const handleBack = () => {
-    setReviewMode(false);
-  };
+  const handleBack = () => setReviewMode(false);
 
-  // ------------------- UI -------------------
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-      <div className="bg-white shadow-md rounded-2xl p-8 w-full max-w-lg">
+    <div className="min-h-screen relative flex items-center justify-center p-6 bg-gradient-to-br from-amber-600 via-orange-500 to-red-600">
+      {/* ✅ Auth Buttons */}
+      <div className="absolute top-4 right-6">
+        {!user ? (
+          <Link
+            to="/login"
+            className="px-4 py-2 bg-white/20 backdrop-blur-md border border-white text-white rounded-full hover:bg-white/30 transition"
+          >
+            Login
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="text-white font-medium">Hi, {user.name}</span>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
+            >
+              Logout
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ✅ Main Order Form */}
+      <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-8 w-full max-w-lg border border-white/30">
         <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
           🥙 Place Your Ertib Order
         </h1>
 
         {!reviewMode ? (
           <form onSubmit={handleReview} className="space-y-5">
-            {/* Customer info */}
             <input
               type="text"
               name="customerName"
@@ -204,7 +226,6 @@ export default function Order() {
               required
             />
 
-            {/* Items */}
             <div className="border-t pt-4 space-y-4">
               {items.map((item, index) => (
                 <div key={index} className="border p-4 rounded-lg">
@@ -236,19 +257,14 @@ export default function Order() {
                   <div className="grid grid-cols-2 gap-3 text-sm mt-3">
                     {["ketchup", "spices", "extraKetchup", "extraFelafil"].map(
                       (field) => (
-                        <label
-                          key={field}
-                          className="flex items-center space-x-2"
-                        >
+                        <label key={field} className="flex items-center space-x-2">
                           <input
                             type="checkbox"
                             name={field}
                             checked={item[field]}
                             onChange={(e) => handleItemChange(index, e)}
                           />
-                          <span>
-                            {field.replace(/([A-Z])/g, " $1").trim()}
-                          </span>
+                          <span>{field.replace(/([A-Z])/g, " $1").trim()}</span>
                         </label>
                       )
                     )}
