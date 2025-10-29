@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaPhoneAlt } from "react-icons/fa";
 import axios from "axios";
 import dayjs from "dayjs";
 
@@ -113,6 +113,7 @@ export default function AdminDashboard() {
   // Generate summary card
   const summary = {};
   let totalPrice = 0;
+  let totalertibPrice = 0;
   let profit = 0;
 
   orders.forEach((order) => {
@@ -132,6 +133,7 @@ export default function AdminDashboard() {
       summary[key] = (summary[key] || 0) + item.quantity;
       totalPrice += item.lineTotal || item.quantity * item.unitPrice;
       profit += item.quantity * 15; // profit per ertib
+      totalertibPrice = totalPrice - profit;
     });
   });
   // Color mapping for order statuses
@@ -149,7 +151,7 @@ export default function AdminDashboard() {
       <div className="max-w-6xl mx-auto bg-white p-6 rounded-2xl shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-amber-700">
-            📦 Admin Dashboard
+            📦My Dashboard
           </h1>
         </div>
 
@@ -209,7 +211,8 @@ export default function AdminDashboard() {
               ))}
             </div>
             <div className="mt-2 text-sm font-medium">
-              <p>Total Price: {totalPrice} Birr</p>
+              <p>Total Leyla's price: {totalertibPrice}</p>
+              <p>Total Delivered Price: {totalPrice} Birr</p>
               <p>Estimated Profit: {profit} Birr</p>
             </div>
           </div>
@@ -239,7 +242,16 @@ export default function AdminDashboard() {
                   return (
                     <tr key={orderId} className="border-b hover:bg-gray-50">
                       <td className="p-3">{order.customerName}</td>
-                      <td className="p-3">{order.phone}</td>
+                      <td className="p-3">
+                        <a
+                          href={`tel:${order.phone}`}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <FaPhoneAlt className="text-sm" />
+                          {order.phone}
+                        </a>
+                      </td>
+
                       <td className="p-3">{order.location}</td>
                       <td className="p-3">
                         {order.items.map((item, idx) => (
