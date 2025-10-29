@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { FaPlus } from "react-icons/fa";
 import axios from "axios";
 import dayjs from "dayjs";
 
@@ -143,30 +145,40 @@ export default function AdminDashboard() {
         </div>
 
         {/* Day navigation */}
-        <div className="flex items-center space-x-2 mb-4">
-          <button
-            onClick={prevDay}
-            className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
+        <div className="flex items-center justify-between mb-4">
+          {/* Left side: arrows + date */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={prevDay}
+              className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
+            >
+              ⬅️
+            </button>
+
+            <span className="font-medium">
+              {selectedDate.format("YYYY-MM-DD")}
+            </span>
+
+            <button
+              onClick={nextDay}
+              disabled={selectedDate.isSame(dayjs(), "day")}
+              className={`px-3 py-1 rounded ${
+                selectedDate.isSame(dayjs(), "day")
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-gray-300 hover:bg-gray-400"
+              }`}
+            >
+              ➡️
+            </button>
+          </div>
+
+          {/* Right side: plus button */}
+          <Link
+            to="/"
+            className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
           >
-            ⬅️
-          </button>
-          <span className="font-medium">
-            {selectedDate.format("YYYY-MM-DD")}
-          </span>
-          <button
-            onClick={nextDay}
-            disabled={selectedDate.isSame(dayjs(), "day")}
-            className={`px-3 py-1 rounded ${
-              selectedDate.isSame(dayjs(), "day")
-                ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                : "bg-gray-300 hover:bg-gray-400"
-            }`}
-          >
-            ➡️
-          </button>
-          {/* <button onClick={() => fetchOrders(selectedDate)} className="bg-amber-700 text-white px-4 py-2 rounded-lg hover:bg-amber-800">
-            Refresh
-          </button> */}
+            <FaPlus />
+          </Link>
         </div>
 
         {/* Summary card */}
