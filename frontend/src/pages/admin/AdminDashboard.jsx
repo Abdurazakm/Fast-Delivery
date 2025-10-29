@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaPhoneAlt } from "react-icons/fa";
 import axios from "axios";
 import dayjs from "dayjs";
 
@@ -113,6 +113,7 @@ export default function AdminDashboard() {
   // Generate summary card
   const summary = {};
   let totalPrice = 0;
+  let totalertibPrice = 0;
   let profit = 0;
 
   orders.forEach((order) => {
@@ -132,15 +133,25 @@ export default function AdminDashboard() {
       summary[key] = (summary[key] || 0) + item.quantity;
       totalPrice += item.lineTotal || item.quantity * item.unitPrice;
       profit += item.quantity * 15; // profit per ertib
+      totalertibPrice = totalPrice - profit;
     });
   });
+  // Color mapping for order statuses
+  const statusColors = {
+    pending: "bg-yellow-100 text-yellow-700 border-yellow-400",
+    in_progress: "bg-blue-100 text-blue-700 border-blue-400",
+    arrived: "bg-indigo-100 text-indigo-700 border-indigo-400",
+    delivered: "bg-green-100 text-green-700 border-green-400",
+    canceled: "bg-red-100 text-red-700 border-red-400",
+    no_show: "bg-gray-200 text-gray-700 border-gray-400",
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto bg-white p-6 rounded-2xl shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-amber-700">
-            📦 Admin Dashboard
+            📦My Dashboard
           </h1>
         </div>
 
@@ -200,7 +211,8 @@ export default function AdminDashboard() {
               ))}
             </div>
             <div className="mt-2 text-sm font-medium">
-              <p>Total Price: {totalPrice} Birr</p>
+              <p>Total Leyla's price: {totalertibPrice}</p>
+              <p>Total Delivered Price: {totalPrice} Birr</p>
               <p>Estimated Profit: {profit} Birr</p>
             </div>
           </div>
@@ -219,7 +231,7 @@ export default function AdminDashboard() {
                   <th className="p-3 text-left">Phone</th>
                   <th className="p-3 text-left">Location</th>
                   <th className="p-3 text-left">Items</th>
-                  <th className="p-3 text-left">Total</th>
+                  <th className="p-3 text-left">Total(Birr)</th>
                   <th className="p-3 text-left">Status</th>
                   <th className="p-3 text-left">Actions</th>
                 </tr>
@@ -230,30 +242,39 @@ export default function AdminDashboard() {
                   return (
                     <tr key={orderId} className="border-b hover:bg-gray-50">
                       <td className="p-3">{order.customerName}</td>
-                      <td className="p-3">{order.phone}</td>
+                      <td className="p-3">
+                        <a
+                          href={`tel:${order.phone}`}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <FaPhoneAlt className="text-sm" />
+                          {order.phone}
+                        </a>
+                      </td>
+
                       <td className="p-3">{order.location}</td>
                       <td className="p-3">
                         {order.items.map((item, idx) => (
                           <div
                             key={idx}
-                            className="text-xs border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
+                            className="border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
                           >
                             <p className="font-semibold text-gray-800">
-                              {item.quantity} × {item.ertibType} Ertib
+                              {item.quantity}×{item.ertibType}
                             </p>
                             <ul className="text-gray-600 list-disc list-inside">
                               {item.ketchup && item.spices ? (
-                                <li>With Both</li>
+                                <li>Both</li>
                               ) : (
                                 <>
-                                  {item.ketchup && <li>With Ketchup</li>}
-                                  {item.spices && <li>With Spices</li>}
+                                  {item.ketchup && <li>Ketchp</li>}
+                                  {item.spices && <li>Spices</li>}
                                 </>
                               )}
                               {item.extraKetchup && <li>Extra Ketchup</li>}
-                              {item.extraFelafil && <li>Extra Felafil</li>}
+                              {item.extraFelafil && <li>Double Felafil</li>}
                             </ul>
-                            <p className="text-gray-500">
+                            {/* <p className="text-gray-500">
                               Unit Price:{" "}
                               <span className="font-medium">
                                 {item.unitPrice} Birr
@@ -262,18 +283,20 @@ export default function AdminDashboard() {
                               <span className="font-medium">
                                 {item.lineTotal} Birr
                               </span>
-                            </p>
+                            </p> */}
                           </div>
                         ))}
                       </td>
-                      <td className="p-3 font-semibold">{order.total} Birr</td>
+                      <td className="p-3 font-semibold">{order.total}</td>
                       <td className="p-3">
                         <select
                           value={order.status}
                           onChange={(e) =>
                             updateStatus(order.id, e.target.value)
                           }
-                          className="border p-1 rounded-md"
+                          className={`border p-1 rounded-md font-medium ${
+                            statusColors[order.status]
+                          }`}
                         >
                           {[
                             "pending",

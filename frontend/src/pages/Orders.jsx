@@ -256,7 +256,7 @@ export default function Order() {
             <input
               type="text"
               name="location"
-              placeholder="Delivery Location"
+              placeholder="Delivery Location (e.g. Block14)"
               value={customer.location}
               onChange={handleCustomerChange}
               className="w-full border p-2 rounded-lg"
