@@ -18,16 +18,19 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const res = await API.post("/auth/login", formData); // use Axios instance
-      const { token, role, name } = res.data;
+      const res = await API.post("/auth/login", formData);
+      const { token, user } = res.data; // ✅ destructure correctly
+      const { role, name } = user;
 
-      // Save token & user info in localStorage
+      // Save to localStorage
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
       localStorage.setItem("name", name);
 
+      console.log("User role:", role);
+
       // Redirect based on role
-      if (role === "admin") {
+      if (role?.toLowerCase() === "admin") {
         navigate("/admin");
       } else {
         navigate("/");
@@ -55,7 +58,9 @@ const Login = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block font-medium text-gray-700">Phone Number</label>
+            <label className="block font-medium text-gray-700">
+              Phone Number
+            </label>
             <input
               type="text"
               name="phone"
@@ -91,7 +96,10 @@ const Login = () => {
 
         <p className="mt-4 text-center text-gray-600 text-sm">
           Don’t have an account?{" "}
-          <Link to="/register" className="text-amber-600 font-medium hover:underline">
+          <Link
+            to="/register"
+            className="text-amber-600 font-medium hover:underline"
+          >
             Create one here
           </Link>
         </p>
