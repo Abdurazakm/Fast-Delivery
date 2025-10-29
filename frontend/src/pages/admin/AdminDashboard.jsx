@@ -9,6 +9,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [selectedLocation, setSelectedLocation] = useState("All"); // ✅ new
+  const [checkedItems, setCheckedItems] = useState({});
 
   // Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -116,7 +118,13 @@ export default function AdminDashboard() {
   let totalertibPrice = 0;
   let profit = 0;
 
-  orders.forEach((order) => {
+  // ✅ Apply location filter for summary too
+  const filteredOrders =
+    selectedLocation === "All"
+      ? orders
+      : orders.filter((order) => order.location === selectedLocation);
+
+  filteredOrders.forEach((order) => {
     order.items.forEach((item) => {
       let key = `${item.ertibType} ${
         item.ketchup && item.spices
@@ -136,6 +144,7 @@ export default function AdminDashboard() {
       totalertibPrice = totalPrice - profit;
     });
   });
+
   // Color mapping for order statuses
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-700 border-yellow-400",
@@ -146,24 +155,21 @@ export default function AdminDashboard() {
     no_show: "bg-gray-200 text-gray-700 border-gray-400",
   };
 
-  const [checkedItems, setCheckedItems] = useState({});
-
   const toggleCheckbox = (key) => {
-  setCheckedItems((prev) => ({
-    ...prev,
-    [key]: !prev[key],
-  }));
-};
+    setCheckedItems((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
 
-
+  // ✅ Unique locations list
+  const uniqueLocations = ["All", ...new Set(orders.map((o) => o.location))];
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto bg-white p-6 rounded-2xl shadow-md">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-amber-700">
-            📦My Dashboard
-          </h1>
+          <h1 className="text-2xl font-bold text-amber-700">📦My Dashboard</h1>
         </div>
 
         {/* Day navigation */}
@@ -203,36 +209,58 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        {/* Summary card */}
+        {/* ✅ Location Filter */}
         {orders.length > 0 && (
+          <div className="flex items-center justify-end mb-4">
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="border p-2 rounded-md bg-white shadow-sm"
+            >
+              {uniqueLocations.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Summary card */}
+        {filteredOrders.length > 0 && (
           <div className="bg-amber-100 p-4 rounded-lg mb-4 shadow">
             <h2 className="font-semibold text-lg mb-2">
-              📊 Today's Order Summary
+              📊 Order Summary ({selectedLocation})
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-  {Object.keys(summary).map((key) => (
-    <label
-      key={key}
-      className={`flex items-center justify-between bg-white p-2 rounded shadow cursor-pointer transition border
-        ${checkedItems[key] ? "border-green-400 bg-green-50" : "border-gray-200"}`}
-    >
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={checkedItems[key] || false}
-          onChange={() => toggleCheckbox(key)}
-          className="accent-green-600"
-        />
-        <span className="font-medium text-gray-800">
-          {summary[key]} × {key}
-        </span>
-      </div>
-      {checkedItems[key] && (
-        <span className="text-green-600 font-semibold text-xs">✔</span>
-      )}
-    </label>
-  ))}
-</div>
+              {Object.keys(summary).map((key) => (
+                <label
+                  key={key}
+                  className={`flex items-center justify-between bg-white p-2 rounded shadow cursor-pointer transition border ${
+                    checkedItems[key]
+                      ? "border-green-400 bg-green-50"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={checkedItems[key] || false}
+                      onChange={() => toggleCheckbox(key)}
+                      className="accent-green-600"
+                    />
+                    <span className="font-medium text-gray-800">
+                      {summary[key]} × {key}
+                    </span>
+                  </div>
+                  {checkedItems[key] && (
+                    <span className="text-green-600 font-semibold text-xs">
+                      ✔
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
 
             <div className="mt-2 text-sm font-medium">
               <p>Total Leyla's price: {totalertibPrice}</p>
@@ -244,7 +272,7 @@ export default function AdminDashboard() {
 
         {loading ? (
           <p className="text-center text-gray-500">Loading orders...</p>
-        ) : orders.length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
           <p className="text-center text-gray-500">{message}</p>
         ) : (
           <div className="overflow-x-auto">
@@ -261,7 +289,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => {
+                {filteredOrders.map((order) => {
                   const orderId = order._id || order.id;
                   return (
                     <tr key={orderId} className="border-b hover:bg-gray-50">
@@ -275,7 +303,6 @@ export default function AdminDashboard() {
                           {order.phone}
                         </a>
                       </td>
-
                       <td className="p-3">{order.location}</td>
                       <td className="p-3">
                         {order.items.map((item, idx) => (
@@ -291,23 +318,13 @@ export default function AdminDashboard() {
                                 <li>Both</li>
                               ) : (
                                 <>
-                                  {item.ketchup && <li>Ketchp</li>}
+                                  {item.ketchup && <li>Ktchp</li>}
                                   {item.spices && <li>Spices</li>}
                                 </>
                               )}
-                              {item.extraKetchup && <li>Extra Ketchup</li>}
+                              {item.extraKetchup && <li>Extra Ktchp</li>}
                               {item.extraFelafil && <li>Double Felafil</li>}
                             </ul>
-                            {/* <p className="text-gray-500">
-                              Unit Price:{" "}
-                              <span className="font-medium">
-                                {item.unitPrice} Birr
-                              </span>{" "}
-                              | Line Total:{" "}
-                              <span className="font-medium">
-                                {item.lineTotal} Birr
-                              </span>
-                            </p> */}
                           </div>
                         ))}
                       </td>
