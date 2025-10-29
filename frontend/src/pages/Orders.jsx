@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { AiOutlineClose } from "react-icons/ai"; // make sure you installed react-icons
 import API from "../api"; // import your Axios instance
 
 export default function Order() {
@@ -142,7 +143,7 @@ export default function Order() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setMessage("✅ Order placed successfully!");
+      setMessage("Order placed successfully!");
       setCustomer({ customerName: "", phone: "", location: "" });
       setItems([
         {
@@ -157,7 +158,7 @@ export default function Order() {
       setReviewMode(false);
     } catch (err) {
       console.error("❌ Order failed:", err);
-      setMessage("❌ Failed to place order. Try again.");
+      setMessage("Failed to place order. Try again.");
     } finally {
       setLoading(false);
     }
@@ -208,6 +209,26 @@ export default function Order() {
 
       {/* ✅ Main Order Form */}
       <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
+
+{message && (
+  <div
+    className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${
+      message.includes("successfully")
+        ? "bg-green-100 text-green-800 border border-green-300"
+        : "bg-red-100 text-red-800 border border-red-300"
+    }`}
+  >
+    <div className="flex items-center gap-2">
+      <span>{message.includes("successfully") ? "✅" : "❌"}</span>
+      <span>{message}</span>
+    </div>
+    <button onClick={() => setMessage("")} className="text-gray-500 hover:text-gray-700">
+      <AiOutlineClose size={18} />
+    </button>
+  </div>
+)}
+
+
         <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
           🥙 Place Your Ertib Order
         </h1>
@@ -376,9 +397,9 @@ export default function Order() {
           </div>
         )}
 
-        {message && (
+        {/* {message && (
           <p className="mt-4 text-center text-sm text-gray-700">{message}</p>
-        )}
+        )} */}
       </div>
     </div>
   );
