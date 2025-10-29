@@ -146,6 +146,17 @@ export default function AdminDashboard() {
     no_show: "bg-gray-200 text-gray-700 border-gray-400",
   };
 
+  const [checkedItems, setCheckedItems] = useState({});
+
+  const toggleCheckbox = (key) => {
+  setCheckedItems((prev) => ({
+    ...prev,
+    [key]: !prev[key],
+  }));
+};
+
+
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto bg-white p-6 rounded-2xl shadow-md">
@@ -199,17 +210,30 @@ export default function AdminDashboard() {
               📊 Today's Order Summary
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-              {Object.keys(summary).map((key) => (
-                <div
-                  key={key}
-                  className="bg-white p-2 rounded shadow text-center"
-                >
-                  <p className="font-medium">
-                    {summary[key]} × {key}
-                  </p>
-                </div>
-              ))}
-            </div>
+  {Object.keys(summary).map((key) => (
+    <label
+      key={key}
+      className={`flex items-center justify-between bg-white p-2 rounded shadow cursor-pointer transition border
+        ${checkedItems[key] ? "border-green-400 bg-green-50" : "border-gray-200"}`}
+    >
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={checkedItems[key] || false}
+          onChange={() => toggleCheckbox(key)}
+          className="accent-green-600"
+        />
+        <span className="font-medium text-gray-800">
+          {summary[key]} × {key}
+        </span>
+      </div>
+      {checkedItems[key] && (
+        <span className="text-green-600 font-semibold text-xs">✔</span>
+      )}
+    </label>
+  ))}
+</div>
+
             <div className="mt-2 text-sm font-medium">
               <p>Total Leyla's price: {totalertibPrice}</p>
               <p>Total Delivered Price: {totalPrice} Birr</p>
