@@ -14,14 +14,14 @@ export default function Home() {
     const checkAvailability = () => {
       const now = new Date();
       const day = now.getDay(); // Sunday = 0, Monday = 1, ..., Saturday = 6
-      const hour = 11
-      // Adjusting for UTC+4
-      console.log(day);
-      const minute = 30;
+      const hour =  now.getHours();
+      const minute = now.getMinutes();
+      // const hour = 17; // for testing purpose
+      // const minute = 31; // for testing purpose
 
       const withinDays = day >= 1 && day <= 4; // Mon–Thu
-      // const beforeTime = hour < 12 || (hour === 12 && minute === 0); // Before 12:00 PM
-      const beforeTime = hour < 17 && minute >= 30; // Before 5:30 AM
+      const beforeTime = hour < 17 || (hour === 17 && minute <= 30); // Before 12:00 PM
+      // const beforeTime = hour < 17 && minute >= 30; 
 
       if (!withinDays) {
         setServiceAvailable(false);
@@ -178,10 +178,10 @@ export default function Home() {
 
         {!user ? (
           <div className="mb-6 space-y-3">
-            <p className="text-gray-800 text-center">
+            {/* <p className="text-gray-800 text-center">
               If you want to <span className="font-semibold">track</span> or <span className="font-semibold">edit</span> your order, please{" "}
               <Link to="/login" className="text-amber-700 font-semibold hover:underline">login</Link>.
-            </p>
+            </p> */}
             <button
               disabled={!serviceAvailable}
               onClick={() => navigate("/order")}
