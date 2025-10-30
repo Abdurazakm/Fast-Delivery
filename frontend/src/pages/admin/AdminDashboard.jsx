@@ -202,7 +202,7 @@ export default function AdminDashboard() {
 
           {/* Right side: plus button */}
           <Link
-            to="/"
+            to="/order"
             className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
           >
             <FaPlus />
