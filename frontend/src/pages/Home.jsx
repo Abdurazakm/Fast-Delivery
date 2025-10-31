@@ -68,6 +68,18 @@ export default function Home() {
     setMessage("Logged out successfully!");
   };
 
+  // ✅ Safe order click handler (works for mobile & desktop)
+  const handleOrderClick = () => {
+    if (!serviceAvailable && user?.role !== "admin") {
+      alert(
+        "⚠️ Sorry! Ordering is not available right now.\n" +
+          "We’re open Monday to Thursday until 5:30 PM."
+      );
+      return;
+    }
+    navigate("/order");
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-orange-100 p-6">
       {/* ✅ Top Right Auth Buttons */}
@@ -135,17 +147,30 @@ export default function Home() {
               <FaPlus size={18} />
             </Link>
           ) : (
-            <button
-              disabled={!serviceAvailable}
-              onClick={() => navigate("/order")}
-              className={`px-6 py-3 rounded-full transition transform shadow-lg ${
-                serviceAvailable
-                  ? "bg-green-600 text-white hover:bg-green-700 hover:scale-105 hover:shadow-xl"
-                  : "bg-gray-400 text-gray-100 cursor-not-allowed"
-              }`}
-            >
-              🥙 {user ? "Place Your Order" : "Order Directly"}
-            </button>
+            <span className="relative group">
+              <button
+                onClick={handleOrderClick}
+                className={`px-6 py-3 rounded-full transition transform shadow-lg ${
+                  serviceAvailable
+                    ? "bg-green-600 text-white hover:bg-green-700 hover:scale-105 hover:shadow-xl"
+                    : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
+                }`}
+              >
+                {serviceAvailable ? (
+                  <>🥙 {user ? "Place Your Order" : "Order Directly"}</>
+                ) : (
+                  <span className="invisible">
+                    🥙 {user ? "Place Your Order" : "Order Directly"}
+                  </span>
+                )}
+              </button>
+
+              {!serviceAvailable && (
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold bg-gray-300 text-gray-500 cursor-not-allowed opacity-70 bg-opacity-50 rounded-full pointer-events-none">
+                  Ordering not available now
+                </span>
+              )}
+            </span>
           )}
 
           {/* DASHBOARD BUTTON (Admin Only) */}
