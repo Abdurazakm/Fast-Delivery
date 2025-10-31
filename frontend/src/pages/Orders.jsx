@@ -16,7 +16,7 @@ export default function Order() {
       ertibType: "normal",
       ketchup: true,
       spices: true,
-      felafil: true,
+      // felafil: true,
       extraKetchup: false,
       extraFelafil: false,
       quantity: 1,
@@ -85,7 +85,7 @@ export default function Order() {
         ertibType: "normal",
         ketchup: true,
         spices: true,
-        felafil: true,
+        // felafil: true,
         extraKetchup: false,
         extraFelafil: false,
         quantity: 1,
@@ -105,7 +105,7 @@ export default function Order() {
     else if (!item.spices && item.ketchup) desc += " with only ketchup";
     else desc += " with no ketchup or spices";
 
-    if (!item.felafil) desc += ", no felafil";
+    // if (!item.felafil) desc += ", no felafil";
     if (item.extraKetchup) desc += ", extra ketchup";
     if (item.extraFelafil) desc += ", extra felafil";
 
@@ -155,7 +155,7 @@ export default function Order() {
           ertibType: "normal",
           ketchup: true,
           spices: true,
-          felafil: true,
+          // felafil: true,
           extraKetchup: false,
           extraFelafil: false,
           quantity: 1,
@@ -300,7 +300,7 @@ export default function Order() {
                     {[
                       "ketchup",
                       "spices",
-                      "felafil",
+                      // "felafil",
                       "extraKetchup",
                       "extraFelafil",
                     ].map((field) => (
@@ -314,7 +314,7 @@ export default function Order() {
                         <span>
                           {field
                             .replace(/([A-Z])/g, " $1")
-                            .replace("felafil", "Felafil")
+                            // .replace("felafil", "Felafil")
                             .trim()}
                         </span>
                       </label>
