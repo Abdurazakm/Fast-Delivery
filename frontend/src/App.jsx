@@ -47,6 +47,8 @@ const checkAvailability = (now = new Date()) => {
   const day = now.getDay(); // Sun = 0 ... Sat = 6
   const hour = now.getHours();
   const minute = now.getMinutes();
+  // const minute = 30;
+  // const hour = 17;
 
   const workingDay = day >= 1 && day <= 4; // Mon–Thu
   const beforeClosing = hour < 17 || (hour === 17 && minute <= 30); // before 5:30 PM
@@ -72,22 +74,22 @@ function ProtectedRoute({ children, user, loadingUser }) {
 
     return (
       <Modal
-        title={workingDay ? "⏰ Ordering Time is Over" : "⚠️ Service Unavailable"}
+        title={workingDay ? "⏰ Ordering Time is Over(after 11:30 LT)" : "⚠️ Service Unavailable"}
         message={
           workingDay ? (
             <>
-              <span className="block text-base sm:text-lg font-semibold">
-                ⏰ Ordering time is over (after 5:30 PM).
-              </span>
               <span className="block text-base sm:text-lg">
                 You can call us directly if we’re still at the Ertib place.
               </span>
+                              <a
+                  href="tel:+251954724664"
+                  className="text-base sm:text-lg font-medium text-amber-700 hover:underline flex items-center gap-1"
+                >
+                  <span>📞</span> +251954724664
+                </a>
             </>
           ) : (
             <>
-              <span className="block text-base sm:text-lg font-semibold">
-                ⚠️ Service unavailable.
-              </span>
               <span className="block text-base sm:text-lg">
                 We’re open only Monday to Thursday.
               </span>
