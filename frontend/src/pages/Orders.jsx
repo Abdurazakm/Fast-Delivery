@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { AiOutlineClose } from "react-icons/ai"; // make sure you installed react-icons
-import API from "../api"; // import your Axios instance
+import { AiOutlineClose } from "react-icons/ai";
+import API from "../api";
 
 export default function Order() {
   const [customer, setCustomer] = useState({
@@ -16,6 +16,7 @@ export default function Order() {
       ertibType: "normal",
       ketchup: true,
       spices: true,
+      felafil: true,
       extraKetchup: false,
       extraFelafil: false,
       quantity: 1,
@@ -26,17 +27,15 @@ export default function Order() {
   const [message, setMessage] = useState("");
   const [reviewMode, setReviewMode] = useState(false);
 
-  // ✅ Fetch logged-in user info
+  // Fetch logged-in user
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
       if (!token) return;
-
       try {
         const res = await API.get("/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
-
         setUser(res.data);
         setCustomer({
           customerName: res.data.name || "",
@@ -47,18 +46,15 @@ export default function Order() {
         console.error("❌ Failed to load user:", err);
       }
     };
-
     fetchUser();
   }, []);
 
-  // ✅ Logout
   const handleLogout = () => {
     localStorage.removeItem("token");
     setUser(null);
     setCustomer({ customerName: "", phone: "", location: "" });
   };
 
-  // ✅ Price calculator
   const getUnitPrice = (item) => {
     let base = item.ertibType === "normal" ? 110 : 135;
     if (item.extraKetchup) base += 10;
@@ -89,6 +85,7 @@ export default function Order() {
         ertibType: "normal",
         ketchup: true,
         spices: true,
+        felafil: true,
         extraKetchup: false,
         extraFelafil: false,
         quantity: 1,
@@ -108,6 +105,7 @@ export default function Order() {
     else if (!item.spices && item.ketchup) desc += " with only ketchup";
     else desc += " with no ketchup or spices";
 
+    if (!item.felafil) desc += ", no felafil";
     if (item.extraKetchup) desc += ", extra ketchup";
     if (item.extraFelafil) desc += ", extra felafil";
 
@@ -119,6 +117,7 @@ export default function Order() {
     setReviewMode(true);
   };
 
+  // ✅ Updated to handle admin vs normal user
   const handleConfirmOrder = async () => {
     setLoading(true);
     setMessage("");
@@ -138,10 +137,16 @@ export default function Order() {
     };
 
     try {
-      const token = localStorage.getItem("token");
-      await API.post("/orders", payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      let endpoint = "/orders";
+      const headers = {};
+
+      if (user?.role === "admin") {
+        endpoint = "/orders/manual";
+        const token = localStorage.getItem("token");
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      await API.post(endpoint, payload, { headers });
 
       setMessage("Order placed successfully!");
       setCustomer({ customerName: "", phone: "", location: "" });
@@ -150,6 +155,7 @@ export default function Order() {
           ertibType: "normal",
           ketchup: true,
           spices: true,
+          felafil: true,
           extraKetchup: false,
           extraFelafil: false,
           quantity: 1,
@@ -168,9 +174,8 @@ export default function Order() {
 
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-start p-6 bg-gradient-to-br from-amber-600 via-orange-500 to-red-600">
-      {/* ✅ Auth Buttons */}
+      {/* Header */}
       <div className="w-full flex items-center justify-between mb-4 sm:mb-6">
-        {/* Left side: Dashboard (only for admin) */}
         <div>
           {user?.role === "admin" && (
             <Link
@@ -182,7 +187,6 @@ export default function Order() {
           )}
         </div>
 
-        {/* Right side: Login or User section */}
         <div className="flex items-center gap-3">
           {!user ? (
             <Link
@@ -207,27 +211,28 @@ export default function Order() {
         </div>
       </div>
 
-      {/* ✅ Main Order Form */}
+      {/* Order Form */}
       <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
-
-{message && (
-  <div
-    className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${
-      message.includes("successfully")
-        ? "bg-green-100 text-green-800 border border-green-300"
-        : "bg-red-100 text-red-800 border border-red-300"
-    }`}
-  >
-    <div className="flex items-center gap-2">
-      <span>{message.includes("successfully") ? "✅" : "❌"}</span>
-      <span>{message}</span>
-    </div>
-    <button onClick={() => setMessage("")} className="text-gray-500 hover:text-gray-700">
-      <AiOutlineClose size={18} />
-    </button>
-  </div>
-)}
-
+        {message && (
+          <div
+            className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${
+              message.includes("successfully")
+                ? "bg-green-100 text-green-800 border border-green-300"
+                : "bg-red-100 text-red-800 border border-red-300"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span>{message.includes("successfully") ? "✅" : "❌"}</span>
+              <span>{message}</span>
+            </div>
+            <button
+              onClick={() => setMessage("")}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <AiOutlineClose size={18} />
+            </button>
+          </div>
+        )}
 
         <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
           🥙 Place Your Ertib Order
@@ -292,22 +297,28 @@ export default function Order() {
                   </select>
 
                   <div className="grid grid-cols-2 gap-3 text-sm mt-3">
-                    {["ketchup", "spices", "extraKetchup", "extraFelafil"].map(
-                      (field) => (
-                        <label
-                          key={field}
-                          className="flex items-center space-x-2"
-                        >
-                          <input
-                            type="checkbox"
-                            name={field}
-                            checked={item[field]}
-                            onChange={(e) => handleItemChange(index, e)}
-                          />
-                          <span>{field.replace(/([A-Z])/g, " $1").trim()}</span>
-                        </label>
-                      )
-                    )}
+                    {[
+                      "ketchup",
+                      "spices",
+                      "felafil",
+                      "extraKetchup",
+                      "extraFelafil",
+                    ].map((field) => (
+                      <label key={field} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          name={field}
+                          checked={item[field]}
+                          onChange={(e) => handleItemChange(index, e)}
+                        />
+                        <span>
+                          {field
+                            .replace(/([A-Z])/g, " $1")
+                            .replace("felafil", "Felafil")
+                            .trim()}
+                        </span>
+                      </label>
+                    ))}
                   </div>
 
                   <div className="mt-3">
@@ -396,10 +407,6 @@ export default function Order() {
             </div>
           </div>
         )}
-
-        {/* {message && (
-          <p className="mt-4 text-center text-sm text-gray-700">{message}</p>
-        )} */}
       </div>
     </div>
   );
