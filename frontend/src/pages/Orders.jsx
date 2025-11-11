@@ -13,10 +13,10 @@ export default function Order() {
   const [user, setUser] = useState(null);
   const [items, setItems] = useState([
     {
+      foodType: "ertib", // either "ertib" or "sambusa"
       ertibType: "normal",
       ketchup: true,
       spices: true,
-      // felafil: true,
       extraKetchup: false,
       extraFelafil: false,
       quantity: 1,
@@ -27,7 +27,6 @@ export default function Order() {
   const [message, setMessage] = useState("");
   const [reviewMode, setReviewMode] = useState(false);
 
-  // Fetch logged-in user
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
@@ -55,7 +54,9 @@ export default function Order() {
     setCustomer({ customerName: "", phone: "", location: "" });
   };
 
+  // ✅ Updated: different unit prices for each food type
   const getUnitPrice = (item) => {
+    if (item.foodType === "sambusa") return 30; // price for Sambusa
     let base = item.ertibType === "normal" ? 110 : 135;
     if (item.extraKetchup) base += 10;
     if (item.extraFelafil) base += 15;
@@ -82,10 +83,10 @@ export default function Order() {
     setItems((prev) => [
       ...prev,
       {
+        foodType: "ertib",
         ertibType: "normal",
         ketchup: true,
         spices: true,
-        // felafil: true,
         extraKetchup: false,
         extraFelafil: false,
         quantity: 1,
@@ -97,18 +98,20 @@ export default function Order() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // ✅ Updated: better description for sambusa and ertib
   const describeItem = (item) => {
-    let desc = `${item.quantity} × ${item.ertibType} Ertib`;
+    if (item.foodType === "sambusa") {
+      return `${item.quantity} × Sambusa`;
+    }
 
+    let desc = `${item.quantity} × ${item.ertibType} Ertib`;
     if (item.spices && item.ketchup) desc += " with both spices and ketchup";
     else if (item.spices && !item.ketchup) desc += " with only spices";
     else if (!item.spices && item.ketchup) desc += " with only ketchup";
     else desc += " with no ketchup or spices";
 
-    // if (!item.felafil) desc += ", no felafil";
     if (item.extraKetchup) desc += ", extra ketchup";
     if (item.extraFelafil) desc += ", extra felafil";
-
     return desc;
   };
 
@@ -117,7 +120,6 @@ export default function Order() {
     setReviewMode(true);
   };
 
-  // ✅ Updated to handle admin vs normal user
   const handleConfirmOrder = async () => {
     setLoading(true);
     setMessage("");
@@ -129,17 +131,11 @@ export default function Order() {
     });
 
     const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
-
-    const payload = {
-      ...customer,
-      items: itemList,
-      total,
-    };
+    const payload = { ...customer, items: itemList, total };
 
     try {
       let endpoint = "/orders";
       const headers = {};
-
       if (user?.role === "admin") {
         endpoint = "/orders/manual";
         const token = localStorage.getItem("token");
@@ -152,10 +148,10 @@ export default function Order() {
       setCustomer({ customerName: "", phone: "", location: "" });
       setItems([
         {
+          foodType: "ertib",
           ertibType: "normal",
           ketchup: true,
           spices: true,
-          // felafil: true,
           extraKetchup: false,
           extraFelafil: false,
           quantity: 1,
@@ -235,11 +231,12 @@ export default function Order() {
         )}
 
         <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
-          🥙 Place Your Ertib Order
+          🥙 Place Your Order
         </h1>
 
         {!reviewMode ? (
           <form onSubmit={handleReview} className="space-y-5">
+            {/* Customer Info */}
             <input
               type="text"
               name="customerName"
@@ -268,12 +265,13 @@ export default function Order() {
               required
             />
 
+            {/* Items */}
             <div className="border-t pt-4 space-y-4">
               {items.map((item, index) => (
                 <div key={index} className="border p-4 rounded-lg">
                   <div className="flex justify-between items-center mb-2">
                     <h2 className="font-semibold text-amber-700">
-                      Ertib #{index + 1}
+                      Item #{index + 1}
                     </h2>
                     {items.length > 1 && (
                       <button
@@ -286,41 +284,57 @@ export default function Order() {
                     )}
                   </div>
 
+                  {/* Food Type */}
                   <select
-                    name="ertibType"
-                    value={item.ertibType}
+                    name="foodType"
+                    value={item.foodType}
                     onChange={(e) => handleItemChange(index, e)}
-                    className="w-full border p-2 rounded-lg"
+                    className="w-full border p-2 rounded-lg mb-3"
                   >
-                    <option value="normal">Normal</option>
-                    <option value="special">Special</option>
+                    <option value="ertib">Ertib</option>
+                    <option value="sambusa">Sambusa</option>
                   </select>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm mt-3">
-                    {[
-                      "ketchup",
-                      "spices",
-                      // "felafil",
-                      "extraKetchup",
-                      "extraFelafil",
-                    ].map((field) => (
-                      <label key={field} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          name={field}
-                          checked={item[field]}
-                          onChange={(e) => handleItemChange(index, e)}
-                        />
-                        <span>
-                          {field
-                            .replace(/([A-Z])/g, " $1")
-                            // .replace("felafil", "Felafil")
-                            .trim()}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                  {/* Ertib Options */}
+                  {item.foodType === "ertib" && (
+                    <>
+                      <select
+                        name="ertibType"
+                        value={item.ertibType}
+                        onChange={(e) => handleItemChange(index, e)}
+                        className="w-full border p-2 rounded-lg"
+                      >
+                        <option value="normal">Normal</option>
+                        <option value="special">Special</option>
+                      </select>
 
+                      <div className="grid grid-cols-2 gap-3 text-sm mt-3">
+                        {[
+                          "ketchup",
+                          "spices",
+                          "extraKetchup",
+                          "extraFelafil",
+                        ].map((field) => (
+                          <label
+                            key={field}
+                            className="flex items-center space-x-2"
+                          >
+                            <input
+                              type="checkbox"
+                              name={field}
+                              checked={item[field]}
+                              onChange={(e) => handleItemChange(index, e)}
+                            />
+                            <span>
+                              {field.replace(/([A-Z])/g, " $1").trim()}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Quantity */}
                   <div className="mt-3">
                     <label className="block font-medium">Quantity:</label>
                     <input
@@ -347,7 +361,7 @@ export default function Order() {
                 onClick={addItem}
                 className="w-full border border-amber-700 text-amber-700 py-2 rounded-lg hover:bg-amber-700 hover:text-white transition"
               >
-                + Add Another Ertib
+                + Add Another Item
               </button>
             </div>
 

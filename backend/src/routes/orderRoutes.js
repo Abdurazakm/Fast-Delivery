@@ -9,6 +9,12 @@ const { authMiddleware, adminMiddleware } = require("../middlewares/authMiddlewa
 
 // Helper: calculate price for an item
 function calcUnitPrice(item) {
+  // Sambusa Pricing
+  if (item.foodType === "sambusa") {
+    return 30; // fixed sambusa price
+  }
+
+  // Ertib Pricing
   let base = item.ertibType === "special" ? 135 : 110;
   if (item.extraKetchup) base += 10;
   if (item.extraFelafil) base += 15;
@@ -19,10 +25,8 @@ function calcUnitPrice(item) {
 async function isDuplicate(phone, items) {
   const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
   const recentOrders = await prisma.order.findMany({
-    where: {
-      phone,
-      createdAt: { gte: twoMinutesAgo },
-    },
+    where: { phone, createdAt: { gte: twoMinutesAgo } },
+    include: { items: true },
   });
 
   if (!recentOrders.length) return false;
@@ -30,6 +34,7 @@ async function isDuplicate(phone, items) {
   const formatItems = (arr) =>
     JSON.stringify(
       arr.map((i) => ({
+        foodType: i.foodType || "ertib",
         ertibType: i.ertibType,
         ketchup: !!i.ketchup,
         spices: !!i.spices,
@@ -70,6 +75,7 @@ router.post("/", checkServiceAvailability, async (req, res) => {
       total += lineTotal;
 
       return {
+        foodType: it.foodType || "ertib",
         ertibType: it.ertibType || "normal",
         ketchup: !!it.ketchup,
         spices: !!it.spices,
@@ -81,16 +87,18 @@ router.post("/", checkServiceAvailability, async (req, res) => {
       };
     });
 
+    // Create order and related OrderItems
     const order = await prisma.order.create({
       data: {
         customerName,
         phone: normalizedPhone,
         location,
         source: "online",
-        items: builtItems,
-        smsHistory: [],
         total,
+        smsHistory: [],
+        items: { create: builtItems },
       },
+      include: { items: true },
     });
 
     // Send confirmation SMS (non-blocking)
@@ -136,7 +144,9 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
       const quantity = parseInt(it.quantity) || 1;
       const lineTotal = unitPrice * quantity;
       total += lineTotal;
+
       return {
+        foodType: it.foodType || "ertib",
         ertibType: it.ertibType || "normal",
         ketchup: !!it.ketchup,
         spices: !!it.spices,
@@ -154,10 +164,11 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
         phone: normalizedPhone,
         location,
         source: "manual",
-        items: builtItems,
-        smsHistory: [],
         total,
+        smsHistory: [],
+        items: { create: builtItems },
       },
+      include: { items: true },
     });
 
     const text = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr.`;
@@ -190,13 +201,10 @@ router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
     const page = parseInt(req.query.page || "1");
     const limit = parseInt(req.query.limit || "20");
     const filterStatus = req.query.status;
-    const dateStr = req.query.date; // YYYY-MM-DD format from frontend
+    const dateStr = req.query.date;
 
     let where = {};
-
-    if (filterStatus) {
-      where.status = filterStatus;
-    }
+    if (filterStatus) where.status = filterStatus;
 
     if (dateStr) {
       const start = new Date(dateStr + "T00:00:00.000Z");
@@ -210,6 +218,7 @@ router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
+        include: { items: true },
       }),
       prisma.order.count({ where }),
     ]);
@@ -231,14 +240,7 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const allowedStatuses = [
-      "pending",
-      "in_progress",
-      "arrived",
-      "delivered",
-      "canceled",
-      "no_show",
-    ];
+    const allowedStatuses = ["pending","in_progress","arrived","delivered","canceled","no_show"];
     if (!allowedStatuses.includes(status)) return res.status(400).json({ message: "Invalid status" });
 
     const order = await prisma.order.findUnique({ where: { id: parseInt(id) } });
@@ -252,10 +254,7 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
       smsHistory.push({ type: "arrival", providerResponse: smsResp.info, status: smsResp.status });
     }
 
-    await prisma.order.update({
-      where: { id: parseInt(id) },
-      data: { status, smsHistory },
-    });
+    await prisma.order.update({ where: { id: parseInt(id) }, data: { status, smsHistory } });
 
     res.json({ message: "Status updated", orderId: order.id });
   } catch (err) {
@@ -278,21 +277,14 @@ router.post("/resend-sms", authMiddleware, adminMiddleware, async (req, res) => 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     let text;
-    if (type === "confirmation") {
-      text = `✅ Hi ${order.customerName}! Your Ertib order is confirmed. Total: ${order.total} birr.`;
-    } else if (type === "arrival") {
-      text = `📍 Hi ${order.customerName}, your Ertib has arrived. Please come and take it.`;
-    } else {
-      return res.status(400).json({ message: "Invalid SMS type" });
-    }
+    if (type === "confirmation") text = `✅ Hi ${order.customerName}! Your Ertib order is confirmed. Total: ${order.total} birr.`;
+    else if (type === "arrival") text = `📍 Hi ${order.customerName}, your Ertib has arrived. Please come and take it.`;
+    else return res.status(400).json({ message: "Invalid SMS type" });
 
     const smsResp = await sendSMS(order.phone, text);
     const smsHistory = [...order.smsHistory, { type, providerResponse: smsResp.info, status: smsResp.status }];
 
-    await prisma.order.update({
-      where: { id: parseInt(orderId) },
-      data: { smsHistory },
-    });
+    await prisma.order.update({ where: { id: parseInt(orderId) }, data: { smsHistory } });
 
     res.json({ message: "SMS resent", status: smsResp.status });
   } catch (err) {
@@ -300,6 +292,7 @@ router.post("/resend-sms", authMiddleware, adminMiddleware, async (req, res) => 
     res.status(500).json({ message: "Server error" });
   }
 });
+
 /**
  * ------------------------
  *  Delete Order (Admin)
@@ -309,19 +302,10 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Try to find the order first
-    const order = await prisma.order.findUnique({
-      where: { id: parseInt(id) },
-    });
+    const order = await prisma.order.findUnique({ where: { id: parseInt(id) } });
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    // Delete the order
-    await prisma.order.delete({
-      where: { id: parseInt(id) },
-    });
+    await prisma.order.delete({ where: { id: parseInt(id) } });
 
     res.json({ message: "Order deleted successfully" });
   } catch (err) {

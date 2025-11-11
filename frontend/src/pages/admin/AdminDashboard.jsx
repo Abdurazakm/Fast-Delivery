@@ -9,14 +9,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [selectedDate, setSelectedDate] = useState(dayjs());
-  const [selectedLocation, setSelectedLocation] = useState("All"); // ✅ new
+  const [selectedLocation, setSelectedLocation] = useState("All");
   const [checkedItems, setCheckedItems] = useState({});
-
-  // Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
 
-  // Fetch orders
   const fetchOrders = async (date) => {
     try {
       setLoading(true);
@@ -50,7 +47,6 @@ export default function AdminDashboard() {
     fetchOrders(selectedDate);
   }, [selectedDate]);
 
-  // Update status
   const updateStatus = async (id, newStatus) => {
     try {
       const token = localStorage.getItem("token");
@@ -73,7 +69,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Delete modal functions
   const openDeleteModal = (orderId) => {
     setSelectedOrderId(orderId);
     setDeleteModalOpen(true);
@@ -89,9 +84,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("token");
       await axios.delete(
         `https://fast-delivery-4gog.onrender.com/api/orders/${selectedOrderId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setMessage("🗑️ Order deleted successfully");
       fetchOrders(selectedDate);
@@ -103,7 +96,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Day navigation
   const prevDay = () => setSelectedDate((prev) => prev.subtract(1, "day"));
   const nextDay = () => {
     const today = dayjs();
@@ -112,13 +104,13 @@ export default function AdminDashboard() {
     );
   };
 
-  // Generate summary card
+  // ============================
+  // ✅ SUMMARY (USING RELATIONAL ITEMS)
+  // ============================
   const summary = {};
   let totalPrice = 0;
-  let totalertibPrice = 0;
   let profit = 0;
 
-  // ✅ Apply location filter for summary too
   const filteredOrders =
     selectedLocation === "All"
       ? orders
@@ -126,26 +118,34 @@ export default function AdminDashboard() {
 
   filteredOrders.forEach((order) => {
     order.items.forEach((item) => {
-      let key = `${item.ertibType} ${
-        item.ketchup && item.spices
-          ? "Both"
-          : item.ketchup
-          ? "Ketchup"
-          : item.spices
-          ? "Spices"
-          : "Plain"
-      }`;
-      if (item.extraKetchup) key += " + Extra Ketchup";
-      if (item.extraFelafil) key += " + Extra Felafil";
+      // Key for summary
+      let key;
+      if (item.foodType === "sambusa") {
+        key = "Sambusa";
+        profit += item.quantity * 10; // Sambusa profit
+      } else {
+        key = `${item.ertibType} ${
+          item.ketchup && item.spices
+            ? "Both"
+            : item.ketchup
+            ? "Ketchup"
+            : item.spices
+            ? "Spices"
+            : "Plain"
+        }`;
+        if (item.extraKetchup) key += " + Extra Ketchup";
+        if (item.extraFelafil) key += " + Extra Felafil";
+
+        profit += item.quantity * 15; // Ertib profit
+      }
 
       summary[key] = (summary[key] || 0) + item.quantity;
       totalPrice += item.lineTotal || item.quantity * item.unitPrice;
-      profit += item.quantity * 15; // profit per ertib
-      totalertibPrice = totalPrice - profit;
     });
   });
 
-  // Color mapping for order statuses
+  const totalertibPrice = totalPrice - profit;
+
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-700 border-yellow-400",
     in_progress: "bg-blue-100 text-blue-700 border-blue-400",
@@ -156,13 +156,9 @@ export default function AdminDashboard() {
   };
 
   const toggleCheckbox = (key) => {
-    setCheckedItems((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setCheckedItems((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // ✅ Unique locations list
   const uniqueLocations = ["All", ...new Set(orders.map((o) => o.location))];
 
   return (
@@ -172,9 +168,7 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-amber-700">📦My Dashboard</h1>
         </div>
 
-        {/* Day navigation */}
         <div className="flex items-center justify-between mb-4">
-          {/* Left side: arrows + date */}
           <div className="flex items-center space-x-2">
             <button
               onClick={prevDay}
@@ -182,11 +176,9 @@ export default function AdminDashboard() {
             >
               ⬅️
             </button>
-
             <span className="font-medium">
               {selectedDate.format("YYYY-MM-DD")}
             </span>
-
             <button
               onClick={nextDay}
               disabled={selectedDate.isSame(dayjs(), "day")}
@@ -200,7 +192,6 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          {/* Right side: plus button */}
           <Link
             to="/order"
             className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
@@ -209,7 +200,6 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        {/* ✅ Location Filter */}
         {orders.length > 0 && (
           <div className="flex items-center justify-end mb-4">
             <select
@@ -226,7 +216,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Summary card */}
         {filteredOrders.length > 0 && (
           <div className="bg-amber-100 p-4 rounded-lg mb-4 shadow">
             <h2 className="font-semibold text-lg mb-2">
@@ -310,21 +299,29 @@ export default function AdminDashboard() {
                             key={idx}
                             className="border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
                           >
-                            <p className="font-semibold text-gray-800">
-                              {item.quantity}×{item.ertibType}
-                            </p>
-                            <ul className="text-gray-600 list-disc list-inside">
-                              {item.ketchup && item.spices ? (
-                                <li>Both</li>
-                              ) : (
-                                <>
-                                  {item.ketchup && <li>Ktchp</li>}
-                                  {item.spices && <li>Spices</li>}
-                                </>
-                              )}
-                              {item.extraKetchup && <li>Extra Ktchp</li>}
-                              {item.extraFelafil && <li>Double Felafil</li>}
-                            </ul>
+                            {item.foodType === "sambusa" ? (
+                              <p className="font-semibold text-gray-800">
+                                {item.quantity} × Sambusa
+                              </p>
+                            ) : (
+                              <>
+                                <p className="font-semibold text-gray-800">
+                                  {item.quantity}×{item.ertibType}
+                                </p>
+                                <ul className="text-gray-600 list-disc list-inside">
+                                  {item.ketchup && item.spices ? (
+                                    <li>Both</li>
+                                  ) : (
+                                    <>
+                                      {item.ketchup && <li>Ketchup</li>}
+                                      {item.spices && <li>Spices</li>}
+                                    </>
+                                  )}
+                                  {item.extraKetchup && <li>Extra Ketchup</li>}
+                                  {item.extraFelafil && <li>Double Felafil</li>}
+                                </ul>
+                              </>
+                            )}
                           </div>
                         ))}
                       </td>
@@ -369,7 +366,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Delete Modal */}
         {deleteModalOpen && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div className="bg-white p-6 rounded-xl shadow-lg w-80 text-center">
