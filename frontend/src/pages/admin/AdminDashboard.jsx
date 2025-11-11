@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FaPlus, FaPhoneAlt } from "react-icons/fa";
 import axios from "axios";
 import dayjs from "dayjs";
+import html2canvas from "html2canvas";
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
@@ -162,8 +163,41 @@ export default function AdminDashboard() {
     }));
   };
 
-  // ✅ Unique locations list
-  const uniqueLocations = ["All", ...new Set(orders.map((o) => o.location))];
+// ✅ Unique locations list
+const uniqueLocations = ["All", ...new Set(orders.map((o) => o.location))];
+
+let normalCount = 0;
+let specialCount = 0;
+let extraKetchupCount = 0;
+let extraFelafilCount = 0;
+let totalPriceWithoutProfit = 0;
+
+filteredOrders.forEach((order) => {
+  order.items.forEach((item) => {
+    if (item.ertibType.toLowerCase() === "normal") normalCount += item.quantity;
+    if (item.ertibType.toLowerCase() === "special") specialCount += item.quantity;
+    if (item.extraKetchup) extraKetchupCount += item.quantity;
+    if (item.extraFelafil) extraFelafilCount += item.quantity;
+
+    const lineTotal = item.lineTotal || item.quantity * item.unitPrice;
+    const itemProfit = item.quantity * 15; // profit per ertib
+    totalPriceWithoutProfit += lineTotal - itemProfit; // subtract profit
+  });
+});
+
+
+  // New: download summary report
+  const downloadSummaryReport = () => {
+    const summaryCard = document.getElementById("hiddenSummaryCard");
+    if (!summaryCard) return;
+
+    html2canvas(summaryCard, { scale: 2 }).then((canvas) => {
+      const link = document.createElement("a");
+      link.download = `Ertib_Summary_${selectedDate.format("YYYY-MM-DD")}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -174,7 +208,6 @@ export default function AdminDashboard() {
 
         {/* Day navigation */}
         <div className="flex items-center justify-between mb-4">
-          {/* Left side: arrows + date */}
           <div className="flex items-center space-x-2">
             <button
               onClick={prevDay}
@@ -200,7 +233,6 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          {/* Right side: plus button */}
           <Link
             to="/order"
             className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
@@ -209,7 +241,7 @@ export default function AdminDashboard() {
           </Link>
         </div>
 
-        {/* ✅ Location Filter */}
+        {/* Location Filter */}
         {orders.length > 0 && (
           <div className="flex items-center justify-end mb-4">
             <select
@@ -225,6 +257,81 @@ export default function AdminDashboard() {
             </select>
           </div>
         )}
+
+        {/* Download Summary Report Button */}
+{filteredOrders.length > 0 && (
+  <div className="flex justify-end mb-4">
+    <button
+      onClick={downloadSummaryReport}
+      className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
+    >
+      📸 Download Summary Report
+    </button>
+  </div>
+)}
+
+{/* Hidden Summary Card for Download */}
+<div
+  id="hiddenSummaryCard"
+  style={{
+    position: "absolute",
+    left: "-9999px",
+    top: "-9999px",
+    width: "400px",
+    padding: "20px",
+    borderRadius: "16px",
+    background: "linear-gradient(135deg, #fef3c7, #fcd34d)", // plain amber gradient
+    border: "1px solid #fbbf24",
+    color: "#1f2937", // gray-800 text
+    fontFamily: "sans-serif",
+  }}
+>
+  <h1 style={{ fontSize: "22px", fontWeight: "700", marginBottom: "12px", color: "#1f2937" }}>
+    ERTIB SUMMARY REPORT
+  </h1>
+
+  <p style={{ marginBottom: "4px", fontWeight: "600" }}>
+    Date: {selectedDate.format("YYYY-MM-DD")}
+  </p>
+  <p style={{ marginBottom: "12px", fontWeight: "600" }}>
+    Location: {selectedLocation}
+  </p>
+
+  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
+    <thead style={{ backgroundColor: "#fef3c7" }}>
+      <tr>
+        <th style={{ border: "1px solid #fbbf24", padding: "4px" }}>Ertib Type</th>
+        <th style={{ border: "1px solid #fbbf24", padding: "4px" }}>Quantity</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>Normal Ertib</td>
+        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>{normalCount}</td>
+      </tr>
+      <tr>
+        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>Special Ertib</td>
+        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>{specialCount}</td>
+      </tr>
+      <tr>
+        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>Extra Ketchup</td>
+        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>{extraKetchupCount}</td>
+      </tr>
+      <tr>
+        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>Extra Felafil</td>
+        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>{extraFelafilCount}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style={{ marginTop: "12px", fontWeight: "700", fontSize: "16px" }}>
+    Total Price (without profit): {totalPriceWithoutProfit} Birr
+  </p>
+
+  <p style={{ marginTop: "8px", fontSize: "12px", textAlign: "center" }}>
+    Generated on {dayjs().format("YYYY-MM-DD HH:mm")}
+  </p>
+</div>
 
         {/* Summary card */}
         {filteredOrders.length > 0 && (
