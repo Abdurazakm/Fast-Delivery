@@ -260,70 +260,74 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-amber-700">📦My Dashboard</h1>
         </div>
 
-        {/* Day navigation */}
-        <div className="flex items-center justify-between mb-4">
-          {/* Left side: arrows + date */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={prevDay}
-              className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
-            >
-              ⬅️
-            </button>
+{/* Day navigation */}
+<div className="flex items-center justify-between mb-4">
+  {/* Left side: arrows + date */}
+  <div className="flex items-center space-x-2">
+    <button
+      onClick={prevDay}
+      className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
+    >
+      ⬅️
+    </button>
 
-            <span className="font-medium">
-              {selectedDate.format("YYYY-MM-DD")}
-            </span>
+    <span className="font-medium">
+      {selectedDate.format("YYYY-MM-DD")}
+    </span>
 
-            <button
-              onClick={nextDay}
-              disabled={selectedDate.isSame(dayjs(), "day")}
-              className={`px-3 py-1 rounded ${
-                selectedDate.isSame(dayjs(), "day")
-                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                  : "bg-gray-300 hover:bg-gray-400"
-              }`}
-            >
-              ➡️
-            </button>
-          </div>
+    <button
+      onClick={nextDay}
+      disabled={selectedDate.isSame(dayjs(), "day")}
+      className={`px-3 py-1 rounded ${
+        selectedDate.isSame(dayjs(), "day")
+          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+          : "bg-gray-300 hover:bg-gray-400"
+      }`}
+    >
+      ➡️
+    </button>
+  </div>
 
-          {/* Right side: plus button */}
-          <Link
-            to="/order"
-            className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
-          >
-            <FaPlus />
-          </Link>
-        </div>
-        {/* Filter + Download Row */}
-        {orders.length > 0 && (
-          <div className="flex justify-between items-center mb-4">
-            {/* Download Summary Report Button (Left, Icon only) */}
-            {filteredOrders.length > 0 && (
-              <button
-                onClick={downloadSummaryReport}
-                className="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 flex items-center justify-center"
-                title="Download Summary Report"
-              >
-                <FiDownload size={20} />
-              </button>
-            )}
+  {/* Right side: Download + Plus button */}
+  <div className="flex items-center space-x-2">
+    {/* Download Summary Report Button */}
+    {filteredOrders.length > 0 && (
+      <button
+        onClick={downloadSummaryReport}
+        className="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 flex items-center justify-center"
+        title="Download Summary Report"
+      >
+        <FiDownload />
+      </button>
+    )}
 
-            {/* Location Filter (Right) */}
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              className="border p-2 rounded-md bg-white shadow-sm"
-            >
-              {uniqueLocations.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+    {/* Plus button */}
+    <Link
+      to="/order"
+      className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
+    >
+      <FaPlus/>
+    </Link>
+  </div>
+</div>
+
+{/* Filter + Download Row (Below) */}
+{orders.length > 0 && (
+  <div className="flex justify-end items-center mb-4">
+    {/* Location Filter (Right) */}
+    <select
+      value={selectedLocation}
+      onChange={(e) => setSelectedLocation(e.target.value)}
+      className="border p-2 rounded-md bg-white shadow-sm"
+    >
+      {uniqueLocations.map((loc) => (
+        <option key={loc} value={loc}>
+          {loc}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
 
         {/* Hidden Summary Card for Download */}
         <div
@@ -354,7 +358,7 @@ export default function AdminDashboard() {
 
           {/* Ethiopian Date in Amharic */}
           <p style={{ marginBottom: "4px", fontWeight: "600" }}>
-            Date: {toEthiopian(selectedDate.toDate())}
+            ቀን : {toEthiopian(selectedDate.toDate())}
           </p>
 
           <p style={{ marginBottom: "12px", fontWeight: "600" }}>
@@ -381,7 +385,7 @@ export default function AdminDashboard() {
             <tbody>
               <tr>
                 <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
-                  Normal Ertib
+                  Normal
                 </td>
                 <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
                   {normalCount}
@@ -389,7 +393,7 @@ export default function AdminDashboard() {
               </tr>
               <tr>
                 <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
-                  Special Ertib
+                  Special
                 </td>
                 <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
                   {specialCount}
@@ -405,7 +409,7 @@ export default function AdminDashboard() {
               </tr>
               <tr>
                 <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
-                  Extra Felafil
+                  Double Felafil
                 </td>
                 <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
                   {extraFelafilCount}
@@ -421,7 +425,7 @@ export default function AdminDashboard() {
               fontSize: "16px",
             }}
           >
-            Total Price: {totalPriceWithoutProfit} Birr
+            Total Price : {totalPriceWithoutProfit} Birr
           </p>
 
           <p
