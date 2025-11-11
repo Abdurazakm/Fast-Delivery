@@ -4,6 +4,7 @@ import { FaPlus, FaPhoneAlt } from "react-icons/fa";
 import axios from "axios";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
+import { FiDownload } from "react-icons/fi";
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
@@ -163,28 +164,29 @@ export default function AdminDashboard() {
     }));
   };
 
-// ✅ Unique locations list
-const uniqueLocations = ["All", ...new Set(orders.map((o) => o.location))];
+  // ✅ Unique locations list
+  const uniqueLocations = ["All", ...new Set(orders.map((o) => o.location))];
 
-let normalCount = 0;
-let specialCount = 0;
-let extraKetchupCount = 0;
-let extraFelafilCount = 0;
-let totalPriceWithoutProfit = 0;
+  let normalCount = 0;
+  let specialCount = 0;
+  let extraKetchupCount = 0;
+  let extraFelafilCount = 0;
+  let totalPriceWithoutProfit = 0;
 
-filteredOrders.forEach((order) => {
-  order.items.forEach((item) => {
-    if (item.ertibType.toLowerCase() === "normal") normalCount += item.quantity;
-    if (item.ertibType.toLowerCase() === "special") specialCount += item.quantity;
-    if (item.extraKetchup) extraKetchupCount += item.quantity;
-    if (item.extraFelafil) extraFelafilCount += item.quantity;
+  filteredOrders.forEach((order) => {
+    order.items.forEach((item) => {
+      if (item.ertibType.toLowerCase() === "normal")
+        normalCount += item.quantity;
+      if (item.ertibType.toLowerCase() === "special")
+        specialCount += item.quantity;
+      if (item.extraKetchup) extraKetchupCount += item.quantity;
+      if (item.extraFelafil) extraFelafilCount += item.quantity;
 
-    const lineTotal = item.lineTotal || item.quantity * item.unitPrice;
-    const itemProfit = item.quantity * 15; // profit per ertib
-    totalPriceWithoutProfit += lineTotal - itemProfit; // subtract profit
+      const lineTotal = item.lineTotal || item.quantity * item.unitPrice;
+      const itemProfit = item.quantity * 15; // profit per ertib
+      totalPriceWithoutProfit += lineTotal - itemProfit; // subtract profit
+    });
   });
-});
-
 
   // New: download summary report
   const downloadSummaryReport = () => {
@@ -198,6 +200,58 @@ filteredOrders.forEach((order) => {
       link.click();
     });
   };
+  const daysOfWeekAmharic = ["እሑድ", "ሰኞ", "ማክሰኞ", "ረቡዕ", "ሐሙስ", "ዓርብ", "ቅዳሜ"];
+
+  const monthsOfEthiopiaAmharic = [
+    "መስከረም",
+    "ጥቅምት",
+    "ህዳር",
+    "ታኅሣሥ",
+    "ጥር",
+    "የካቲት",
+    "መጋቢት",
+    "ሚያዝያ",
+    "ግንቦት",
+    "ሰኔ",
+    "ሐምሌ",
+    "ነሐሴ",
+    "ጳጉሜ",
+  ];
+
+  // Convert Gregorian to Ethiopian
+  const toEthiopian = (gregDate) => {
+    const gYear = gregDate.getFullYear();
+    const gMonth = gregDate.getMonth() + 1; // 1-12
+    const gDay = gregDate.getDate();
+
+    let ethYear = gYear - 8;
+    let newYear = new Date(gYear, 8, 11); // Sept 11
+
+    // Leap year adjustment: Sept 12
+    if ((gYear + 1) % 4 === 0) newYear = new Date(gYear, 8, 12);
+
+    let diff = Math.floor((gregDate - newYear) / 86400000);
+    if (diff < 0) {
+      ethYear -= 1;
+      newYear = new Date(gYear - 1, 8, 11);
+      if (gYear % 4 === 0) newYear = new Date(gYear - 1, 8, 12);
+      diff = Math.floor((gregDate - newYear) / 86400000);
+    }
+
+    let ethMonth = Math.floor(diff / 30) + 1;
+    let ethDay = (diff % 30) + 1;
+
+    // 13th month
+    if (ethMonth > 13) {
+      ethMonth = 13;
+      ethDay = diff - 360 + 1;
+    }
+
+    const dayOfWeekAmh = daysOfWeekAmharic[gregDate.getDay()];
+    const ethMonthAmh = monthsOfEthiopiaAmharic[ethMonth - 1];
+
+    return `${dayOfWeekAmh}, ${ethMonthAmh} ${ethDay}`;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -208,6 +262,7 @@ filteredOrders.forEach((order) => {
 
         {/* Day navigation */}
         <div className="flex items-center justify-between mb-4">
+          {/* Left side: arrows + date */}
           <div className="flex items-center space-x-2">
             <button
               onClick={prevDay}
@@ -233,6 +288,7 @@ filteredOrders.forEach((order) => {
             </button>
           </div>
 
+          {/* Right side: plus button */}
           <Link
             to="/order"
             className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
@@ -240,10 +296,21 @@ filteredOrders.forEach((order) => {
             <FaPlus />
           </Link>
         </div>
-
-        {/* Location Filter */}
+        {/* Filter + Download Row */}
         {orders.length > 0 && (
-          <div className="flex items-center justify-end mb-4">
+          <div className="flex justify-between items-center mb-4">
+            {/* Download Summary Report Button (Left, Icon only) */}
+            {filteredOrders.length > 0 && (
+              <button
+                onClick={downloadSummaryReport}
+                className="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 flex items-center justify-center"
+                title="Download Summary Report"
+              >
+                <FiDownload size={20} />
+              </button>
+            )}
+
+            {/* Location Filter (Right) */}
             <select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
@@ -258,80 +325,115 @@ filteredOrders.forEach((order) => {
           </div>
         )}
 
-        {/* Download Summary Report Button */}
-{filteredOrders.length > 0 && (
-  <div className="flex justify-end mb-4">
-    <button
-      onClick={downloadSummaryReport}
-      className="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600"
-    >
-      📸 Download Summary Report
-    </button>
-  </div>
-)}
+        {/* Hidden Summary Card for Download */}
+        <div
+          id="hiddenSummaryCard"
+          style={{
+            position: "absolute",
+            left: "-9999px",
+            top: "-9999px",
+            width: "400px",
+            padding: "20px",
+            borderRadius: "16px",
+            background: "linear-gradient(135deg, #fef3c7, #fcd34d)",
+            border: "1px solid #fbbf24",
+            color: "#1f2937",
+            fontFamily: "sans-serif",
+          }}
+        >
+          <h1
+            style={{
+              fontSize: "22px",
+              fontWeight: "700",
+              marginBottom: "12px",
+              color: "#1f2937",
+            }}
+          >
+            ERTIB SUMMARY REPORT
+          </h1>
 
-{/* Hidden Summary Card for Download */}
-<div
-  id="hiddenSummaryCard"
-  style={{
-    position: "absolute",
-    left: "-9999px",
-    top: "-9999px",
-    width: "400px",
-    padding: "20px",
-    borderRadius: "16px",
-    background: "linear-gradient(135deg, #fef3c7, #fcd34d)", // plain amber gradient
-    border: "1px solid #fbbf24",
-    color: "#1f2937", // gray-800 text
-    fontFamily: "sans-serif",
-  }}
->
-  <h1 style={{ fontSize: "22px", fontWeight: "700", marginBottom: "12px", color: "#1f2937" }}>
-    ERTIB SUMMARY REPORT
-  </h1>
+          {/* Ethiopian Date in Amharic */}
+          <p style={{ marginBottom: "4px", fontWeight: "600" }}>
+            Date: {toEthiopian(selectedDate.toDate())}
+          </p>
 
-  <p style={{ marginBottom: "4px", fontWeight: "600" }}>
-    Date: {selectedDate.format("YYYY-MM-DD")}
-  </p>
-  <p style={{ marginBottom: "12px", fontWeight: "600" }}>
-    Location: {selectedLocation}
-  </p>
+          <p style={{ marginBottom: "12px", fontWeight: "600" }}>
+            {selectedLocation}
+          </p>
 
-  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
-    <thead style={{ backgroundColor: "#fef3c7" }}>
-      <tr>
-        <th style={{ border: "1px solid #fbbf24", padding: "4px" }}>Ertib Type</th>
-        <th style={{ border: "1px solid #fbbf24", padding: "4px" }}>Quantity</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>Normal Ertib</td>
-        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>{normalCount}</td>
-      </tr>
-      <tr>
-        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>Special Ertib</td>
-        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>{specialCount}</td>
-      </tr>
-      <tr>
-        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>Extra Ketchup</td>
-        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>{extraKetchupCount}</td>
-      </tr>
-      <tr>
-        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>Extra Felafil</td>
-        <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>{extraFelafilCount}</td>
-      </tr>
-    </tbody>
-  </table>
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: "14px",
+            }}
+          >
+            <thead style={{ backgroundColor: "#fef3c7" }}>
+              <tr>
+                <th style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Ertib Type
+                </th>
+                <th style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Quantity
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Normal Ertib
+                </td>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  {normalCount}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Special Ertib
+                </td>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  {specialCount}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Extra Ketchup
+                </td>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  {extraKetchupCount}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Extra Felafil
+                </td>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  {extraFelafilCount}
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-  <p style={{ marginTop: "12px", fontWeight: "700", fontSize: "16px" }}>
-    Total Price (without profit): {totalPriceWithoutProfit} Birr
-  </p>
+          <p
+            style={{
+              marginTop: "12px",
+              fontWeight: "700",
+              fontSize: "16px",
+            }}
+          >
+            Total Price: {totalPriceWithoutProfit} Birr
+          </p>
 
-  <p style={{ marginTop: "8px", fontSize: "12px", textAlign: "center" }}>
-    Generated on {dayjs().format("YYYY-MM-DD HH:mm")}
-  </p>
-</div>
+          <p
+            style={{
+              marginTop: "8px",
+              fontSize: "12px",
+              textAlign: "center",
+            }}
+          >
+            Generated by Fast Delivery System
+          </p>
+        </div>
 
         {/* Summary card */}
         {filteredOrders.length > 0 && (
