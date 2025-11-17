@@ -26,7 +26,7 @@ export default function AdminDashboard() {
       const token = localStorage.getItem("token");
 
       const res = await axios.get(
-        "https://fast-delivery-4gog.onrender.com/api/orders",
+        "http://localhost:4800/api/orders",
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { date: date.format("YYYY-MM-DD") },
@@ -57,7 +57,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `https://fast-delivery-4gog.onrender.com/api/orders/${id}/status`,
+        `http://localhost:4800/api/orders/${id}/status`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -90,7 +90,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem("token");
       await axios.delete(
-        `https://fast-delivery-4gog.onrender.com/api/orders/${selectedOrderId}`,
+        `http://localhost:4800/api/orders/${selectedOrderId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
