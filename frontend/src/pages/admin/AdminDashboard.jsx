@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaPlus, FaPhoneAlt } from "react-icons/fa";
+import { FaPlus, FaPaperPlane, FaPhoneAlt, FaRegEnvelope } from "react-icons/fa";
 import axios from "axios";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
@@ -17,6 +17,16 @@ export default function AdminDashboard() {
   // Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [smsMessage, setSmsMessage] = useState("");
+  const [smsDay, setSmsDay] = useState(""); // Mon, Tue, etc.
+
+
+
+  const token = localStorage.getItem("token");
+
+
+
 
   // Fetch orders
   const fetchOrders = async (date) => {
@@ -251,6 +261,54 @@ export default function AdminDashboard() {
     const ethMonthAmh = monthsOfEthiopiaAmharic[ethMonth - 1];
 
     return `${dayOfWeekAmh}, ${ethMonthAmh} ${ethDay}`;
+  };
+  // Predefined promo messages
+  const promoMessages = {
+    Monday: `🍽️ Hungry? Fast Delivery got you! 
+➡️ Normal Ertib - 110 Birr
+➡️ Special Ertib - 135 Birr
+
+📲 Order online: https://ertibdelivery.netlify.app
+📞 Call us optionally: 0954724664`,
+    Tuesday: `😋 Tuesday cravings? Fast Delivery serves your favorite Ertib!
+➡️ Normal 110 Birr, Special 135 Birr
+
+📲 Order online: https://ertibdelivery.netlify.app
+📞 Call optionally: 0954724664`,
+    Wednesday: `🍴 Midweek treat with Fast Delivery! 
+Normal - 110 Birr, Special - 135 Birr
+
+📲 Order online: https://ertibdelivery.netlify.app
+📞 Call optionally: 0954724664`,
+    Thursday: `🎉 Almost Friday! Grab your Ertib from Fast Delivery
+Normal - 110 Birr, Special - 135 Birr
+
+📲 Order online: https://ertibdelivery.netlify.app
+📞 Call optionally: 0954724664`,
+  };
+
+  const openSmsModal = () => setSmsModalOpen(true);
+  const closeSmsModal = () => setSmsModalOpen(false);
+
+  const handleDayChange = (e) => {
+    const day = e.target.value;
+    setSmsDay(day);
+    setSmsMessage(promoMessages[day] || "");
+  };
+
+  const sendBulkSMS = async () => {
+    try {
+      await axios.post(
+        "http://localhost:4800/api/orders/bulk-sms",
+        { message: smsMessage, day: smsDay },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("✅ SMS sent successfully!");
+      closeSmsModal();
+    } catch (err) {
+      console.error("Failed to send bulk SMS:", err);
+      alert("❌ Failed to send SMS");
+    }
   };
 
   return (
@@ -610,6 +668,63 @@ export default function AdminDashboard() {
           <p className="mt-4 text-center text-gray-700 text-sm">{message}</p>
         )}
       </div>
+      {/* Floating SMS Button */}
+      <button
+        onClick={openSmsModal}
+        className="fixed bottom-6 right-6 bg-amber-500 hover:bg-amber-600 text-white p-4 rounded-full shadow-lg z-50 flex items-center justify-center"
+        title="Send Promotional SMS"
+      >
+        <FaRegEnvelope className="text-sm" />
+      </button>
+
+      {/* SMS Modal */}
+      {smsModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl w-96 shadow-lg relative">
+            <h2 className="text-lg font-bold mb-4 text-amber-700">
+              📣 Send Bulk SMS
+            </h2>
+
+            <label className="block mb-2 font-medium">Select Day</label>
+            <select
+              value={smsDay}
+              onChange={handleDayChange}
+              className="border p-2 rounded w-full mb-4"
+            >
+              <option value="">-- Select Day --</option>
+              {["Monday", "Tuesday", "Wednesday", "Thursday"].map((day) => (
+                <option key={day} value={day}>
+                  {day}
+                </option>
+              ))}
+            </select>
+
+            <label className="block mb-2 font-medium">Message</label>
+            <textarea
+              rows={6}
+              className="border p-2 rounded w-full mb-4"
+              value={smsMessage}
+              onChange={(e) => setSmsMessage(e.target.value)}
+            />
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={closeSmsModal}
+                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sendBulkSMS}
+                className="bg-amber-500 px-4 py-2 rounded hover:bg-amber-600 text-white flex items-center gap-2"
+              >
+                <FaPaperPlane />
+              </button>
+            </div>
+          </div>
+          
+        </div>
+      )}
     </div>
   );
 }

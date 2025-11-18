@@ -375,5 +375,138 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error while deleting order" });
   }
 });
+/**
+ * ---------------------------------------------------------
+ *  BULK SMS SYSTEM
+ *  - Parallel sending
+ *  - Retry 3 times immediately
+ *  - Auto retry after 10 minutes for failed numbers (2 more attempts)
+ * ---------------------------------------------------------
+ */
+
+router.post(
+  "/bulk-sms",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message)
+        return res.status(400).json({ message: "Message text is required" });
+
+      // 1. Fetch all phones
+      const orderPhones = await prisma.order.findMany({
+        select: { phone: true },
+      });
+      const userPhones = await prisma.user.findMany({
+        select: { phone: true },
+      });
+
+      let allNumbers = [
+        ...orderPhones.map((o) => o.phone),
+        ...userPhones.map((u) => u.phone),
+      ];
+
+      // Remove duplicates
+      let uniqueNumbers = [...new Set(allNumbers)];
+
+      // Exclude your number — not part of promo
+      uniqueNumbers = uniqueNumbers.filter((n) => n !== "0954724664");
+
+      if (!uniqueNumbers.length)
+        return res
+          .status(404)
+          .json({ message: "No phone numbers available" });
+
+      console.log("📤 Sending bulk SMS to:", uniqueNumbers.length);
+
+      // 2. Retry function (3 attempts)
+      const sendWithRetry = async (phone, message) => {
+        let attempts = 0;
+
+        while (attempts < 3) {
+          try {
+            attempts++;
+            const res = await sendSMS(phone, message);
+            return { phone, status: "sent", attempts, info: res.info };
+          } catch (err) {
+            if (attempts >= 3) {
+              return { phone, status: "failed", attempts, error: err.message };
+            }
+          }
+        }
+      };
+
+      // 3. Parallel sending (fast)
+      const firstResults = await Promise.all(
+        uniqueNumbers.map((phone) => sendWithRetry(phone, message))
+      );
+
+      const failedNumbers = firstResults
+        .filter((r) => r.status === "failed")
+        .map((r) => r.phone);
+
+      console.log("⏳ Scheduled retry for:", failedNumbers.length, "numbers");
+
+      // 4. Auto Retry After 10 Minutes
+      setTimeout(async () => {
+        console.log("🔁 Retrying failed numbers after 10 minutes...");
+
+        const retry2 = async (phone) => {
+          let attempts = 0;
+          while (attempts < 2) {
+            try {
+              attempts++;
+              const res = await sendSMS(phone, message);
+              return {
+                phone,
+                status: "sent",
+                retryCycle: "10-minute",
+                attempts,
+                info: res.info,
+              };
+            } catch (err) {
+              if (attempts >= 2) {
+                return {
+                  phone,
+                  status: "failed",
+                  retryCycle: "10-minute",
+                  attempts,
+                  error: err.message,
+                };
+              }
+            }
+          }
+        };
+
+        if (failedNumbers.length > 0) {
+          const secondResults = await Promise.all(
+            failedNumbers.map((phone) => retry2(phone))
+          );
+
+          console.log("🔁 Retry Results:", secondResults);
+        }
+      }, 10 * 60 * 1000); // 10 minutes
+
+      // 5. Response to frontend immediately
+      const sent = firstResults.filter((r) => r.status === "sent").length;
+      const failed = firstResults.filter((r) => r.status === "failed").length;
+
+      res.json({
+        success: true,
+        totalNumbers: uniqueNumbers.length,
+        sentFirstRound: sent,
+        failedFirstRound: failed,
+        autoRetryScheduled: true,
+        retryAfterMinutes: 10,
+      });
+    } catch (err) {
+      console.error("❌ Bulk SMS error:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  }
+);
+
+
 
 module.exports = router;
