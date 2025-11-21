@@ -5,6 +5,7 @@ import axios from "axios";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
 import { FiDownload } from "react-icons/fi";
+import API from "../../api";
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
@@ -35,8 +36,8 @@ export default function AdminDashboard() {
       setMessage("");
       const token = localStorage.getItem("token");
 
-      const res = await axios.get(
-        "http://localhost:4800/api/orders",
+      const res = await API.get(
+        "/orders",
         {
           headers: { Authorization: `Bearer ${token}` },
           params: { date: date.format("YYYY-MM-DD") },
@@ -63,27 +64,27 @@ export default function AdminDashboard() {
   }, [selectedDate]);
 
   // Update status
-  const updateStatus = async (id, newStatus) => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.put(
-        `http://localhost:4800/api/orders/${id}/status`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+const updateStatus = async (id, newStatus) => {
+  try {
+    const token = localStorage.getItem("token");
+    await API.put(
+      `/orders/${id}/status`,
+      { status: newStatus },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
 
-      setOrders((prevOrders) =>
-        prevOrders.map((order) =>
-          order.id === id ? { ...order, status: newStatus } : order
-        )
-      );
+    setOrders((prevOrders) =>
+      prevOrders.map((order) =>
+        order.id === id ? { ...order, status: newStatus } : order
+      )
+    );
 
-      setMessage("✅ Status updated successfully");
-    } catch (err) {
-      console.error("Failed to update status:", err);
-      setMessage("❌ Failed to update status");
-    }
-  };
+    setMessage("✅ Status updated successfully");
+  } catch (err) {
+    console.error("Failed to update status:", err);
+    setMessage("❌ Failed to update status");
+  }
+};
 
   // Delete modal functions
   const openDeleteModal = (orderId) => {
@@ -99,8 +100,8 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(
-        `http://localhost:4800/api/orders/${selectedOrderId}`,
+      await API.delete(
+        `/orders/${selectedOrderId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -298,8 +299,8 @@ Normal - 110 Birr, Special - 135 Birr
 
   const sendBulkSMS = async () => {
     try {
-      await axios.post(
-        "http://localhost:4800/api/orders/bulk-sms",
+      await API.post(
+        "/orders/bulk-sms",
         { message: smsMessage, day: smsDay },
         { headers: { Authorization: `Bearer ${token}` } }
       );
