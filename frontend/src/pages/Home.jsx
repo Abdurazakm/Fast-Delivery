@@ -17,32 +17,52 @@ export default function Home() {
   const [trackingError, setTrackingError] = useState("");
   const [latestOrder, setLatestOrder] = useState(null);
 
-
-  // ✅ Fetch user & latest order automatically
+  // ✅ Fetch user & latest order automatically (with JWT)
   useEffect(() => {
     const fetchUserAndOrder = async () => {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) return; // no token, user not logged in
 
       try {
+        // 1️⃣ Fetch authenticated user
         const resUser = await API.get("/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setUser(resUser.data);
+        const currentUser = resUser.data;
+        setUser(currentUser);
 
-        // Fetch latest order
-        const resOrder = await API.get("/orders/latest", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (resOrder.data) setTrackingResult(resOrder.data);
+        // 2️⃣ Fetch latest order for this user
+        try {
+          const resOrder = await API.get("/orders/latest", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (resOrder.data && Object.keys(resOrder.data).length > 0) {
+            // Only set latestOrder if data exists
+            setLatestOrder(resOrder.data);
+          } else {
+            setLatestOrder(null); // no orders
+            console.log("No orders found for this user");
+          }
+        } catch (orderErr) {
+          // 404 = no orders
+          if (orderErr.response?.status === 404) {
+            setLatestOrder(null);
+            console.log("No orders found for this user");
+          } else {
+            console.error("❌ Failed to fetch latest order:", orderErr);
+          }
+        }
       } catch (err) {
-        console.error("❌ Failed to load user or order:", err);
+        console.error("❌ Failed to fetch user or latest order:", err);
+        setUser(null);
+        setLatestOrder(null);
       }
     };
+
     fetchUserAndOrder();
   }, []);
 
-  
 
   const handleTrackOrder = async () => {
     if (!trackingCodeInput.trim()) {
@@ -50,10 +70,13 @@ export default function Home() {
       setTrackingResult(null);
       return;
     }
+
     try {
+      setTrackingResult(null);
+      setTrackingError("");
       const res = await API.get(`/orders/track/${trackingCodeInput.trim()}`);
       setTrackingResult(res.data);
-      setTrackingError("");
+      
     } catch (err) {
       console.error("❌ Tracking error:", err);
       setTrackingResult(null);
@@ -238,46 +261,45 @@ export default function Home() {
           )}
         </div>
       </div>
-  {user?.role !== "admin" && (
-  <div className="mt-10 max-w-md w-full mx-auto bg-white p-6 rounded-2xl shadow text-center">
-    <h3 className="font-semibold text-lg mb-3 text-amber-700">
-      Track Your Order
-    </h3>
+      {user?.role !== "admin" && (
+        <div className="mt-10 max-w-md w-full mx-auto bg-white p-6 rounded-2xl shadow text-center">
+          <h3 className="font-semibold text-lg mb-3 text-amber-700">
+            Track Your Order
+          </h3>
 
-    {/* Authenticated users: show their latest order automatically */}
-    {user ? (
-      <>
-        {latestOrder ? (
-          <TrackingInfoCard order={latestOrder} />
-        ) : (
-          <div className="text-gray-500">No orders found.</div>
-        )}
-      </>
-    ) : (
-      /* Guest users: allow manual tracking via input */
-      <div className="flex gap-2 mb-3">
-        <input
-          type="text"
-          placeholder="Enter your tracking code"
-          value={trackingCodeInput}
-          onChange={(e) => setTrackingCodeInput(e.target.value)}
-          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-        />
-        <button
-          onClick={handleTrackOrder}
-          className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
-        >
-          Track
-        </button>
-      </div>
-    )}
+          {/* Authenticated users: show their latest order automatically */}
+          {user ? (
+            <>
+              {latestOrder ? (
+                <TrackingInfoCard order={latestOrder} />
+              ) : (
+                <div className="text-gray-500">No orders found.</div>
+              )}
+            </>
+          ) : (
+            /* Guest users: allow manual tracking via input */
+            <div className="flex gap-2 mb-3">
+              <input
+                type="text"
+                placeholder="Enter your tracking code"
+                value={trackingCodeInput}
+                onChange={(e) => setTrackingCodeInput(e.target.value)}
+                className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <button
+                onClick={handleTrackOrder}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
+              >
+                Track
+              </button>
+            </div>
+          )}
 
-    {trackingError && (
-      <div className="text-red-600 text-sm">{trackingError}</div>
-    )}
-  </div>
-)}
-
+          {trackingError && (
+            <div className="text-red-600 text-sm">{trackingError}</div>
+          )}
+        </div>
+      )}
 
       {/* ✅ Features */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">

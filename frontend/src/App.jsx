@@ -52,7 +52,7 @@ const checkAvailability = (now = new Date()) => {
   // const hour = 17;
 
   const workingDay = day >= 1 && day <= 6; // Mon–Thu
-  const beforeClosing = hour < 17 || (hour === 17 && minute <= 30); // before 5:30 PM
+  const beforeClosing = hour < 23 || (hour === 23 && minute <= 30); // before 5:30 PM
 
   return workingDay && beforeClosing; // true if service is available
 };
@@ -75,19 +75,23 @@ function ProtectedRoute({ children, user, loadingUser }) {
 
     return (
       <Modal
-        title={workingDay ? "⏰ Ordering Time is Over(after 11:30 LT)" : "⚠️ Service Unavailable"}
+        title={
+          workingDay
+            ? "⏰ Ordering Time is Over(after 11:30 LT)"
+            : "⚠️ Service Unavailable"
+        }
         message={
           workingDay ? (
             <>
               <span className="block text-base sm:text-lg">
                 You can call us directly if we’re still at the Ertib place.
               </span>
-                              <a
-                  href="tel:+251954724664"
-                  className="text-base sm:text-lg font-medium text-amber-700 hover:underline flex items-center gap-1"
-                >
-                  <span>📞</span> +251954724664
-                </a>
+              <a
+                href="tel:+251954724664"
+                className="text-base sm:text-lg font-medium text-amber-700 hover:underline flex items-center gap-1"
+              >
+                <span>📞</span> +251954724664
+              </a>
             </>
           ) : (
             <>
@@ -170,7 +174,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/admin" element={<AdminDashboard user={user} />} />
-        <Route path="/track/:code" element={<TrackOrder/>} />
+        <Route path="/track/:code" element={<TrackOrder />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
