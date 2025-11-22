@@ -63,7 +63,6 @@ export default function Home() {
     fetchUserAndOrder();
   }, []);
 
-
   const handleTrackOrder = async () => {
     if (!trackingCodeInput.trim()) {
       setTrackingError("Please enter your tracking code.");
@@ -76,7 +75,6 @@ export default function Home() {
       setTrackingError("");
       const res = await API.get(`/orders/track/${trackingCodeInput.trim()}`);
       setTrackingResult(res.data);
-      
     } catch (err) {
       console.error("❌ Tracking error:", err);
       setTrackingResult(null);
