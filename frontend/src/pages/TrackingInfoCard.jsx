@@ -74,11 +74,12 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
   const [toast, setToast] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
+  const [currentOrder, setCurrentOrder] = useState(order);
 
   const statusSteps = ["pending", "in_progress", "arrived", "delivered"];
-  const currentIndex = statusSteps.indexOf(order.status);
+  const currentIndex = statusSteps.indexOf(currentOrder.status);
   const isManual =
-    (order?.source || "").toString().trim().toLowerCase() === "manual";
+    (currentOrder?.source || "").toString().trim().toLowerCase() === "manual";
 
   const statusMessages = {
     pending: "✅ Your order has been received.",
@@ -97,29 +98,24 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
   const describeItem = (item) => {
     const qty = item.quantity || 1;
     const unitPrice = getUnitPrice(item);
-    const total = qty * unitPrice;
-
     let desc = `${qty} × ${item.ertibType} Ertib`;
     if (item.spices && item.ketchup) desc += " with spices & ketchup";
     else if (item.spices) desc += " with only spices";
     else if (item.ketchup) desc += " with only ketchup";
     else desc += " with no ketchup or spices";
-
     if (item.extraKetchup) desc += ", extra ketchup";
     if (item.extraFelafil) desc += ", extra felafil";
-
-    return `${desc}`;
+    return desc;
   };
 
   const totalPrice =
-    order.total ??
-    order.items.reduce(
+    currentOrder.total ??
+    currentOrder.items.reduce(
       (sum, item) => sum + getUnitPrice(item) * (item.quantity || 1),
       0
     );
 
-  // Time restriction: before 5:30 PM
-  // Attempt to use server time (via Date header) for cutoff; fall back to local time.
+  // Server time offset
   useEffect(() => {
     let mounted = true;
     const fetchServerDate = async () => {
@@ -131,9 +127,7 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
           const localNow = Date.now();
           setServerOffsetMs(serverDate - localNow);
         }
-      } catch (err) {
-        // ignore: header may be blocked by CORS or endpoint may not support HEAD
-      }
+      } catch (err) {}
     };
     fetchServerDate();
     return () => {
@@ -156,13 +150,13 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
       });
       return;
     }
-    navigate(`/order?edit=${encodeURIComponent(order.trackingCode)}`);
+    navigate(`/order?edit=${encodeURIComponent(currentOrder.trackingCode)}`);
   };
 
   const handleCancel = async () => {
     setShowCancelModal(false);
     try {
-      await API.delete(`/orders/track/${order.trackingCode}`);
+      await API.delete(`/orders/track/${currentOrder.trackingCode}`);
       setToast({
         message: "✅ Order cancelled successfully!",
         type: "success",
@@ -175,6 +169,20 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
       });
     }
   };
+
+  // ✅ Auto-refresh every 1 minute
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await API.get(`/orders/track/${currentOrder.trackingCode}`);
+        setCurrentOrder(res.data);
+      } catch (err) {
+        console.error("❌ Failed to refresh order:", err);
+      }
+    }, 60000); // 60,000ms = 1 minute
+
+    return () => clearInterval(interval);
+  }, [currentOrder.trackingCode]);
 
   return (
     <motion.div
@@ -204,16 +212,16 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         )}
       </AnimatePresence>
 
+      {/* ... rest of your order display UI ... */}
       <div className="font-semibold mb-3 text-lg">📦 Order Details</div>
-
-      {!isManual && !hideCustomerWhenManual && order.customerName && (
+      {!isManual && !hideCustomerWhenManual && currentOrder.customerName && (
         <div className="mb-1">
-          <strong>Customer:</strong> {order.customerName}
+          <strong>Customer:</strong> {currentOrder.customerName}
         </div>
       )}
-      {isManual && order.location && (
+      {isManual && currentOrder.location && (
         <div className="mb-1">
-          <strong>Location:</strong> {order.location}
+          <strong>Location:</strong> {currentOrder.location}
         </div>
       )}
 
