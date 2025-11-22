@@ -366,6 +366,7 @@ router.get("/track/:code", async (req, res) => {
 
     res.json({
       trackingCode: order.trackingCode,
+      trackUrl: order.trackUrl, // <-- add this line
       status: order.status,
       statusHistory: order.statusHistory || [],
       customerName: order.customerName,

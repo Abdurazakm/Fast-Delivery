@@ -4,12 +4,36 @@ import { AiOutlineClose } from "react-icons/ai";
 import { FaPlus } from "react-icons/fa";
 import { ArrowRight } from "lucide-react";
 import API from "../api";
+import dayjs from "dayjs";
 
 export default function Home() {
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState("");
   const [serviceAvailable, setServiceAvailable] = useState(true);
   const navigate = useNavigate();
+
+  // Track order state
+  const [trackingCodeInput, setTrackingCodeInput] = useState("");
+  const [trackingResult, setTrackingResult] = useState(null);
+  const [trackingError, setTrackingError] = useState("");
+
+  const handleTrackOrder = async () => {
+    if (!trackingCodeInput.trim()) {
+      setTrackingError("Please enter your tracking code.");
+      setTrackingResult(null);
+      return;
+    }
+
+    try {
+      const res = await API.get(`/orders/track/${trackingCodeInput.trim()}`);
+      setTrackingResult(res.data);
+      setTrackingError("");
+    } catch (err) {
+      console.error("❌ Tracking error:", err);
+      setTrackingResult(null);
+      setTrackingError("Order not found or invalid tracking code.");
+    }
+  };
 
   // ✅ Check service availability (Mon–Thu until 5:30 PM)
   useEffect(() => {
@@ -79,6 +103,9 @@ export default function Home() {
     }
     navigate("/order");
   };
+
+  // Status steps for progress bar
+  const statusSteps = ["pending", "in_progress", "arrived", "delivered"];
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-orange-100 p-6">
@@ -185,6 +212,123 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* ✅ Track Order Section */}
+<div className="mt-10 max-w-md w-full mx-auto bg-white p-6 rounded-2xl shadow text-center">
+  <h3 className="font-semibold text-lg mb-3 text-amber-700">Track Your Order</h3>
+
+  <div className="flex gap-2 mb-3">
+    <input
+      type="text"
+      placeholder="Enter your tracking code"
+      value={trackingCodeInput}
+      onChange={(e) => setTrackingCodeInput(e.target.value)}
+      className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+    />
+    <button
+      onClick={handleTrackOrder}
+      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
+    >
+      Track
+    </button>
+  </div>
+
+  {trackingError && <div className="text-red-600 text-sm">{trackingError}</div>}
+
+  {trackingResult && (
+    <div className="mt-3 p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm text-left">
+      {/* Customer Info */}
+      <div className="font-semibold mb-2">📦 Order Details</div>
+      <div className="mb-1">
+        <strong>Customer:</strong> {trackingResult.customerName}
+      </div>
+      <div className="mb-1">
+        <strong>Status:</strong> {trackingResult.status.replace("_", " ")}
+      </div>
+      <div className="mb-1">
+        <strong>Tracking Link:</strong>{" "}
+        <a
+          href={trackingResult.trackUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline text-blue-700"
+        >
+          {trackingResult.trackUrl}
+        </a>
+      </div>
+
+      {/* ✅ Responsive Horizontal Progress Steps */}
+      {(() => {
+        const statusSteps = ["pending", "in_progress", "arrived", "delivered"];
+        const currentIndex = statusSteps.indexOf(trackingResult.status);
+
+        return (
+          <div className="mt-4 overflow-x-auto">
+            <div className="flex items-center space-x-4 min-w-max">
+              {statusSteps.map((status, idx) => {
+                const isCompleted = idx < currentIndex;
+                const isCurrent = idx === currentIndex;
+                return (
+                  <div key={status} className="flex flex-col items-center relative">
+                    {/* Circle */}
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-white z-10 
+                        ${isCompleted ? "bg-green-500" : isCurrent ? "bg-green-500 animate-pulse" : "bg-gray-300"}`}
+                    >
+                      {idx + 1}
+                    </div>
+                    {/* Label */}
+                    <span className="mt-1 text-xs text-center capitalize w-20">
+                      {status.replace("_", " ")}
+                    </span>
+
+                    {/* Connecting Line */}
+                    {idx < statusSteps.length - 1 && (
+                      <div
+                        className={`absolute top-4 left-1/2 w-full h-1 -translate-x-1/2 ${
+                          idx < currentIndex ? "bg-green-500" : "bg-gray-300"
+                        } transition-all duration-700`}
+                      ></div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Progress Bar */}
+            <div className="relative h-1 bg-gray-300 rounded mt-3">
+              <div
+                className="absolute h-1 bg-green-500 rounded transition-all duration-700 ease-in-out"
+                style={{
+                  width: `${((currentIndex + 1) / statusSteps.length) * 100}%`,
+                }}
+              ></div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ✅ Status Message */}
+      <div className="mt-2 p-2 bg-green-50 text-green-700 rounded border border-green-100 text-xs">
+        {(() => {
+          switch (trackingResult.status) {
+            case "pending":
+              return "✅ Your order has been received.";
+            case "in_progress":
+              return "👩‍🍳 Your order is being prepared.";
+            case "arrived":
+              return "🚴‍♂️ Your order is on the way!";
+            case "delivered":
+              return "🎉 Your order has been delivered.";
+            default:
+              return "Tracking your order...";
+          }
+        })()}
+      </div>
+    </div>
+  )}
+</div>
+
 
       {/* ✅ Features */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">
