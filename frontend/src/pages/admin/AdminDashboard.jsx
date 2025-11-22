@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FaPlus, FaPaperPlane, FaPhoneAlt, FaRegEnvelope } from "react-icons/fa";
-import axios from "axios";
+import {
+  FaPlus,
+  FaPaperPlane,
+  FaPhoneAlt,
+  FaRegEnvelope,
+} from "react-icons/fa";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
 import { FiDownload } from "react-icons/fi";
@@ -17,7 +21,6 @@ export default function AdminDashboard() {
   const [trackingSearch, setTrackingSearch] = useState("");
   const [prevStatuses, setPrevStatuses] = useState({});
 
-
   // Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -25,73 +28,150 @@ export default function AdminDashboard() {
   const [smsMessage, setSmsMessage] = useState("");
   const [smsDay, setSmsDay] = useState(""); // Mon, Tue, etc.
 
-
-
   const token = localStorage.getItem("token");
 
+  const fetchOrders = async (date) => {
+    try {
+      setLoading(true);
+      setMessage("");
+      const token = localStorage.getItem("token");
 
+      // Fetch online/normal orders
+      const resOnline = await API.get("/orders", {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { date: date.format("YYYY-MM-DD") },
+      });
+      const onlineOrders = (resOnline.data.data || []).map((o) => ({
+        ...o,
+        source: "online",
+      }));
 
+      // Fetch manual orders
+      const resManual = await API.get("/orders/manual-orders", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const manualOrders = (resManual.data || []).map((o) => ({
+        ...o,
+        source: "manual",
+      }));
 
-  // Fetch orders
-const fetchOrders = async (date) => {
-  try {
-    setLoading(true);
-    setMessage("");
-    const token = localStorage.getItem("token");
+      // Merge and deduplicate orders by a robust composite key.
+      const merged = [...onlineOrders, ...manualOrders];
 
-    const res = await API.get("/orders", {
-      headers: { Authorization: `Bearer ${token}` },
-      params: { date: date.format("YYYY-MM-DD") },
-    });
+      const getCompositeKey = (o) => {
+        if (o?.trackingCode) return `tc:${String(o.trackingCode)}`;
+        if (o?.id) return `id:${String(o.id)}`;
+        if (o?._id) return `_id:${String(o._id)}`;
+        // Fallback to phone+customer+total to detect same orders without ids
+        const phone = (o?.phone || "").toString().trim();
+        const name = (o?.customerName || "").toString().trim();
+        const total = (o?.total ?? o?.totalPrice ?? o?.amount ?? "").toString();
+        if (phone || name || total) return `fallback:${phone}|${name}|${total}`;
+        return `rand:${Math.random().toString(36).slice(2)}`;
+      };
 
-    const ordersArray = res.data.data || [];
-    setOrders(ordersArray);
+      const mergeOrders = (existing, incoming) => {
+        // Prefer manual values but merge non-empty fields from either side
+        const preferIncoming = incoming.source === "manual";
+        const merged = { ...existing };
+        Object.keys(incoming).forEach((k) => {
+          const val = incoming[k];
+          if (val === undefined || val === null || val === "") return;
+          if (k === "items" && Array.isArray(val) && val.length > 0) {
+            merged.items = val;
+            return;
+          }
+          // If existing has empty and incoming has value, take incoming
+          if (
+            merged[k] === undefined ||
+            merged[k] === null ||
+            merged[k] === ""
+          ) {
+            merged[k] = val;
+            return;
+          }
+          // If prefer incoming (manual), overwrite
+          if (preferIncoming) merged[k] = val;
+        });
+        // keep the source of the preferred order (manual if either is manual)
+        merged.source =
+          existing.source === "manual" || incoming.source === "manual"
+            ? "manual"
+            : existing.source || incoming.source;
+        return merged;
+      };
 
-    // store current statuses snapshot to compare later (used for highlight)
-    const statusSnapshot = {};
-    ordersArray.forEach((o) => { statusSnapshot[o.id || o._id] = o.status; });
-    setPrevStatuses((prev) => ({ ...prev, ...statusSnapshot }));
+      const dedupMap = merged.reduce((acc, o) => {
+        const key = getCompositeKey(o);
+        if (!acc[key]) {
+          acc[key] = { ...o };
+        } else {
+          acc[key] = mergeOrders(acc[key], o);
+        }
+        return acc;
+      }, {});
 
-    if (!ordersArray.length) {
-      setMessage(`📭 No orders found for ${date.format("YYYY-MM-DD")}`);
+      const dedupedOrders = Object.values(dedupMap);
+
+      setOrders(dedupedOrders);
+
+      // Store snapshot for status highlight using same deduping key
+      const statusSnapshot = {};
+      dedupedOrders.forEach((o) => {
+        const idKey = o.id || o._id || o.trackingCode;
+        if (idKey) statusSnapshot[idKey] = o.status;
+      });
+      setPrevStatuses((prev) => ({ ...prev, ...statusSnapshot }));
+
+      if (!dedupedOrders.length) {
+        setMessage(`📭 No orders found for ${date.format("YYYY-MM-DD")}`);
+      }
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+      setMessage("❌ Failed to fetch orders");
+      setOrders([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error("Error fetching orders:", err);
-    setMessage("❌ Failed to fetch orders");
-    setOrders([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-useEffect(() => {
-  fetchOrders(selectedDate);
-}, [selectedDate]);
+  useEffect(() => {
+    fetchOrders(selectedDate);
+  }, [selectedDate]);
 
   // Update status
-const updateStatus = async (id, newStatus) => {
-  try {
-    const token = localStorage.getItem("token");
+  const updateStatus = async (id, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
 
-    // store old status for highlight
-    const oldStatus = orders.find((o) => o.id === id)?.status;
-    setPrevStatuses((prev) => ({ ...prev, [id]: oldStatus }));
+      // store old status for highlight
+      const oldStatus = orders.find((o) => o.id === id)?.status;
+      setPrevStatuses((prev) => ({ ...prev, [id]: oldStatus }));
 
-    await API.put(`/orders/${id}/status`, { status: newStatus }, { headers: { Authorization: `Bearer ${token}` } });
+      await API.put(
+        `/orders/${id}/status`,
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
-    setOrders((prevOrders) =>
-      prevOrders.map((order) => (order.id === id ? { ...order, status: newStatus } : order))
-    );
+      setOrders((prevOrders) =>
+        (prevOrders || []).map((order) =>
+          order.id === id ? { ...order, status: newStatus } : order
+        )
+      );
 
-    // highlight for 3s
-    setTimeout(() => setPrevStatuses((prev) => ({ ...prev, [id]: undefined })), 3000);
+      // highlight for 3s
+      setTimeout(
+        () => setPrevStatuses((prev) => ({ ...prev, [id]: undefined })),
+        3000
+      );
 
-    setMessage("✅ Status updated successfully");
-  } catch (err) {
-    console.error("Failed to update status:", err);
-    setMessage("❌ Failed to update status");
-  }
-};
+      setMessage("✅ Status updated successfully");
+    } catch (err) {
+      console.error("Failed to update status:", err);
+      setMessage("❌ Failed to update status");
+    }
+  };
 
   // Delete modal functions
   const openDeleteModal = (orderId) => {
@@ -107,12 +187,9 @@ const updateStatus = async (id, newStatus) => {
 
     try {
       const token = localStorage.getItem("token");
-      await API.delete(
-        `/orders/${selectedOrderId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await API.delete(`/orders/${selectedOrderId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setMessage("🗑️ Order deleted successfully");
       fetchOrders(selectedDate);
     } catch (err) {
@@ -132,6 +209,15 @@ const updateStatus = async (id, newStatus) => {
     );
   };
 
+  // Helper to determine unit price for an item when backend doesn't provide it
+  const getUnitPrice = (item) => {
+    const type = (item?.ertibType || "").toLowerCase();
+    let base = type === "special" ? 135 : 110;
+    if (item?.extraKetchup) base += 10;
+    if (item?.extraFelafil) base += 15;
+    return base;
+  };
+
   // Generate summary card
   const summary = {};
   let totalPrice = 0;
@@ -145,7 +231,13 @@ const updateStatus = async (id, newStatus) => {
       : orders.filter((order) => order.location === selectedLocation);
 
   filteredOrders.forEach((order) => {
+    if (!order.items || order.items.length === 0) return; // skip orders without items
+
     order.items.forEach((item) => {
+      const qty = Number(item?.quantity) || 0;
+      const unitPrice = Number(item?.unitPrice ?? getUnitPrice(item)) || 0;
+      const lineTotal = Number(item?.lineTotal ?? qty * unitPrice) || 0;
+
       let key = `${item.ertibType} ${
         item.ketchup && item.spices
           ? "Both"
@@ -158,15 +250,16 @@ const updateStatus = async (id, newStatus) => {
       if (item.extraKetchup) key += " + Extra Ketchup";
       if (item.extraFelafil) key += " + Extra Felafil";
 
-      summary[key] = (summary[key] || 0) + item.quantity;
-      totalPrice += item.lineTotal || item.quantity * item.unitPrice;
-      profit += item.quantity * 15; // profit per ertib
-      totalertibPrice = totalPrice - profit;
+      summary[key] = (summary[key] || 0) + qty;
+      totalPrice += lineTotal;
+      profit += qty * 15; // profit per ertib
     });
   });
-// const displayedOrders = filteredOrders.filter((order) =>
-//   !trackingSearch || (order.trackingCode || "").toLowerCase().includes(trackingSearch.toLowerCase())
-// );
+  totalertibPrice = totalPrice - profit;
+
+  // const displayedOrders = filteredOrders.filter((order) =>
+  //   !trackingSearch || (order.trackingCode || "").toLowerCase().includes(trackingSearch.toLowerCase())
+  // );
   // Color mapping for order statuses
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-700 border-yellow-400",
@@ -185,7 +278,10 @@ const updateStatus = async (id, newStatus) => {
   };
 
   // ✅ Unique locations list
-  const uniqueLocations = ["All", ...new Set(orders.map((o) => o.location))];
+  const uniqueLocations = [
+    "All",
+    ...new Set((orders || []).map((o) => o.location)),
+  ];
 
   let normalCount = 0;
   let specialCount = 0;
@@ -194,17 +290,20 @@ const updateStatus = async (id, newStatus) => {
   let totalPriceWithoutProfit = 0;
 
   filteredOrders.forEach((order) => {
-    order.items.forEach((item) => {
-      if (item.ertibType.toLowerCase() === "normal")
-        normalCount += item.quantity;
-      if (item.ertibType.toLowerCase() === "special")
-        specialCount += item.quantity;
-      if (item.extraKetchup) extraKetchupCount += item.quantity;
-      if (item.extraFelafil) extraFelafilCount += item.quantity;
+    if (!order.items || order.items.length === 0) return; // skip
 
-      const lineTotal = item.lineTotal || item.quantity * item.unitPrice;
-      const itemProfit = item.quantity * 15; // profit per ertib
-      totalPriceWithoutProfit += lineTotal - itemProfit; // subtract profit
+    order.items.forEach((item) => {
+      const qty = Number(item?.quantity) || 0;
+      const type = (item?.ertibType || "").toLowerCase();
+      if (type === "normal") normalCount += qty;
+      if (type === "special") specialCount += qty;
+      if (item?.extraKetchup) extraKetchupCount += qty;
+      if (item?.extraFelafil) extraFelafilCount += qty;
+
+      const unitPrice = Number(item?.unitPrice ?? getUnitPrice(item)) || 0;
+      const lineTotal = Number(item?.lineTotal ?? qty * unitPrice) || 0;
+      const itemProfit = qty * 15;
+      totalPriceWithoutProfit += lineTotal - itemProfit;
     });
   });
 
@@ -328,74 +427,74 @@ Normal - 110 Birr, Special - 135 Birr
           <h1 className="text-2xl font-bold text-amber-700">📦My Dashboard</h1>
         </div>
 
-{/* Day navigation */}
-<div className="flex items-center justify-between mb-4">
-  {/* Left side: arrows + date */}
-  <div className="flex items-center space-x-2">
-    <button
-      onClick={prevDay}
-      className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
-    >
-      ⬅️
-    </button>
+        {/* Day navigation */}
+        <div className="flex items-center justify-between mb-4">
+          {/* Left side: arrows + date */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={prevDay}
+              className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
+            >
+              ⬅️
+            </button>
 
-    <span className="font-medium">
-      {selectedDate.format("YYYY-MM-DD")}
-    </span>
+            <span className="font-medium">
+              {selectedDate.format("YYYY-MM-DD")}
+            </span>
 
-    <button
-      onClick={nextDay}
-      disabled={selectedDate.isSame(dayjs(), "day")}
-      className={`px-3 py-1 rounded ${
-        selectedDate.isSame(dayjs(), "day")
-          ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-          : "bg-gray-300 hover:bg-gray-400"
-      }`}
-    >
-      ➡️
-    </button>
-  </div>
+            <button
+              onClick={nextDay}
+              disabled={selectedDate.isSame(dayjs(), "day")}
+              className={`px-3 py-1 rounded ${
+                selectedDate.isSame(dayjs(), "day")
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-gray-300 hover:bg-gray-400"
+              }`}
+            >
+              ➡️
+            </button>
+          </div>
 
-  {/* Right side: Download + Plus button */}
-  <div className="flex items-center space-x-2">
-    {/* Download Summary Report Button */}
-    {filteredOrders.length > 0 && (
-      <button
-        onClick={downloadSummaryReport}
-        className="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 flex items-center justify-center"
-        title="Download Summary Report"
-      >
-        <FiDownload />
-      </button>
-    )}
+          {/* Right side: Download + Plus button */}
+          <div className="flex items-center space-x-2">
+            {/* Download Summary Report Button */}
+            {filteredOrders.length > 0 && (
+              <button
+                onClick={downloadSummaryReport}
+                className="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 flex items-center justify-center"
+                title="Download Summary Report"
+              >
+                <FiDownload />
+              </button>
+            )}
 
-    {/* Plus button */}
-    <Link
-      to="/order"
-      className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
-    >
-      <FaPlus/>
-    </Link>
-  </div>
-</div>
+            {/* Plus button */}
+            <Link
+              to="/order"
+              className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
+            >
+              <FaPlus />
+            </Link>
+          </div>
+        </div>
 
-{/* Filter + Download Row (Below) */}
-{orders.length > 0 && (
-  <div className="flex justify-end items-center mb-4">
-    {/* Location Filter (Right) */}
-    <select
-      value={selectedLocation}
-      onChange={(e) => setSelectedLocation(e.target.value)}
-      className="border p-2 rounded-md bg-white shadow-sm"
-    >
-      {uniqueLocations.map((loc) => (
-        <option key={loc} value={loc}>
-          {loc}
-        </option>
-      ))}
-    </select>
-  </div>
-)}
+        {/* Filter + Download Row (Below) */}
+        {orders.length > 0 && (
+          <div className="flex justify-end items-center mb-4">
+            {/* Location Filter (Right) */}
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="border p-2 rounded-md bg-white shadow-sm"
+            >
+              {(uniqueLocations || []).map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Hidden Summary Card for Download */}
         <div
@@ -514,7 +613,7 @@ Normal - 110 Birr, Special - 135 Birr
               📊 Order Summary ({selectedLocation})
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-              {Object.keys(summary).map((key) => (
+              {Object.keys(summary || {}).map((key) => (
                 <label
                   key={key}
                   className={`flex items-center justify-between bg-white p-2 rounded shadow cursor-pointer transition border ${
@@ -558,137 +657,177 @@ Normal - 110 Birr, Special - 135 Birr
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border">
-  <thead className="bg-amber-100">
-    <tr>
-      <th className="p-3 text-left">Customer</th>
-      <th className="p-3 text-left">Phone</th>
-      <th className="p-3 text-left">Location</th>
-      <th className="p-3 text-left">Items</th>
-      <th className="p-3 text-left">Total(Birr)</th>
-      <th className="p-3 text-left">Tracking</th>   {/* ✅ NEW COLUMN */}
-      <th className="p-3 text-left">Status</th>
-      <th className="p-3 text-left">Actions</th>
-    </tr>
-  </thead>
+              <thead className="bg-amber-100">
+                <tr>
+                  <th className="p-3 text-left">Customer</th>
+                  <th className="p-3 text-left">Phone</th>
+                  <th className="p-3 text-left">Location</th>
+                  <th className="p-3 text-left">Items</th>
+                  <th className="p-3 text-left">Total(Birr)</th>
+                  <th className="p-3 text-left">Tracking</th>
+                  <th className="p-3 text-left">Status</th>
+                  <th className="p-3 text-left">Actions</th>
+                </tr>
+              </thead>
 
-  <tbody>
-    {filteredOrders.map((order) => {
-      const orderId = order._id || order.id;
+              <tbody>
+                {(filteredOrders || []).map((order, idx) => {
+                  const orderId = order._id || order.id;
+                  // Use a stable unique key for React list rendering. We keep `orderId`
+                  // for actions (update/delete) but use `orderKey` as the element key
+                  // to avoid collisions when ids overlap between online/manual sources.
+                  const orderKey = orderId
+                    ? `${order.source || "o"}-${orderId}`
+                    : `${order.source || "o"}-${idx}`;
 
-      return (
-        <tr key={orderId} className="border-b hover:bg-gray-50">
-          {/* Customer */}
-          <td className="p-3">{order.customerName}</td>
+                  // Build the copy message for the customer
+                  const trackingMessage = `Hello ${order.customerName}, your order has been placed. Track it here: ${window.location.origin}/track/${order.trackingCode} (Code: ${order.trackingCode})`;
 
-          {/* Phone */}
-          <td className="p-3">
-            <a
-              href={`tel:${order.phone}`}
-              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
-            >
-              <FaPhoneAlt className="text-sm" />
-              {order.phone}
-            </a>
-          </td>
+                  // Compute a safe displayed total for the order (fall back to items if needed)
+                  const displayedTotal =
+                    order.total ??
+                    order.totalPrice ??
+                    order.amount ??
+                    (order.items || []).reduce((sum, it) => {
+                      const q = Number(it?.quantity) || 0;
+                      const up = Number(it?.unitPrice ?? getUnitPrice(it)) || 0;
+                      const lt = Number(it?.lineTotal ?? q * up) || 0;
+                      return sum + lt;
+                    }, 0);
 
-          {/* Location */}
-          <td className="p-3">{order.location}</td>
+                  return (
+                    <tr
+                      key={orderKey}
+                      className={`border-b hover:bg-gray-50 ${
+                        order.source === "manual" ? "bg-yellow-50" : ""
+                      }`} // highlight manual orders
+                    >
+                      {/* Customer */}
+                      <td className="p-3">{order.customerName}</td>
 
-          {/* Items */}
-          <td className="p-3">
-            {order.items.map((item, idx) => (
-              <div
-                key={idx}
-                className="border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
-              >
-                <p className="font-semibold text-gray-800">
-                  {item.quantity}×{item.ertibType}
-                </p>
+                      {/* Phone */}
+                      <td className="p-3">
+                        <a
+                          href={`tel:${order.phone}`}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          <FaPhoneAlt className="text-sm" />
+                          {order.phone}
+                        </a>
+                      </td>
 
-                <ul className="text-gray-600 list-disc list-inside">
-                  {item.ketchup && item.spices ? (
-                    <li>Both</li>
-                  ) : (
-                    <>
-                      {item.ketchup && <li>Ketchup</li>}
-                      {item.spices && <li>Spices</li>}
-                    </>
-                  )}
-                  {item.extraKetchup && <li>Extra Ketchup</li>}
-                  {item.extraFelafil && <li>Double Felafil</li>}
-                </ul>
-              </div>
-            ))}
-          </td>
+                      {/* Location */}
+                      <td className="p-3">{order.location}</td>
 
-          {/* Total */}
-          <td className="p-3 font-semibold">{order.total}</td>
+                      {/* Items */}
+                      <td className="p-3">
+                        {(order.items || []).map((item, idx) => {
+                          const qty = Number(item?.quantity) || 0;
+                          const up =
+                            Number(item?.unitPrice ?? getUnitPrice(item)) || 0;
+                          const lt = Number(item?.lineTotal ?? qty * up) || 0;
+                          return (
+                            <div
+                              key={idx}
+                              className="border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
+                            >
+                              <p className="font-semibold text-gray-800">
+                                {qty}×{item.ertibType || "—"} 
+                              </p>
+                              <ul className="text-gray-600 list-disc list-inside">
+                                {item.ketchup && item.spices ? (
+                                  <li>Both</li>
+                                ) : (
+                                  <>
+                                    {item.ketchup && <li>Ketchup</li>}
+                                    {item.spices && <li>Spices</li>}
+                                  </>
+                                )}
+                                {item.extraKetchup && <li>Extra Ketchup</li>}
+                                {item.extraFelafil && <li>Double Felafil</li>}
+                              </ul>
+                            </div>
+                          );
+                        })}
+                      </td>
 
-          {/* ✅ Tracking Code + Link */}
-          <td className="p-3">
-            <div className="text-gray-800">
-              <strong>{order.trackingCode}</strong>
-            </div>
+                      {/* Total */}
+                      <td className="p-3 font-semibold">{displayedTotal}</td>
 
-            <a
-              href={`/track/${order.trackingCode}`}
-              target="_blank"
-              className="text-blue-600 underline text-xs"
-            >
-              View Tracking
-            </a>
+                      {/* Tracking */}
+                      <td className="p-3">
+                        <div className="text-gray-800 font-semibold">
+                          {order.trackingCode}
+                        </div>
+                        <a
+                          href={`/track/${order.trackingCode}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline text-xs"
+                        >
+                          View Tracking
+                        </a>
+                        <button
+                          onClick={() =>
+                            navigator.clipboard.writeText(
+                              `${window.location.origin}/track/${order.trackingCode}`
+                            )
+                          }
+                          className="block text-xs mt-1 text-gray-600 hover:text-black underline"
+                        >
+                          Copy Link
+                        </button>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(trackingMessage);
+                            alert("Tracking message copied!");
+                          }}
+                          className="block text-xs mt-1 text-gray-600 hover:text-black underline"
+                        >
+                          Copy Message
+                        </button>
+                      </td>
 
-            <button
-              onClick={() =>
-                navigator.clipboard.writeText(
-                  `${window.location.origin}/track/${order.trackingCode}`
-                )
-              }
-              className="block text-xs mt-1 text-gray-600 hover:text-black underline"
-            >
-              Copy Link
-            </button>
-          </td>
+                      {/* Status */}
+                      <td className="p-3">
+                        <select
+                          value={order.status}
+                          onChange={(e) =>
+                            updateStatus(orderId, e.target.value)
+                          }
+                          className={`border p-1 rounded-md font-medium ${
+                            statusColors[order.status]
+                          }`}
+                        >
+                          {[
+                            "pending",
+                            "in_progress",
+                            "arrived",
+                            "delivered",
+                            "canceled",
+                            "no_show",
+                          ].map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
 
-          {/* Status */}
-          <td className="p-3">
-            <select
-              value={order.status}
-              onChange={(e) => updateStatus(orderId, e.target.value)}
-              className={`border p-1 rounded-md font-medium ${
-                statusColors[order.status]
-              }`}
-            >
-              {[
-                "pending",
-                "in_progress",
-                "arrived",
-                "delivered",
-                "canceled",
-                "no_show",
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </td>
-
-          {/* Actions */}
-          <td className="p-3 space-x-2">
-            <button
-              onClick={() => openDeleteModal(orderId)}
-              className="text-red-600 hover:underline text-sm"
-            >
-              Delete
-            </button>
-          </td>
-        </tr>
-      );
-    })}
-  </tbody>
-</table>
-
+                      {/* Actions */}
+                      <td className="p-3 space-x-2">
+                        <button
+                          onClick={() => openDeleteModal(orderId)}
+                          className="text-red-600 hover:underline text-sm"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
@@ -778,7 +917,6 @@ Normal - 110 Birr, Special - 135 Birr
               </button>
             </div>
           </div>
-          
         </div>
       )}
     </div>

@@ -1,16 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import API from "../api";
+import { useParams, Link } from "react-router-dom";
 import dayjs from "dayjs";
-
-const STATUS_STEPS = [
-  { key: "pending", label: "Order Placed", message: "Your order has been received." },
-  { key: "in_progress", label: "Preparing", message: "Your order is being prepared." },
-  { key: "arrived", label: "Out for Delivery", message: "Your order is on its way!" },
-  { key: "delivered", label: "Delivered", message: "Your order has been delivered." },
-  { key: "canceled", label: "Canceled", message: "Your order was canceled." },
-  { key: "no_show", label: "No Show", message: "We couldn't deliver your order." },
-];
+import API from "../api";
+import TrackingInfoCard from "./TrackingInfoCard";
 
 export default function TrackOrder() {
   const { code } = useParams();
@@ -23,9 +15,12 @@ export default function TrackOrder() {
       try {
         const res = await API.get(`/orders/track/${code}`);
         setOrder(res.data);
+        console.debug("Fetched order:", res.data);
       } catch (err) {
         console.error("Tracking fetch error:", err);
-        setError(err.response?.data?.message || "Failed to fetch tracking info.");
+        setError(
+          err.response?.data?.message || "Failed to fetch tracking info."
+        );
       } finally {
         setLoading(false);
       }
@@ -33,95 +28,94 @@ export default function TrackOrder() {
     fetchTrack();
   }, [code]);
 
-  if (loading) return <div className="p-6">Loading...</div>;
-  if (error) return <div className="p-6 text-red-600">{error}</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500 text-lg">Loading...</div>
+      </div>
+    );
 
-  // Find index of current status in the steps array
-  const currentStepIndex = STATUS_STEPS.findIndex(s => s.key === order.status);
+  if (error)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-red-600 text-lg">{error}</div>
+      </div>
+    );
+
+  const isManual = (order?.source || "").toString().trim().toLowerCase() === "manual";
 
   return (
-    <div className="min-h-screen flex items-start justify-center p-6 bg-gray-50">
-      <div className="bg-white p-6 rounded-lg shadow max-w-lg w-full">
-        <h1 className="text-2xl font-semibold mb-2">Order Tracking — {order.trackingCode}</h1>
-        <p className="text-sm text-gray-600 mb-4">
-          Customer: {order.customerName} • Location: {order.location}
-        </p>
+    <div className="min-h-screen bg-gray-50 py-10 px-4">
+              {/* Back to Home Button */}
+        <div className="mb-4">
+          <Link
+            to="/"
+            className="inline-block px-4 py-2 bg-blue-400 hover:bg-blue-700 text-white text-sm font-medium rounded transition"
+          >
+            ← Back to Home
+          </Link>
+        </div>
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            Tracking Order — <span className="text-amber-700">{order.trackingCode}</span>
+          </h1>
 
-        {/* ✅ Progress Bar */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            {STATUS_STEPS.map((step, idx) => (
-              <div key={step.key} className="flex-1 text-center text-xs font-medium">
-                <div
-                  className={`w-6 h-6 mx-auto rounded-full ${
-                    idx <= currentStepIndex ? "bg-green-500 text-white" : "bg-gray-300 text-gray-500"
-                  } flex items-center justify-center`}
-                >
-                  {idx + 1}
-                </div>
-                <div className="mt-1">{step.label}</div>
-              </div>
-            ))}
-          </div>
-          <div className="relative h-1 bg-gray-300 rounded">
-            <div
-              className="absolute h-1 bg-green-500 rounded"
-              style={{
-                width: `${((currentStepIndex + 1) / STATUS_STEPS.length) * 100}%`,
-              }}
-            ></div>
+          <p className="text-sm text-gray-600">
+            {!isManual && order.customerName ? (
+              <>
+                Customer: <span className="font-medium">{order.customerName}</span> •{" "}
+              </>
+            ) : null}
+            Location: <span className="font-medium">{order.location}</span>
+          </p>
+
+          <div className="mt-3 text-xs text-gray-500">
+            <span>Source: </span>
+            <strong className="capitalize">{(order.source || "online").toString().replace("_", " ")}</strong>
+            <span className="ml-4">Placed: {dayjs(order.createdAt).format("YYYY-MM-DD HH:mm")}</span>
           </div>
         </div>
 
-        {/* ✅ Status message for customer */}
-        <div className="mb-4 p-3 bg-green-50 text-green-700 rounded border border-green-100">
-          {STATUS_STEPS[currentStepIndex]?.message || "Tracking your order..."}
-        </div>
 
-        {/* ✅ Status History */}
-        <div>
-          <h2 className="font-semibold mb-2">Status History</h2>
-          {(order.statusHistory || []).length === 0 ? (
-            <p className="text-sm text-gray-600">No history yet</p>
+
+        {/* Tracking Info Card */}
+        <TrackingInfoCard order={order} hideCustomerWhenManual />
+
+        {/* Status Timeline */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Status Timeline</h2>
+          {!order.statusHistory || order.statusHistory.length === 0 ? (
+            <p className="text-gray-500">No status updates yet.</p>
           ) : (
-            <ul className="space-y-2">
-              {order.statusHistory.map((h, idx) => (
-                <li
-                  key={idx}
-                  className={`p-2 border rounded ${
-                    h.status === order.status ? "border-green-500 bg-green-50" : "border-gray-200"
-                  }`}
-                >
-                  <div className="flex justify-between">
-                    <div className="font-medium capitalize">{h.status.replace("_", " ")}</div>
-                    <div className="text-xs text-gray-500">
-                      {dayjs(h.at).format("YYYY-MM-DD HH:mm")}
+            <div className="relative border-l border-gray-200 ml-4">
+              {order.statusHistory.map((h) => {
+                const isCurrent = h.status === order.status;
+                return (
+                  <div
+                    key={h.id || `${h.status}-${h.at}`}
+                    className="mb-6 ml-6 relative"
+                  >
+                    <span
+                      className={`absolute -left-5 w-4 h-4 rounded-full top-1 ${
+                        isCurrent ? "bg-green-500" : "bg-gray-300"
+                      }`}
+                    />
+                    <div className="flex justify-between items-center">
+                      <div className={`text-gray-800 font-medium capitalize ${isCurrent ? "text-green-600" : ""}`}>
+                        {h.status.replace("_", " ")}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {dayjs(h.at).format("YYYY-MM-DD HH:mm")}
+                      </div>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ul>
+                );
+              })}
+            </div>
           )}
         </div>
-
-        <div className="mt-4 text-sm text-gray-500">
-          Placed on: {dayjs(order.createdAt).format("YYYY-MM-DD HH:mm")}
-        </div>
-
-        {/* ✅ Track URL */}
-        {order.trackUrl && (
-          <div className="mt-4 text-sm">
-            <strong>Tracking Link: </strong>
-            <a
-              href={order.trackUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 underline"
-            >
-              {order.trackUrl}
-            </a>
-          </div>
-        )}
       </div>
     </div>
   );

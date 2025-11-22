@@ -117,69 +117,72 @@ export default function Order() {
     setReviewMode(true);
   };
 
-  // ✅ Updated to handle admin vs normal user
-  const handleConfirmOrder = async () => {
-    setLoading(true);
-    setMessage("");
+const handleConfirmOrder = async () => {
+  setLoading(true);
+  setMessage("");
 
-    const itemList = items.map((item) => {
-      const unitPrice = getUnitPrice(item);
-      const lineTotal = unitPrice * item.quantity;
-      return { ...item, unitPrice, lineTotal };
-    });
+  const itemList = items.map((item) => {
+    const unitPrice = getUnitPrice(item);
+    const lineTotal = unitPrice * item.quantity;
+    return { ...item, unitPrice, lineTotal };
+  });
 
-    const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
+  const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
 
-    const payload = {
-      ...customer,
-      items: itemList,
-      total,
-    };
+  const payload = {
+    ...customer,
+    items: itemList,
+    total,
+  };
 
-    try {
-      let endpoint = "/orders";
-      const headers = {};
+  try {
+    let endpoint = "/orders";
+    const headers = {};
 
-      if (user?.role === "admin") {
-        endpoint = "/orders/manual";
-        const token = localStorage.getItem("token");
-        headers.Authorization = `Bearer ${token}`;
-      }
+    if (user?.role === "admin") {
+      endpoint = "/orders/manual";
+      const token = localStorage.getItem("token");
+      headers.Authorization = `Bearer ${token}`;
+    }
 
-      // ⬅️ API response must return { trackingCode, trackingLink, orderId }
-      const res = await API.post(endpoint, payload, { headers });
+    // ⬅️ API response could be { trackingCode, trackUrl } (guest) or { order: { trackingCode, trackUrl } } (admin)
+    const res = await API.post(endpoint, payload, { headers });
 
+    const orderData = res.data.order || res.data;
 
-    const { order } = res.data;
+    if (!orderData?.trackingCode) {
+      throw new Error("Tracking code not returned by server.");
+    }
 
     setMessage("Order placed successfully!");
     setTracking({
-      trackingCode: order.trackingCode,
-      trackingLink: order.trackUrl,
+      trackingCode: orderData.trackingCode,
+      trackingLink: orderData.trackUrl,
     });
 
-
-      // Reset form
-      setCustomer({ customerName: "", phone: "", location: "" });
-      setItems([
-        {
-          ertibType: "normal",
-          ketchup: true,
-          spices: true,
-          // felafil: true,
-          extraKetchup: false,
-          extraFelafil: false,
-          quantity: 1,
-        },
-      ]);
-      setReviewMode(false);
-    } catch (err) {
-      console.error("❌ Order failed:", err);
-      setMessage("Failed to place order. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Reset form
+    setCustomer({ customerName: "", phone: "", location: "" });
+    setItems([
+      {
+        ertibType: "normal",
+        ketchup: true,
+        spices: true,
+        // felafil: true,
+        extraKetchup: false,
+        extraFelafil: false,
+        quantity: 1,
+      },
+    ]);
+    setReviewMode(false);
+  } catch (err) {
+    console.error("❌ Order failed:", err);
+    setMessage(
+      err.response?.data?.message || err.message || "Failed to place order. Try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleBack = () => setReviewMode(false);
 

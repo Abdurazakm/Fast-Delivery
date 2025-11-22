@@ -366,17 +366,63 @@ router.get("/track/:code", async (req, res) => {
 
     res.json({
       trackingCode: order.trackingCode,
-      trackUrl: order.trackUrl, // <-- add this line
+      trackUrl: order.trackUrl,
       status: order.status,
       statusHistory: order.statusHistory || [],
       customerName: order.customerName,
       location: order.location,
       createdAt: order.createdAt,
       total: order.total,
+      source: order.source,      // ✅ FIXED!!
     });
   } catch (err) {
     console.error("❌ Tracking error:", err);
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+// GET /api/orders/latest
+router.get("/latest", authMiddleware, async (req, res) => {
+  console.log(req.user); // <-- Add it here temporarily to see the user
+
+  try {
+    const latestOrder = await prisma.order.findFirst({
+      where: { userId: req.user.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!latestOrder) return res.status(404).json({ message: "No orders found" });
+
+    res.json(latestOrder);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+router.get("/manual-orders", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const manualOrders = await prisma.order.findMany({
+      where: { source: "manual" },        // only manual orders
+      orderBy: { createdAt: "desc" },    // latest first
+      select: {
+        id: true,
+        trackingCode: true,
+        customerName: true,              // correct field
+        phone: true,                     // correct field
+        location: true,
+        trackUrl: true,
+        createdAt: true,
+      },
+    });
+
+    res.json(manualOrders);
+  } catch (error) {
+    console.error("Error fetching manual orders:", error);
+    res.status(500).json({ message: "Failed to load manual orders." });
   }
 });
 

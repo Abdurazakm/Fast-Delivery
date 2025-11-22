@@ -4,7 +4,7 @@ import { AiOutlineClose } from "react-icons/ai";
 import { FaPlus } from "react-icons/fa";
 import { ArrowRight } from "lucide-react";
 import API from "../api";
-import dayjs from "dayjs";
+import TrackingInfoCard from "./TrackingInfoCard"; // <- Import
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -12,10 +12,37 @@ export default function Home() {
   const [serviceAvailable, setServiceAvailable] = useState(true);
   const navigate = useNavigate();
 
-  // Track order state
   const [trackingCodeInput, setTrackingCodeInput] = useState("");
   const [trackingResult, setTrackingResult] = useState(null);
   const [trackingError, setTrackingError] = useState("");
+  const [latestOrder, setLatestOrder] = useState(null);
+
+
+  // ✅ Fetch user & latest order automatically
+  useEffect(() => {
+    const fetchUserAndOrder = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        const resUser = await API.get("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUser(resUser.data);
+
+        // Fetch latest order
+        const resOrder = await API.get("/orders/latest", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resOrder.data) setTrackingResult(resOrder.data);
+      } catch (err) {
+        console.error("❌ Failed to load user or order:", err);
+      }
+    };
+    fetchUserAndOrder();
+  }, []);
+
+  
 
   const handleTrackOrder = async () => {
     if (!trackingCodeInput.trim()) {
@@ -23,7 +50,6 @@ export default function Home() {
       setTrackingResult(null);
       return;
     }
-
     try {
       const res = await API.get(`/orders/track/${trackingCodeInput.trim()}`);
       setTrackingResult(res.data);
@@ -212,122 +238,45 @@ export default function Home() {
           )}
         </div>
       </div>
+  {user?.role !== "admin" && (
+  <div className="mt-10 max-w-md w-full mx-auto bg-white p-6 rounded-2xl shadow text-center">
+    <h3 className="font-semibold text-lg mb-3 text-amber-700">
+      Track Your Order
+    </h3>
 
-      {/* ✅ Track Order Section */}
-<div className="mt-10 max-w-md w-full mx-auto bg-white p-6 rounded-2xl shadow text-center">
-  <h3 className="font-semibold text-lg mb-3 text-amber-700">Track Your Order</h3>
-
-  <div className="flex gap-2 mb-3">
-    <input
-      type="text"
-      placeholder="Enter your tracking code"
-      value={trackingCodeInput}
-      onChange={(e) => setTrackingCodeInput(e.target.value)}
-      className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-    />
-    <button
-      onClick={handleTrackOrder}
-      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
-    >
-      Track
-    </button>
-  </div>
-
-  {trackingError && <div className="text-red-600 text-sm">{trackingError}</div>}
-
-  {trackingResult && (
-    <div className="mt-3 p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm text-left">
-      {/* Customer Info */}
-      <div className="font-semibold mb-2">📦 Order Details</div>
-      <div className="mb-1">
-        <strong>Customer:</strong> {trackingResult.customerName}
-      </div>
-      <div className="mb-1">
-        <strong>Status:</strong> {trackingResult.status.replace("_", " ")}
-      </div>
-      <div className="mb-1">
-        <strong>Tracking Link:</strong>{" "}
-        <a
-          href={trackingResult.trackUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline text-blue-700"
+    {/* Authenticated users: show their latest order automatically */}
+    {user ? (
+      <>
+        {latestOrder ? (
+          <TrackingInfoCard order={latestOrder} />
+        ) : (
+          <div className="text-gray-500">No orders found.</div>
+        )}
+      </>
+    ) : (
+      /* Guest users: allow manual tracking via input */
+      <div className="flex gap-2 mb-3">
+        <input
+          type="text"
+          placeholder="Enter your tracking code"
+          value={trackingCodeInput}
+          onChange={(e) => setTrackingCodeInput(e.target.value)}
+          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+        />
+        <button
+          onClick={handleTrackOrder}
+          className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
         >
-          {trackingResult.trackUrl}
-        </a>
+          Track
+        </button>
       </div>
+    )}
 
-      {/* ✅ Responsive Horizontal Progress Steps */}
-      {(() => {
-        const statusSteps = ["pending", "in_progress", "arrived", "delivered"];
-        const currentIndex = statusSteps.indexOf(trackingResult.status);
-
-        return (
-          <div className="mt-4 overflow-x-auto">
-            <div className="flex items-center space-x-4 min-w-max">
-              {statusSteps.map((status, idx) => {
-                const isCompleted = idx < currentIndex;
-                const isCurrent = idx === currentIndex;
-                return (
-                  <div key={status} className="flex flex-col items-center relative">
-                    {/* Circle */}
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-white z-10 
-                        ${isCompleted ? "bg-green-500" : isCurrent ? "bg-green-500 animate-pulse" : "bg-gray-300"}`}
-                    >
-                      {idx + 1}
-                    </div>
-                    {/* Label */}
-                    <span className="mt-1 text-xs text-center capitalize w-20">
-                      {status.replace("_", " ")}
-                    </span>
-
-                    {/* Connecting Line */}
-                    {idx < statusSteps.length - 1 && (
-                      <div
-                        className={`absolute top-4 left-1/2 w-full h-1 -translate-x-1/2 ${
-                          idx < currentIndex ? "bg-green-500" : "bg-gray-300"
-                        } transition-all duration-700`}
-                      ></div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Progress Bar */}
-            <div className="relative h-1 bg-gray-300 rounded mt-3">
-              <div
-                className="absolute h-1 bg-green-500 rounded transition-all duration-700 ease-in-out"
-                style={{
-                  width: `${((currentIndex + 1) / statusSteps.length) * 100}%`,
-                }}
-              ></div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ✅ Status Message */}
-      <div className="mt-2 p-2 bg-green-50 text-green-700 rounded border border-green-100 text-xs">
-        {(() => {
-          switch (trackingResult.status) {
-            case "pending":
-              return "✅ Your order has been received.";
-            case "in_progress":
-              return "👩‍🍳 Your order is being prepared.";
-            case "arrived":
-              return "🚴‍♂️ Your order is on the way!";
-            case "delivered":
-              return "🎉 Your order has been delivered.";
-            default:
-              return "Tracking your order...";
-          }
-        })()}
-      </div>
-    </div>
-  )}
-</div>
+    {trackingError && (
+      <div className="text-red-600 text-sm">{trackingError}</div>
+    )}
+  </div>
+)}
 
 
       {/* ✅ Features */}

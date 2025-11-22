@@ -51,7 +51,7 @@ const checkAvailability = (now = new Date()) => {
   // const minute = 30;
   // const hour = 17;
 
-  const workingDay = day >= 1 && day <= 4; // Mon–Thu
+  const workingDay = day >= 1 && day <= 6; // Mon–Thu
   const beforeClosing = hour < 17 || (hour === 17 && minute <= 30); // before 5:30 PM
 
   return workingDay && beforeClosing; // true if service is available
@@ -71,7 +71,7 @@ function ProtectedRoute({ children, user, loadingUser }) {
   if (!serviceAvailable) {
     const now = new Date();
     const day = now.getDay();
-    const workingDay = day >= 1 && day <= 4; // Mon–Thu
+    const workingDay = day >= 1 && day <= 6; // Mon–Thu
 
     return (
       <Modal
