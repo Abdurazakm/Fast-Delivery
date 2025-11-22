@@ -298,6 +298,13 @@ export default function Home() {
           {trackingError && (
             <div className="text-red-600 text-sm">{trackingError}</div>
           )}
+
+          {/* Show tracking result for guest users */}
+          {trackingResult && (
+            <div className="mt-3">
+              <TrackingInfoCard order={trackingResult} />
+            </div>
+          )}
         </div>
       )}
 
