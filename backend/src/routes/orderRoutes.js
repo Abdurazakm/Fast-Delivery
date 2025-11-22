@@ -93,16 +93,10 @@ router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-/**
- * ------------------------
- *  Create Online Order
- * ------------------------
- */
 router.post("/", checkServiceAvailability, async (req, res) => {
   try {
     const { customerName, phone, location, items } = req.body;
 
-    // Basic validation
     if (
       !customerName ||
       !phone ||
@@ -118,48 +112,50 @@ router.post("/", checkServiceAvailability, async (req, res) => {
       return res.status(400).json({ message: "Invalid phone number" });
     }
 
-    // Duplicate detection
-    if (await isDuplicate(normalizedPhone, items)) {
-      return res.status(400).json({ message: "Duplicate order detected" });
-    }
-
-    // Build items + total
     let total = 0;
     const builtItems = items.map((it) => {
       const unitPrice = calcUnitPrice(it);
       const quantity = parseInt(it.quantity) || 1;
-      const lineTotal = unitPrice * quantity;
-      total += lineTotal;
-
-      return { ...it, quantity, unitPrice, lineTotal };
+      total += unitPrice * quantity;
+      return { ...it, quantity, unitPrice, lineTotal: unitPrice * quantity };
     });
 
     const trackingCode = generateTrackingCode();
     const trackUrl = `${TRACK_BASE_URL}/${trackingCode}`;
 
-    const order = await prisma.order.create({
-      data: {
-        customerName,
-        phone: normalizedPhone,
-        location,
-        source: "online",
-        items: builtItems,
-        smsHistory: [],
-        total,
-        trackingCode,
-        trackUrl,
-        statusHistory: [
-          {
-            status: "pending",
-            at: new Date().toISOString(),
-          },
-        ],
-      },
-    });
+    // Optional userId
+    let userId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      const token = authHeader.split(" ")[1];
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          userId = decoded.id; // assign userId if logged in
+        } catch (err) {
+          console.warn("⚠️ Invalid token, proceeding as guest");
+        }
+      }
+    }
+
+    const orderData = {
+      customerName,
+      phone: normalizedPhone,
+      location,
+      source: "online",
+      items: builtItems,
+      smsHistory: [],
+      total,
+      trackingCode,
+      trackUrl,
+      statusHistory: [{ status: "pending", at: new Date().toISOString() }],
+      userId, // <-- null if guest
+    };
+
+    const order = await prisma.order.create({ data: orderData });
 
     // Send SMS (non-blocking)
     const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
-
     sendSMS(normalizedPhone, smsText)
       .then((smsResp) =>
         prisma.order.update({
@@ -179,7 +175,6 @@ router.post("/", checkServiceAvailability, async (req, res) => {
       )
       .catch((err) => console.error("❌ SMS failed:", err));
 
-    // Response
     return res.json({
       message: "Order placed successfully",
       orderId: order.id,
@@ -191,7 +186,6 @@ router.post("/", checkServiceAvailability, async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 });
-
 
 /**
  * ------------------------
@@ -236,12 +230,8 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
         trackingCode,
         trackUrl,
         notes,
-        statusHistory: [
-          {
-            status: "pending",
-            at: new Date().toISOString(),
-          },
-        ],
+        statusHistory: [{ status: "pending", at: new Date().toISOString() }],
+        userId: req.user?.id || null, // optional
       },
     });
 
@@ -276,7 +266,6 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 });
-
 
 /**
  * ------------------------
@@ -373,7 +362,7 @@ router.get("/track/:code", async (req, res) => {
       location: order.location,
       createdAt: order.createdAt,
       total: order.total,
-      source: order.source,      // ✅ FIXED!!
+      source: order.source, // ✅ FIXED!!
     });
   } catch (err) {
     console.error("❌ Tracking error:", err);
@@ -381,50 +370,46 @@ router.get("/track/:code", async (req, res) => {
   }
 });
 
-
-
-// GET /api/orders/latest
 router.get("/latest", authMiddleware, async (req, res) => {
-  console.log(req.user); // <-- Add it here temporarily to see the user
-
   try {
     const latestOrder = await prisma.order.findFirst({
-      where: { userId: req.user.id },
+      where: { userId: req.user.id }, // MUST match userId
       orderBy: { createdAt: "desc" },
     });
 
-    if (!latestOrder) return res.status(404).json({ message: "No orders found" });
-
-    res.json(latestOrder);
+    res.json(latestOrder || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+router.get(
+  "/manual-orders",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const manualOrders = await prisma.order.findMany({
+        where: { source: "manual" }, // only manual orders
+        orderBy: { createdAt: "desc" }, // latest first
+        select: {
+          id: true,
+          trackingCode: true,
+          customerName: true, // correct field
+          phone: true, // correct field
+          location: true,
+          trackUrl: true,
+          createdAt: true,
+        },
+      });
 
-
-router.get("/manual-orders", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const manualOrders = await prisma.order.findMany({
-      where: { source: "manual" },        // only manual orders
-      orderBy: { createdAt: "desc" },    // latest first
-      select: {
-        id: true,
-        trackingCode: true,
-        customerName: true,              // correct field
-        phone: true,                     // correct field
-        location: true,
-        trackUrl: true,
-        createdAt: true,
-      },
-    });
-
-    res.json(manualOrders);
-  } catch (error) {
-    console.error("Error fetching manual orders:", error);
-    res.status(500).json({ message: "Failed to load manual orders." });
+      res.json(manualOrders);
+    } catch (error) {
+      console.error("Error fetching manual orders:", error);
+      res.status(500).json({ message: "Failed to load manual orders." });
+    }
   }
-});
+);
 
 /**
  * ------------------------
@@ -528,7 +513,7 @@ router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
 
     let uniqueNumbers = [...new Set(allNumbers)];
 
-      // Exclude your number — not part of promo
+    // Exclude your number — not part of promo
     uniqueNumbers = uniqueNumbers.filter((n) => n !== "0954724664");
 
     if (!uniqueNumbers.length)
@@ -536,7 +521,7 @@ router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
 
     console.log("📤 Sending bulk SMS to:", uniqueNumbers.length);
 
-      // 2. Retry function (3 attempts)
+    // 2. Retry function (3 attempts)
     const sendWithRetry = async (phone, message) => {
       let attempts = 0;
       while (attempts < 3) {
@@ -552,7 +537,7 @@ router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
       }
     };
 
-      // 3. Parallel sending (fast)
+    // 3. Parallel sending (fast)
     const firstResults = await Promise.all(
       uniqueNumbers.map((phone) => sendWithRetry(phone, message))
     );
@@ -563,7 +548,7 @@ router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
 
     console.log("⏳ Scheduled retry for:", failedNumbers.length, "numbers");
 
-      // 4. Auto Retry After 10 Minutes
+    // 4. Auto Retry After 10 Minutes
     setTimeout(async () => {
       console.log("🔁 Retrying failed numbers after 10 minutes...");
 
@@ -602,7 +587,7 @@ router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
       }
     }, 10 * 60 * 1000);
 
-      // 5. Response to frontend immediately
+    // 5. Response to frontend immediately
     const sent = firstResults.filter((r) => r.status === "sent").length;
     const failed = firstResults.filter((r) => r.status === "failed").length;
 
