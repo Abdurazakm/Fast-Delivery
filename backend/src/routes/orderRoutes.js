@@ -346,23 +346,37 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
  */
 router.get("/track/:code", async (req, res) => {
   try {
-    const order = await prisma.order.findUnique({
-      where: { trackingCode: req.params.code },
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // start of today
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1); // start of tomorrow
+
+    const order = await prisma.order.findFirst({
+      where: {
+        trackingCode: req.params.code,
+        createdAt: {
+          gte: today,
+          lt: tomorrow, // only today's orders
+        },
+      },
     });
 
     if (!order)
-      return res.status(404).json({ message: "Tracking code not found" });
+      return res.status(404).json({ message: "No order found for today with this tracking code" });
 
     res.json({
+      id: order.id,
       trackingCode: order.trackingCode,
       trackUrl: order.trackUrl,
       status: order.status,
       statusHistory: order.statusHistory || [],
       customerName: order.customerName,
+      phone: order.phone,
       location: order.location,
       createdAt: order.createdAt,
       total: order.total,
-      source: order.source, // ✅ FIXED!!
+      items: order.items || [],
+      source: order.source,
     });
   } catch (err) {
     console.error("❌ Tracking error:", err);
@@ -370,18 +384,107 @@ router.get("/track/:code", async (req, res) => {
   }
 });
 
+
+/**
+ * Update order by tracking code (guest or authenticated)
+ * Only allowed before 17:30 server local time
+ */
+router.put("/track/:code", async (req, res) => {
+  try {
+    const code = req.params.code;
+    const order = await prisma.order.findUnique({
+      where: { trackingCode: code },
+    });
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // Time restriction: only allow before 17:30
+    const now = new Date();
+    const hrs = now.getHours();
+    const mins = now.getMinutes();
+    if (hrs > 17 || (hrs === 17 && mins >= 30)) {
+      return res
+        .status(400)
+        .json({
+          message: "You can only edit or cancel your order before 5:30.",
+        });
+    }
+
+    const { customerName, phone, location, items, total } = req.body;
+
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        customerName: customerName ?? order.customerName,
+        phone: phone ?? order.phone,
+        location: location ?? order.location,
+        items: items ?? order.items,
+        total: total ?? order.total,
+      },
+    });
+
+    res.json({ message: "Order updated", order: updated });
+  } catch (err) {
+    console.error("❌ Error updating order by tracking code:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * Delete order by tracking code (guest or authenticated)
+ * Only allowed before 17:30 server local time
+ */
+router.delete("/track/:code", async (req, res) => {
+  try {
+    const code = req.params.code;
+    const order = await prisma.order.findUnique({
+      where: { trackingCode: code },
+    });
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // Time restriction: only allow before 17:30
+    const now = new Date();
+    const hrs = now.getHours();
+    const mins = now.getMinutes();
+    if (hrs > 17 || (hrs === 17 && mins >= 30)) {
+      return res
+        .status(400)
+        .json({
+          message: "You can only edit or cancel your order before 5:30.",
+        });
+    }
+
+    await prisma.order.delete({ where: { id: order.id } });
+    res.json({ message: "Order deleted successfully" });
+  } catch (err) {
+    console.error("❌ Error deleting order by tracking code:", err);
+    res.status(500).json({ message: "Server error while deleting order" });
+  }
+});
+
 router.get("/latest", authMiddleware, async (req, res) => {
   try {
-    const latestOrder = await prisma.order.findFirst({
-      where: { userId: req.user.id }, // MUST match userId
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // start of today
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1); // start of tomorrow
+
+    const todaysOrder = await prisma.order.findFirst({
+      where: {
+        userId: req.user.id,
+        createdAt: {
+          gte: today,
+          lt: tomorrow, // only today's orders
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
 
-    res.json(latestOrder || null);
+    res.json(todaysOrder || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 router.get(
   "/manual-orders",
@@ -395,11 +498,15 @@ router.get(
         select: {
           id: true,
           trackingCode: true,
-          customerName: true, // correct field
-          phone: true, // correct field
+          customerName: true,
+          phone: true,
           location: true,
           trackUrl: true,
           createdAt: true,
+          // include items and total so admin UI can show details and summaries
+          items: true,
+          total: true,
+          status: true,
         },
       });
 

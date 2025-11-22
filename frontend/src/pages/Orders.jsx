@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
 import API from "../api";
 
@@ -26,6 +26,10 @@ export default function Order() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [reviewMode, setReviewMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editCode, setEditCode] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Fetch logged-in user
   useEffect(() => {
@@ -48,6 +52,39 @@ export default function Order() {
     };
     fetchUser();
   }, []);
+
+  // Check for edit query param to prefill form
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const code = params.get("edit");
+    if (!code) return;
+
+    const fetchForEdit = async () => {
+      try {
+        const res = await API.get(`/orders/track/${code}`);
+        const o = res.data;
+        if (o) {
+          setCustomer({
+            customerName: o.customerName || "",
+            phone: o.phone || "",
+            location: o.location || "",
+          });
+          setItems(o.items && o.items.length ? o.items : items);
+          setEditMode(true);
+          setEditCode(code);
+          setMessage("Editing existing order — update values and confirm.");
+        }
+      } catch (err) {
+        console.error("Failed to load order for edit:", err);
+        setMessage(
+          err.response?.data?.message || "Failed to load order for edit."
+        );
+      }
+    };
+
+    fetchForEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -117,74 +154,122 @@ export default function Order() {
     setReviewMode(true);
   };
 
-const handleConfirmOrder = async () => {
-  setLoading(true);
-  setMessage("");
+  const handleConfirmOrder = async () => {
+    setLoading(true);
+    setMessage("");
 
-  const itemList = items.map((item) => {
-    const unitPrice = getUnitPrice(item);
-    const lineTotal = unitPrice * item.quantity;
-    return { ...item, unitPrice, lineTotal };
-  });
-
-  const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
-
-  const payload = {
-    ...customer,
-    items: itemList,
-    total,
-  };
-
-  try {
-    let endpoint = "/orders";
-    const headers = {};
-
-    if (user?.role === "admin") {
-      endpoint = "/orders/manual";
-      const token = localStorage.getItem("token");
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    // ⬅️ API response could be { trackingCode, trackUrl } (guest) or { order: { trackingCode, trackUrl } } (admin)
-    const res = await API.post(endpoint, payload, { headers });
-
-    const orderData = res.data.order || res.data;
-
-    if (!orderData?.trackingCode) {
-      throw new Error("Tracking code not returned by server.");
-    }
-
-    setMessage("Order placed successfully!");
-    setTracking({
-      trackingCode: orderData.trackingCode,
-      trackingLink: orderData.trackUrl,
+    const itemList = items.map((item) => {
+      const unitPrice = getUnitPrice(item);
+      const lineTotal = unitPrice * item.quantity;
+      return { ...item, unitPrice, lineTotal };
     });
 
-    // Reset form
-    setCustomer({ customerName: "", phone: "", location: "" });
-    setItems([
-      {
-        ertibType: "normal",
-        ketchup: true,
-        spices: true,
-        // felafil: true,
-        extraKetchup: false,
-        extraFelafil: false,
-        quantity: 1,
-      },
-    ]);
-    setReviewMode(false);
-  } catch (err) {
-    console.error("❌ Order failed:", err);
-    setMessage(
-      err.response?.data?.message || err.message || "Failed to place order. Try again."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+    const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
+
+    const payload = {
+      ...customer,
+      items: itemList,
+      total,
+    };
+
+    try {
+      if (editMode && editCode) {
+        // Update existing order by tracking code
+        const res = await API.put(`/orders/track/${editCode}`, payload);
+        const updated = res.data.order || res.data;
+        setMessage("Order updated successfully!");
+        setTracking({
+          trackingCode: updated.trackingCode || editCode,
+          trackingLink: updated.trackUrl,
+        });
+        // clear edit mode and redirect to tracking page
+        setEditMode(false);
+        setEditCode(null);
+        navigate(`/track/${updated.trackingCode || editCode}`);
+      } else {
+        let endpoint = "/orders";
+        const headers = {};
+
+        if (user?.role === "admin") {
+          endpoint = "/orders/manual";
+          const token = localStorage.getItem("token");
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        // Create new order
+        const res = await API.post(endpoint, payload, { headers });
+
+        const orderData = res.data.order || res.data;
+
+        if (!orderData?.trackingCode) {
+          throw new Error("Tracking code not returned by server.");
+        }
+
+        setMessage("Order placed successfully!");
+        setTracking({
+          trackingCode: orderData.trackingCode,
+          trackingLink: orderData.trackUrl,
+        });
+      }
+
+      // Reset form for both create and update flows
+      setCustomer({ customerName: "", phone: "", location: "" });
+      setItems([
+        {
+          ertibType: "normal",
+          ketchup: true,
+          spices: true,
+          // felafil: true,
+          extraKetchup: false,
+          extraFelafil: false,
+          quantity: 1,
+        },
+      ]);
+      setReviewMode(false);
+    } catch (err) {
+      console.error("❌ Order failed:", err);
+      setMessage(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to place order. Try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleBack = () => setReviewMode(false);
+
+  const getMessageMeta = (msg) => {
+    if (!msg) return { container: "", icon: "" };
+    const lower = msg.toLowerCase();
+    if (lower.includes("successfully")) {
+      return {
+        container: "bg-green-100 text-green-800 border border-green-300",
+        icon: "✅",
+      };
+    }
+
+    if (
+      lower.includes("failed") ||
+      lower.includes("error") ||
+      lower.includes("invalid") ||
+      lower.includes("not found")
+    ) {
+      return {
+        container: "bg-red-100 text-red-800 border border-red-300",
+        icon: "❌",
+      };
+    }
+
+    // Default to info style for neutral messages (like editing notice)
+    return {
+      container: "bg-amber-100 text-amber-800 border border-amber-300",
+      icon: "ℹ️",
+    };
+  };
+
+  const msgMeta = getMessageMeta(message);
 
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-start p-6 bg-gradient-to-br from-amber-600 via-orange-500 to-red-600">
@@ -229,14 +314,10 @@ const handleConfirmOrder = async () => {
       <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
         {message && (
           <div
-            className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${
-              message.includes("successfully")
-                ? "bg-green-100 text-green-800 border border-green-300"
-                : "bg-red-100 text-red-800 border border-red-300"
-            }`}
+            className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${msgMeta.container}`}
           >
             <div className="flex items-center gap-2">
-              <span>{message.includes("successfully") ? "✅" : "❌"}</span>
+              <span>{msgMeta.icon}</span>
               <span>{message}</span>
             </div>
             <button
@@ -247,56 +328,59 @@ const handleConfirmOrder = async () => {
             </button>
           </div>
         )}
-       {tracking && (
-  <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm">
-    <div className="flex items-center justify-between mb-2">
-      <div className="font-semibold text-sm">📦 Order Tracking Details</div>
-      <button
-        onClick={() => setTracking(null)}
-        className="text-xs text-gray-500 hover:text-gray-800"
-        title="Hide tracking info"
-      >
-        ✖
-      </button>
-    </div>
+        {tracking && (
+          <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="font-semibold text-sm">
+                📦 Order Tracking Details
+              </div>
+              <button
+                onClick={() => setTracking(null)}
+                className="text-xs text-gray-500 hover:text-gray-800"
+                title="Hide tracking info"
+              >
+                ✖
+              </button>
+            </div>
 
-    <div className="mb-2">
-      <strong>Tracking Code:</strong>{" "}
-      <span className="bg-gray-200 px-2 py-1 rounded">{tracking.trackingCode}</span>
-      <button
-        onClick={() => {
-          navigator.clipboard.writeText(tracking.trackingCode);
-          alert("Tracking code copied!");
-        }}
-        className="ml-2 text-xs text-blue-700 underline"
-      >
-        Copy
-      </button>
-    </div>
+            <div className="mb-2">
+              <strong>Tracking Code:</strong>{" "}
+              <span className="bg-gray-200 px-2 py-1 rounded">
+                {tracking.trackingCode}
+              </span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(tracking.trackingCode);
+                  alert("Tracking code copied!");
+                }}
+                className="ml-2 text-xs text-blue-700 underline"
+              >
+                Copy
+              </button>
+            </div>
 
-    <div className="mb-2">
-      <strong>Tracking Link:</strong>{" "}
-      <a
-        href={tracking.trackingLink}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="underline text-blue-700"
-      >
-        View Order
-      </a>
-      <button
-        onClick={() => {
-          navigator.clipboard.writeText(tracking.trackingLink);
-          alert("Tracking link copied!");
-        }}
-        className="ml-2 text-xs text-blue-700 underline"
-      >
-        Copy Link
-      </button>
-    </div>
-  </div>
-)}
-
+            <div className="mb-2">
+              <strong>Tracking Link:</strong>{" "}
+              <a
+                href={tracking.trackingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-blue-700"
+              >
+                View Order
+              </a>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(tracking.trackingLink);
+                  alert("Tracking link copied!");
+                }}
+                className="ml-2 text-xs text-blue-700 underline"
+              >
+                Copy Link
+              </button>
+            </div>
+          </div>
+        )}
 
         <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
           🥙 Place Your Ertib Order

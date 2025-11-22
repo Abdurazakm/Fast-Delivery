@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FaPlus,
   FaPaperPlane,
   FaPhoneAlt,
   FaRegEnvelope,
+  FaEdit,
+  FaTrash,
+  FaCopy,
+  FaExternalLinkAlt,
 } from "react-icons/fa";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
@@ -13,6 +17,7 @@ import API from "../../api";
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [selectedDate, setSelectedDate] = useState(dayjs());
@@ -27,6 +32,7 @@ export default function AdminDashboard() {
   const [smsModalOpen, setSmsModalOpen] = useState(false);
   const [smsMessage, setSmsMessage] = useState("");
   const [smsDay, setSmsDay] = useState(""); // Mon, Tue, etc.
+  const [toast, setToast] = useState(null);
 
   const token = localStorage.getItem("token");
 
@@ -405,6 +411,12 @@ Normal - 110 Birr, Special - 135 Birr
     setSmsMessage(promoMessages[day] || "");
   };
 
+  // Lightweight toast helper
+  const showToast = (msg, ms = 3000) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), ms);
+  };
+
   const sendBulkSMS = async () => {
     try {
       await API.post(
@@ -412,11 +424,11 @@ Normal - 110 Birr, Special - 135 Birr
         { message: smsMessage, day: smsDay },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("✅ SMS sent successfully!");
+      showToast("✅ SMS sent successfully!");
       closeSmsModal();
     } catch (err) {
       console.error("Failed to send bulk SMS:", err);
-      alert("❌ Failed to send SMS");
+      showToast("❌ Failed to send SMS");
     }
   };
 
@@ -680,8 +692,30 @@ Normal - 110 Birr, Special - 135 Birr
                     ? `${order.source || "o"}-${orderId}`
                     : `${order.source || "o"}-${idx}`;
 
-                  // Build the copy message for the customer
-                  const trackingMessage = `Hello ${order.customerName}, your order has been placed. Track it here: ${window.location.origin}/track/${order.trackingCode} (Code: ${order.trackingCode})`;
+                  // Build a professional tracking message depending on order status
+                  const baseLink = `${window.location.origin}/track/${order.trackingCode}`;
+                  const trackingMessage = (() => {
+                    const name = order.customerName || "Customer";
+                    const code = order.trackingCode || orderId || "--";
+                    const greeting =
+                      order.source === "manual" ? "Hello" : `Hello ${name}`;
+                    switch ((order.status || "").toLowerCase()) {
+                      case "pending":
+                        return `${greeting}, your order (Code: ${code}) is pending. We have received your request and will notify you when it is being prepared. Track your order: ${baseLink}`;
+                      case "in_progress":
+                        return `${greeting}, your order (Code: ${code}) is being prepared and will be out for delivery shortly. Track its progress here: ${baseLink}`;
+                      case "arrived":
+                        return `${greeting}, your order (Code: ${code}) has arrived. Please pick it up near the location you provided: ${
+                          order.location || "your specified address"
+                        }. Track: ${baseLink}`;
+                      case "delivered":
+                        return `${greeting}, your order (Code: ${code}) has been delivered. Thank you for choosing Fast Delivery! If you have feedback, reply to this message.`;
+                      default:
+                        return `Hello ${name}, your order (Code: ${code}) status: ${
+                          order.status || "unknown"
+                        }. Track: ${baseLink}`;
+                    }
+                  })();
 
                   // Compute a safe displayed total for the order (fall back to items if needed)
                   const displayedTotal =
@@ -732,7 +766,7 @@ Normal - 110 Birr, Special - 135 Birr
                               className="border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
                             >
                               <p className="font-semibold text-gray-800">
-                                {qty}×{item.ertibType || "—"} 
+                                {qty}×{item.ertibType || "—"}
                               </p>
                               <ul className="text-gray-600 list-disc list-inside">
                                 {item.ketchup && item.spices ? (
@@ -763,28 +797,24 @@ Normal - 110 Birr, Special - 135 Birr
                           href={`/track/${order.trackingCode}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 underline text-xs"
+                          className="inline-flex items-center gap-2 text-sm px-2 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded hover:bg-blue-100"
+                          title="Open tracking page"
                         >
-                          View Tracking
+                          <FaExternalLinkAlt className="text-sm" />
+                          <span className="hidden sm:inline">
+                            Open Tracking
+                          </span>
                         </a>
-                        <button
-                          onClick={() =>
-                            navigator.clipboard.writeText(
-                              `${window.location.origin}/track/${order.trackingCode}`
-                            )
-                          }
-                          className="block text-xs mt-1 text-gray-600 hover:text-black underline"
-                        >
-                          Copy Link
-                        </button>
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(trackingMessage);
-                            alert("Tracking message copied!");
+                            showToast("Tracking message copied!");
                           }}
-                          className="block text-xs mt-1 text-gray-600 hover:text-black underline"
+                          title="Copy tracking message"
+                          className="block mt-1 text-gray-600 hover:text-black p-1 rounded"
+                          aria-label="Copy tracking message"
                         >
-                          Copy Message
+                          <FaCopy className="text-sm" />
                         </button>
                       </td>
 
@@ -815,12 +845,27 @@ Normal - 110 Birr, Special - 135 Birr
                       </td>
 
                       {/* Actions */}
-                      <td className="p-3 space-x-2">
+                      <td className="p-3 space-x-2 flex items-center">
                         <button
-                          onClick={() => openDeleteModal(orderId)}
-                          className="text-red-600 hover:underline text-sm"
+                          title="Edit order"
+                          onClick={() =>
+                            navigate(
+                              `/order?edit=${encodeURIComponent(
+                                order.trackingCode || orderId
+                              )}`
+                            )
+                          }
+                          className="text-amber-600 hover:text-amber-800 p-2 rounded-md"
                         >
-                          Delete
+                          <FaEdit />
+                        </button>
+
+                        <button
+                          title="Delete order"
+                          onClick={() => openDeleteModal(orderId)}
+                          className="text-red-600 hover:text-red-800 p-2 rounded-md"
+                        >
+                          <FaTrash />
                         </button>
                       </td>
                     </tr>
@@ -864,6 +909,14 @@ Normal - 110 Birr, Special - 135 Birr
         )}
       </div>
       {/* Floating SMS Button */}
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-20 right-6 z-50">
+          <div className="bg-black bg-opacity-90 text-white px-4 py-2 rounded-lg shadow-lg max-w-xs">
+            <div className="text-sm">{toast}</div>
+          </div>
+        </div>
+      )}
       <button
         onClick={openSmsModal}
         className="fixed bottom-6 right-6 bg-amber-500 hover:bg-amber-600 text-white p-4 rounded-full shadow-lg z-50 flex items-center justify-center"

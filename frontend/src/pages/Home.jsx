@@ -4,7 +4,7 @@ import { AiOutlineClose } from "react-icons/ai";
 import { FaPlus } from "react-icons/fa";
 import { ArrowRight } from "lucide-react";
 import API from "../api";
-import TrackingInfoCard from "./TrackingInfoCard"; // <- Import
+import TrackingInfoCard from "./TrackingInfoCard";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -17,11 +17,11 @@ export default function Home() {
   const [trackingError, setTrackingError] = useState("");
   const [latestOrder, setLatestOrder] = useState(null);
 
-  // ✅ Fetch user & latest order automatically (with JWT)
+  // Fetch user & latest order (today-only)
   useEffect(() => {
     const fetchUserAndOrder = async () => {
       const token = localStorage.getItem("token");
-      if (!token) return; // no token, user not logged in
+      if (!token) return;
 
       try {
         // 1️⃣ Fetch authenticated user
@@ -41,20 +41,14 @@ export default function Home() {
             // Only set latestOrder if data exists
             setLatestOrder(resOrder.data);
           } else {
-            setLatestOrder(null); // no orders
-            console.log("No orders found for this user");
+            setLatestOrder(null);
           }
         } catch (orderErr) {
-          // 404 = no orders
-          if (orderErr.response?.status === 404) {
-            setLatestOrder(null);
-            console.log("No orders found for this user");
-          } else {
-            console.error("❌ Failed to fetch latest order:", orderErr);
-          }
+          setLatestOrder(null);
+          console.log("No orders found for today.");
         }
       } catch (err) {
-        console.error("❌ Failed to fetch user or latest order:", err);
+        console.error("❌ Failed to fetch user or order:", err);
         setUser(null);
         setLatestOrder(null);
       }
@@ -63,8 +57,10 @@ export default function Home() {
     fetchUserAndOrder();
   }, []);
 
+  // Updated handleTrackOrder for guests (today-only)
   const handleTrackOrder = async () => {
-    if (!trackingCodeInput.trim()) {
+    const code = trackingCodeInput.trim();
+    if (!code) {
       setTrackingError("Please enter your tracking code.");
       setTrackingResult(null);
       return;
@@ -73,16 +69,29 @@ export default function Home() {
     try {
       setTrackingResult(null);
       setTrackingError("");
-      const res = await API.get(`/orders/track/${trackingCodeInput.trim()}`);
+
+      const res = await API.get(`/orders/track/${code}`);
+
+      if (!res.data) {
+        setTrackingResult(null);
+        setTrackingError("No order today with this tracking code.");
+        return;
+      }
+
       setTrackingResult(res.data);
+      setTrackingError("");
     } catch (err) {
       console.error("❌ Tracking error:", err);
       setTrackingResult(null);
-      setTrackingError("Order not found or invalid tracking code.");
+      if (err.response?.status === 404) {
+        setTrackingError("No order today with this tracking code.");
+      } else {
+        setTrackingError("Server error. Please try again.");
+      }
     }
   };
 
-  // ✅ Check service availability (Mon–Thu until 5:30 PM)
+  // Service availability check
   useEffect(() => {
     const checkAvailability = () => {
       const now = new Date();
@@ -114,32 +123,12 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // ✅ Fetch user info
-  useEffect(() => {
-    const fetchUser = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-
-      try {
-        const res = await API.get("/auth/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setUser(res.data);
-      } catch (err) {
-        console.error("❌ Failed to load user:", err);
-      }
-    };
-    fetchUser();
-  }, []);
-
-  // ✅ Logout
   const handleLogout = () => {
     localStorage.removeItem("token");
     setUser(null);
     setMessage("Logged out successfully!");
   };
 
-  // ✅ Safe order click handler (works for mobile & desktop)
   const handleOrderClick = () => {
     if (!serviceAvailable && user?.role !== "admin") {
       alert(
@@ -151,12 +140,9 @@ export default function Home() {
     navigate("/order");
   };
 
-  // Status steps for progress bar
-  const statusSteps = ["pending", "in_progress", "arrived", "delivered"];
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-orange-100 p-6">
-      {/* ✅ Top Right Auth Buttons */}
+      {/* Top Right Auth Buttons */}
       <div className="w-full flex items-center justify-end max-w-6xl mb-6">
         {!user ? (
           <Link
@@ -180,13 +166,11 @@ export default function Home() {
         )}
       </div>
 
-      {/* ✅ Availability Message (hide for admin) */}
+      {/* Availability Message */}
       {user?.role !== "admin" && !serviceAvailable && message && (
-        <div
-          className="fixed top-4 z-50 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2
-                     p-4 bg-red-100/50 backdrop-blur-sm text-red-800 border border-red-300/40
-                     rounded-xl flex justify-between items-start max-w-md shadow-lg"
-        >
+        <div className="fixed top-4 z-50 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2
+                        p-4 bg-red-100/50 backdrop-blur-sm text-red-800 border border-red-300/40
+                        rounded-xl flex justify-between items-start max-w-md shadow-lg">
           <span className="text-lg font-medium">{message}</span>
           <button onClick={() => setMessage("")} className="text-red-800">
             <AiOutlineClose size={20} />
@@ -194,24 +178,20 @@ export default function Home() {
         </div>
       )}
 
-      {/* ✅ Hero */}
+      {/* Hero */}
       <div className="text-center max-w-2xl mt-6">
         <h1 className="text-3xl md:text-4xl font-bold mb-4 text-amber-700">
           👋 Welcome To Fast Delivery Service!
         </h1>
-
         <p className="text-gray-700 mb-3 text-lg">
           We deliver{" "}
           <span className="font-semibold text-amber-700">Leyla’s Ertib</span>{" "}
-          straight from
-          <span className="font-semibold"> Tuludimtu</span> to your dorm —
-          exclusively for
-          <span className="font-semibold"> AASTU students</span>! 🚴‍♂️
+          straight from <span className="font-semibold">Tuludimtu</span> to your dorm —
+          exclusively for <span className="font-semibold">AASTU students</span>! 🚴‍♂️
         </p>
 
-        {/* ✅ Order + Dashboard buttons grouped */}
+        {/* Order + Dashboard buttons */}
         <div className="flex flex-row items-center justify-center gap-4 mt-6 w-full">
-          {/* ORDER BUTTON */}
           {user?.role === "admin" ? (
             <Link
               to="/order"
@@ -247,7 +227,6 @@ export default function Home() {
             </span>
           )}
 
-          {/* DASHBOARD BUTTON (Admin Only) */}
           {user?.role === "admin" && (
             <Link
               to="/admin"
@@ -259,54 +238,57 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* Track Your Order */}
       {user?.role !== "admin" && (
         <div className="mt-10 max-w-md w-full mx-auto bg-white p-6 rounded-2xl shadow text-center">
           <h3 className="font-semibold text-lg mb-3 text-amber-700">
             Track Your Order
           </h3>
 
-          {/* Authenticated users: show their latest order automatically */}
+          {/* Authenticated users */}
           {user ? (
             <>
               {latestOrder ? (
                 <TrackingInfoCard order={latestOrder} />
               ) : (
-                <div className="text-gray-500">No orders found.</div>
+                <div className="text-gray-500">No orders today.</div>
               )}
             </>
           ) : (
-            /* Guest users: allow manual tracking via input */
-            <div className="flex gap-2 mb-3">
-              <input
-                type="text"
-                placeholder="Enter your tracking code"
-                value={trackingCodeInput}
-                onChange={(e) => setTrackingCodeInput(e.target.value)}
-                className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-              <button
-                onClick={handleTrackOrder}
-                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
-              >
-                Track
-              </button>
-            </div>
-          )}
+            /* Guest users: manual tracking */
+            <div className="flex flex-col gap-2 mb-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter your tracking code"
+                  value={trackingCodeInput}
+                  onChange={(e) => setTrackingCodeInput(e.target.value)}
+                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+                <button
+                  onClick={handleTrackOrder}
+                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
+                >
+                  Track
+                </button>
+              </div>
 
-          {trackingError && (
-            <div className="text-red-600 text-sm">{trackingError}</div>
-          )}
+              {trackingError && (
+                <div className="text-red-600 text-sm">{trackingError}</div>
+              )}
 
-          {/* Show tracking result for guest users */}
-          {trackingResult && (
-            <div className="mt-3">
-              <TrackingInfoCard order={trackingResult} />
+              {trackingResult && (
+                <div className="mt-3">
+                  <TrackingInfoCard order={trackingResult} />
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* ✅ Features */}
+      {/* Features */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">
         <div className="bg-white p-6 rounded-2xl shadow text-center">
           <h3 className="font-semibold text-lg mb-1">Fast Campus Delivery</h3>
@@ -314,14 +296,12 @@ export default function Home() {
             We deliver your favorite Ertib quickly and fresh!
           </p>
         </div>
-
         <div className="bg-white p-6 rounded-2xl shadow text-center">
           <h3 className="font-semibold text-lg mb-1">Exclusive for AASTU</h3>
           <p className="text-gray-600 text-sm">
             Only available for AASTU students.
           </p>
         </div>
-
         <div className="bg-white p-6 rounded-2xl shadow text-center">
           <h3 className="font-semibold text-lg mb-1">Easy Contact</h3>
           <p className="text-gray-600 text-sm">
@@ -336,10 +316,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ✅ Footer */}
+      {/* Footer */}
       <footer className="mt-12 text-gray-600 text-sm text-center">
-        © {new Date().getFullYear()} Fast Delivery Service — Exclusively for
-        AASTU Students.
+        © {new Date().getFullYear()} Fast Delivery Service — Exclusively for AASTU Students.
       </footer>
     </div>
   );
