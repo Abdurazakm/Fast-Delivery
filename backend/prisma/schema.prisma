@@ -33,21 +33,22 @@ model User {
 // Order Model
 // ======================
 model Order {
-  id           Int        @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   customerName String
   phone        String
   location     String
-  source       String      @default("online")
+  source       String   @default("online")
   total        Float
-  status       String      @default("pending")
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  // Relation
-  userId       Int?
-  user         User?       @relation(fields: [userId], references: [id])
-
-  // JSON fields (for arrays in MongoDB)
+  trackingCode String   @unique
+  trackUrl     String
+  status       String   @default("pending") // pending | in_progress | arrived | delivered | canceled | no_show
+  statusHistory Json     @default("[]")     // [{status: "pending", at: "2025-11-21T..."}, ...]
+  smsHistory   Json     @default("[]")
   items        Json
-  smsHistory   Json
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       Int?
+  user         User?    @relation(fields: [userId], references: [id])
+  notes        String?
 }

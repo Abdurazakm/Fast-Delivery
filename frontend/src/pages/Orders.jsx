@@ -9,7 +9,7 @@ export default function Order() {
     phone: "",
     location: "",
   });
-
+  const [tracking, setTracking] = useState(null);
   const [user, setUser] = useState(null);
   const [items, setItems] = useState([
     {
@@ -146,9 +146,20 @@ export default function Order() {
         headers.Authorization = `Bearer ${token}`;
       }
 
-      await API.post(endpoint, payload, { headers });
+      // ⬅️ API response must return { trackingCode, trackingLink, orderId }
+      const res = await API.post(endpoint, payload, { headers });
 
-      setMessage("Order placed successfully!");
+
+    const { order } = res.data;
+
+    setMessage("Order placed successfully!");
+    setTracking({
+      trackingCode: order.trackingCode,
+      trackingLink: order.trackUrl,
+    });
+
+
+      // Reset form
       setCustomer({ customerName: "", phone: "", location: "" });
       setItems([
         {
@@ -233,6 +244,56 @@ export default function Order() {
             </button>
           </div>
         )}
+       {tracking && (
+  <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm">
+    <div className="flex items-center justify-between mb-2">
+      <div className="font-semibold text-sm">📦 Order Tracking Details</div>
+      <button
+        onClick={() => setTracking(null)}
+        className="text-xs text-gray-500 hover:text-gray-800"
+        title="Hide tracking info"
+      >
+        ✖
+      </button>
+    </div>
+
+    <div className="mb-2">
+      <strong>Tracking Code:</strong>{" "}
+      <span className="bg-gray-200 px-2 py-1 rounded">{tracking.trackingCode}</span>
+      <button
+        onClick={() => {
+          navigator.clipboard.writeText(tracking.trackingCode);
+          alert("Tracking code copied!");
+        }}
+        className="ml-2 text-xs text-blue-700 underline"
+      >
+        Copy
+      </button>
+    </div>
+
+    <div className="mb-2">
+      <strong>Tracking Link:</strong>{" "}
+      <a
+        href={tracking.trackingLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="underline text-blue-700"
+      >
+        View Order
+      </a>
+      <button
+        onClick={() => {
+          navigator.clipboard.writeText(tracking.trackingLink);
+          alert("Tracking link copied!");
+        }}
+        className="ml-2 text-xs text-blue-700 underline"
+      >
+        Copy Link
+      </button>
+    </div>
+  </div>
+)}
+
 
         <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
           🥙 Place Your Ertib Order
@@ -304,7 +365,10 @@ export default function Order() {
                       "extraKetchup",
                       "extraFelafil",
                     ].map((field) => (
-                      <label key={field} className="flex items-center space-x-2">
+                      <label
+                        key={field}
+                        className="flex items-center space-x-2"
+                      >
                         <input
                           type="checkbox"
                           name={field}

@@ -14,6 +14,9 @@ export default function AdminDashboard() {
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [selectedLocation, setSelectedLocation] = useState("All"); // ✅ new
   const [checkedItems, setCheckedItems] = useState({});
+  const [trackingSearch, setTrackingSearch] = useState("");
+  const [prevStatuses, setPrevStatuses] = useState({});
+
 
   // Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -30,54 +33,58 @@ export default function AdminDashboard() {
 
 
   // Fetch orders
-  const fetchOrders = async (date) => {
-    try {
-      setLoading(true);
-      setMessage("");
-      const token = localStorage.getItem("token");
+const fetchOrders = async (date) => {
+  try {
+    setLoading(true);
+    setMessage("");
+    const token = localStorage.getItem("token");
 
-      const res = await API.get(
-        "/orders",
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          params: { date: date.format("YYYY-MM-DD") },
-        }
-      );
+    const res = await API.get("/orders", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { date: date.format("YYYY-MM-DD") },
+    });
 
-      const ordersArray = res.data.data || [];
-      setOrders(ordersArray);
+    const ordersArray = res.data.data || [];
+    setOrders(ordersArray);
 
-      if (!ordersArray.length) {
-        setMessage(`📭 No orders found for ${date.format("YYYY-MM-DD")}`);
-      }
-    } catch (err) {
-      console.error("Error fetching orders:", err);
-      setMessage("❌ Failed to fetch orders");
-      setOrders([]);
-    } finally {
-      setLoading(false);
+    // store current statuses snapshot to compare later (used for highlight)
+    const statusSnapshot = {};
+    ordersArray.forEach((o) => { statusSnapshot[o.id || o._id] = o.status; });
+    setPrevStatuses((prev) => ({ ...prev, ...statusSnapshot }));
+
+    if (!ordersArray.length) {
+      setMessage(`📭 No orders found for ${date.format("YYYY-MM-DD")}`);
     }
-  };
+  } catch (err) {
+    console.error("Error fetching orders:", err);
+    setMessage("❌ Failed to fetch orders");
+    setOrders([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    fetchOrders(selectedDate);
-  }, [selectedDate]);
+useEffect(() => {
+  fetchOrders(selectedDate);
+}, [selectedDate]);
 
   // Update status
 const updateStatus = async (id, newStatus) => {
   try {
     const token = localStorage.getItem("token");
-    await API.put(
-      `/orders/${id}/status`,
-      { status: newStatus },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+
+    // store old status for highlight
+    const oldStatus = orders.find((o) => o.id === id)?.status;
+    setPrevStatuses((prev) => ({ ...prev, [id]: oldStatus }));
+
+    await API.put(`/orders/${id}/status`, { status: newStatus }, { headers: { Authorization: `Bearer ${token}` } });
 
     setOrders((prevOrders) =>
-      prevOrders.map((order) =>
-        order.id === id ? { ...order, status: newStatus } : order
-      )
+      prevOrders.map((order) => (order.id === id ? { ...order, status: newStatus } : order))
     );
+
+    // highlight for 3s
+    setTimeout(() => setPrevStatuses((prev) => ({ ...prev, [id]: undefined })), 3000);
 
     setMessage("✅ Status updated successfully");
   } catch (err) {
@@ -157,7 +164,9 @@ const updateStatus = async (id, newStatus) => {
       totalertibPrice = totalPrice - profit;
     });
   });
-
+// const displayedOrders = filteredOrders.filter((order) =>
+//   !trackingSearch || (order.trackingCode || "").toLowerCase().includes(trackingSearch.toLowerCase())
+// );
   // Color mapping for order statuses
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-700 border-yellow-400",
@@ -549,95 +558,137 @@ Normal - 110 Birr, Special - 135 Birr
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border">
-              <thead className="bg-amber-100">
-                <tr>
-                  <th className="p-3 text-left">Customer</th>
-                  <th className="p-3 text-left">Phone</th>
-                  <th className="p-3 text-left">Location</th>
-                  <th className="p-3 text-left">Items</th>
-                  <th className="p-3 text-left">Total(Birr)</th>
-                  <th className="p-3 text-left">Status</th>
-                  <th className="p-3 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrders.map((order) => {
-                  const orderId = order._id || order.id;
-                  return (
-                    <tr key={orderId} className="border-b hover:bg-gray-50">
-                      <td className="p-3">{order.customerName}</td>
-                      <td className="p-3">
-                        <a
-                          href={`tel:${order.phone}`}
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
-                        >
-                          <FaPhoneAlt className="text-sm" />
-                          {order.phone}
-                        </a>
-                      </td>
-                      <td className="p-3">{order.location}</td>
-                      <td className="p-3">
-                        {order.items.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
-                          >
-                            <p className="font-semibold text-gray-800">
-                              {item.quantity}×{item.ertibType}
-                            </p>
-                            <ul className="text-gray-600 list-disc list-inside">
-                              {item.ketchup && item.spices ? (
-                                <li>Both</li>
-                              ) : (
-                                <>
-                                  {item.ketchup && <li>Ktchp</li>}
-                                  {item.spices && <li>Spices</li>}
-                                </>
-                              )}
-                              {item.extraKetchup && <li>Extra Ktchp</li>}
-                              {item.extraFelafil && <li>Double Felafil</li>}
-                            </ul>
-                          </div>
-                        ))}
-                      </td>
-                      <td className="p-3 font-semibold">{order.total}</td>
-                      <td className="p-3">
-                        <select
-                          value={order.status}
-                          onChange={(e) =>
-                            updateStatus(order.id, e.target.value)
-                          }
-                          className={`border p-1 rounded-md font-medium ${
-                            statusColors[order.status]
-                          }`}
-                        >
-                          {[
-                            "pending",
-                            "in_progress",
-                            "arrived",
-                            "delivered",
-                            "canceled",
-                            "no_show",
-                          ].map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-3 space-x-2">
-                        <button
-                          onClick={() => openDeleteModal(orderId)}
-                          className="text-red-600 hover:underline text-sm"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+  <thead className="bg-amber-100">
+    <tr>
+      <th className="p-3 text-left">Customer</th>
+      <th className="p-3 text-left">Phone</th>
+      <th className="p-3 text-left">Location</th>
+      <th className="p-3 text-left">Items</th>
+      <th className="p-3 text-left">Total(Birr)</th>
+      <th className="p-3 text-left">Tracking</th>   {/* ✅ NEW COLUMN */}
+      <th className="p-3 text-left">Status</th>
+      <th className="p-3 text-left">Actions</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {filteredOrders.map((order) => {
+      const orderId = order._id || order.id;
+
+      return (
+        <tr key={orderId} className="border-b hover:bg-gray-50">
+          {/* Customer */}
+          <td className="p-3">{order.customerName}</td>
+
+          {/* Phone */}
+          <td className="p-3">
+            <a
+              href={`tel:${order.phone}`}
+              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              <FaPhoneAlt className="text-sm" />
+              {order.phone}
+            </a>
+          </td>
+
+          {/* Location */}
+          <td className="p-3">{order.location}</td>
+
+          {/* Items */}
+          <td className="p-3">
+            {order.items.map((item, idx) => (
+              <div
+                key={idx}
+                className="border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
+              >
+                <p className="font-semibold text-gray-800">
+                  {item.quantity}×{item.ertibType}
+                </p>
+
+                <ul className="text-gray-600 list-disc list-inside">
+                  {item.ketchup && item.spices ? (
+                    <li>Both</li>
+                  ) : (
+                    <>
+                      {item.ketchup && <li>Ketchup</li>}
+                      {item.spices && <li>Spices</li>}
+                    </>
+                  )}
+                  {item.extraKetchup && <li>Extra Ketchup</li>}
+                  {item.extraFelafil && <li>Double Felafil</li>}
+                </ul>
+              </div>
+            ))}
+          </td>
+
+          {/* Total */}
+          <td className="p-3 font-semibold">{order.total}</td>
+
+          {/* ✅ Tracking Code + Link */}
+          <td className="p-3">
+            <div className="text-gray-800">
+              <strong>{order.trackingCode}</strong>
+            </div>
+
+            <a
+              href={`/track/${order.trackingCode}`}
+              target="_blank"
+              className="text-blue-600 underline text-xs"
+            >
+              View Tracking
+            </a>
+
+            <button
+              onClick={() =>
+                navigator.clipboard.writeText(
+                  `${window.location.origin}/track/${order.trackingCode}`
+                )
+              }
+              className="block text-xs mt-1 text-gray-600 hover:text-black underline"
+            >
+              Copy Link
+            </button>
+          </td>
+
+          {/* Status */}
+          <td className="p-3">
+            <select
+              value={order.status}
+              onChange={(e) => updateStatus(orderId, e.target.value)}
+              className={`border p-1 rounded-md font-medium ${
+                statusColors[order.status]
+              }`}
+            >
+              {[
+                "pending",
+                "in_progress",
+                "arrived",
+                "delivered",
+                "canceled",
+                "no_show",
+              ].map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </td>
+
+          {/* Actions */}
+          <td className="p-3 space-x-2">
+            <button
+              onClick={() => openDeleteModal(orderId)}
+              className="text-red-600 hover:underline text-sm"
+            >
+              Delete
+            </button>
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
+
           </div>
         )}
 

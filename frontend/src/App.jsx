@@ -12,6 +12,7 @@ import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Orders from "./pages/Orders";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import TrackOrder from "./pages/TrackOrder";
 import API from "./api"; // Axios instance
 
 /* ------------------ Modal ------------------ */
@@ -169,6 +170,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/admin" element={<AdminDashboard user={user} />} />
+        <Route path="/track/:code" element={<TrackOrder/>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

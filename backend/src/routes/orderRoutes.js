@@ -10,12 +10,22 @@ const {
   adminMiddleware,
 } = require("../middlewares/authMiddleware");
 
+const TRACK_BASE_URL =
+  process.env.TRACK_BASE_URL || "http://localhost:3000/track";
+
 // Helper: calculate price for an item
 function calcUnitPrice(item) {
   let base = item.ertibType === "special" ? 135 : 110;
   if (item.extraKetchup) base += 10;
   if (item.extraFelafil) base += 15;
   return base;
+}
+
+// Helper: generate unique tracking code
+function generateTrackingCode() {
+  const prefix = "FD";
+  const random = Math.floor(100000 + Math.random() * 900000);
+  return `${prefix}-${random}`;
 }
 
 // Prevent duplicate orders (same phone + similar items within 2 minutes)
@@ -50,7 +60,7 @@ async function isDuplicate(phone, items) {
 router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const page = parseInt(req.query.page || "1");
-    const limit = parseInt(req.query.limit || "20");
+    const limit = parseInt(req.query.limit || "100");
     const filterStatus = req.query.status;
     const dateStr = req.query.date; // YYYY-MM-DD format from frontend
 
@@ -92,30 +102,40 @@ router.post("/", checkServiceAvailability, async (req, res) => {
   try {
     const { customerName, phone, location, items } = req.body;
 
+    // Basic validation
     if (
       !customerName ||
       !phone ||
       !location ||
       !Array.isArray(items) ||
-      !items.length
+      items.length === 0
     ) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const normalizedPhone = normalizePhone(phone);
-    if (!isValidPhone(normalizedPhone))
+    if (!isValidPhone(normalizedPhone)) {
       return res.status(400).json({ message: "Invalid phone number" });
+    }
 
-    if (await isDuplicate(normalizedPhone, items))
+    // Duplicate detection
+    if (await isDuplicate(normalizedPhone, items)) {
       return res.status(400).json({ message: "Duplicate order detected" });
+    }
 
+    // Build items + total
     let total = 0;
     const builtItems = items.map((it) => {
       const unitPrice = calcUnitPrice(it);
       const quantity = parseInt(it.quantity) || 1;
-      total += unitPrice * quantity;
-      return { ...it, quantity, unitPrice, lineTotal: unitPrice * quantity };
+      const lineTotal = unitPrice * quantity;
+      total += lineTotal;
+
+      return { ...it, quantity, unitPrice, lineTotal };
     });
+
+    const trackingCode = generateTrackingCode();
+    const trackUrl = `${TRACK_BASE_URL}/${trackingCode}`;
 
     const order = await prisma.order.create({
       data: {
@@ -126,70 +146,83 @@ router.post("/", checkServiceAvailability, async (req, res) => {
         items: builtItems,
         smsHistory: [],
         total,
+        trackingCode,
+        trackUrl,
+        statusHistory: [
+          {
+            status: "pending",
+            at: new Date().toISOString(),
+          },
+        ],
       },
     });
 
-    // Non-blocking SMS
-    const text = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. We'll prepare it shortly.`;
-    sendSMS(normalizedPhone, text)
-      .then((smsResp) =>
-        prisma.order
-          .update({
-            where: { id: order.id },
-            data: {
-              smsHistory: [
-                ...order.smsHistory,
-                {
-                  type: "confirmation",
-                  providerResponse: smsResp.info,
-                  status: smsResp.status,
-                },
-              ],
-            },
-          })
-          .catch((err) =>
-            console.error("❌ Failed to update SMS history:", err)
-          )
-      )
-      .catch((err) => console.error("❌ SMS send error:", err));
+    // Send SMS (non-blocking)
+    const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
 
-    res.json({ message: "Order placed successfully", orderId: order.id });
+    sendSMS(normalizedPhone, smsText)
+      .then((smsResp) =>
+        prisma.order.update({
+          where: { id: order.id },
+          data: {
+            smsHistory: [
+              ...(order.smsHistory || []),
+              {
+                type: "confirmation",
+                status: smsResp.status,
+                providerResponse: smsResp.info,
+                at: new Date().toISOString(),
+              },
+            ],
+          },
+        })
+      )
+      .catch((err) => console.error("❌ SMS failed:", err));
+
+    // Response
+    return res.json({
+      message: "Order placed successfully",
+      orderId: order.id,
+      trackingCode,
+      trackUrl,
+    });
   } catch (err) {
     console.error("❌ Error creating order:", err);
-    res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 });
 
+
 /**
  * ------------------------
- *  Manual Order (Admin)
+ *  Create Manual Order (Admin)
  * ------------------------
  */
 router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { customerName, phone, location, items } = req.body;
+    const { customerName, phone, location, items, notes } = req.body;
 
-    if (
-      !customerName ||
-      !phone ||
-      !location ||
-      !Array.isArray(items) ||
-      !items.length
-    ) {
+    if (!customerName || !phone || !location || !items?.length) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
     const normalizedPhone = normalizePhone(phone);
-    if (!isValidPhone(normalizedPhone))
+    if (!isValidPhone(normalizedPhone)) {
       return res.status(400).json({ message: "Invalid phone number" });
+    }
 
     let total = 0;
     const builtItems = items.map((it) => {
       const unitPrice = calcUnitPrice(it);
       const quantity = parseInt(it.quantity) || 1;
-      total += unitPrice * quantity;
-      return { ...it, quantity, unitPrice, lineTotal: unitPrice * quantity };
+      const lineTotal = unitPrice * quantity;
+      total += lineTotal;
+
+      return { ...it, quantity, unitPrice, lineTotal };
     });
+
+    const trackingCode = generateTrackingCode();
+    const trackUrl = `${TRACK_BASE_URL}/${trackingCode}`;
 
     const order = await prisma.order.create({
       data: {
@@ -200,38 +233,50 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
         items: builtItems,
         smsHistory: [],
         total,
+        trackingCode,
+        trackUrl,
+        notes,
+        statusHistory: [
+          {
+            status: "pending",
+            at: new Date().toISOString(),
+          },
+        ],
       },
     });
 
-    const text = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. We'll prepare it shortly.`;
-    sendSMS(normalizedPhone, text)
-      .then((smsResp) =>
-        prisma.order
-          .update({
-            where: { id: order.id },
-            data: {
-              smsHistory: [
-                ...order.smsHistory,
-                {
-                  type: "confirmation",
-                  providerResponse: smsResp.info,
-                  status: smsResp.status,
-                },
-              ],
-            },
-          })
-          .catch((err) =>
-            console.error("❌ Failed to update SMS history:", err)
-          )
-      )
-      .catch((err) => console.error("❌ SMS send error:", err));
+    // Optional SMS
+    const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
 
-    res.json({ message: "Manual order created", orderId: order.id });
+    sendSMS(normalizedPhone, smsText)
+      .then((smsResp) =>
+        prisma.order.update({
+          where: { id: order.id },
+          data: {
+            smsHistory: [
+              ...(order.smsHistory || []),
+              {
+                type: "confirmation",
+                status: smsResp.status,
+                providerResponse: smsResp.info,
+                at: new Date().toISOString(),
+              },
+            ],
+          },
+        })
+      )
+      .catch((err) => console.error("❌ SMS failed:", err));
+
+    return res.status(201).json({
+      message: "Manual order created",
+      order,
+    });
   } catch (err) {
     console.error("❌ Manual order error:", err);
-    res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 });
+
 
 /**
  * ------------------------
@@ -259,41 +304,77 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
     });
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    let smsHistory = [...order.smsHistory];
+    // push to statusHistory
+    const newStatusEntry = { status, at: new Date().toISOString() };
+    const updatedHistory = [...(order.statusHistory || []), newStatusEntry];
 
+    // optional: send arrival SMS
     if (status === "arrived") {
-      const text = `📍 Hi ${order.customerName}, your Ertib has arrived. Please come and take it.`;
+      const text = `📍 Hi ${order.customerName}, your Ertib has arrived. Please come and take it. Track: ${order.trackUrl}`;
       sendSMS(order.phone, text)
-        .then((smsResp) => {
+        .then((smsResp) =>
           prisma.order
             .update({
               where: { id: parseInt(id) },
               data: {
                 smsHistory: [
-                  ...smsHistory,
+                  ...(order.smsHistory || []),
                   {
                     type: "arrival",
                     providerResponse: smsResp.info,
                     status: smsResp.status,
+                    at: new Date().toISOString(),
                   },
                 ],
               },
             })
             .catch((err) =>
               console.error("❌ Failed to update SMS history:", err)
-            );
-        })
+            )
+        )
         .catch((err) => console.error("❌ SMS send error:", err));
     }
 
     await prisma.order.update({
       where: { id: parseInt(id) },
-      data: { status },
+      data: {
+        status,
+        statusHistory: updatedHistory,
+      },
     });
 
     res.json({ message: "Status updated", orderId: order.id });
   } catch (err) {
     console.error("❌ Error updating status:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * ------------------------
+ *  Track Order by Tracking Code
+ * ------------------------
+ */
+router.get("/track/:code", async (req, res) => {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { trackingCode: req.params.code },
+    });
+
+    if (!order)
+      return res.status(404).json({ message: "Tracking code not found" });
+
+    res.json({
+      trackingCode: order.trackingCode,
+      status: order.status,
+      statusHistory: order.statusHistory || [],
+      customerName: order.customerName,
+      location: order.location,
+      createdAt: order.createdAt,
+      total: order.total,
+    });
+  } catch (err) {
+    console.error("❌ Tracking error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -320,9 +401,9 @@ router.post(
 
       let text;
       if (type === "confirmation")
-        text = `✅ Hi ${order.customerName}! Your Ertib order is confirmed. Total: ${order.total} birr.`;
+        text = `✅ Hi ${order.customerName}! Your Ertib order is confirmed. Total: ${order.total} birr. Track: ${order.trackUrl}`;
       else if (type === "arrival")
-        text = `📍 Hi ${order.customerName}, your Ertib has arrived. Please come and take it.`;
+        text = `📍 Hi ${order.customerName}, your Ertib has arrived. Please come and take it. Track: ${order.trackUrl}`;
       else return res.status(400).json({ message: "Invalid SMS type" });
 
       sendSMS(order.phone, text)
@@ -332,11 +413,12 @@ router.post(
               where: { id: parseInt(orderId) },
               data: {
                 smsHistory: [
-                  ...order.smsHistory,
+                  ...(order.smsHistory || []),
                   {
                     type,
                     providerResponse: smsResp.info,
                     status: smsResp.status,
+                    at: new Date().toISOString(),
                   },
                 ],
               },
@@ -375,138 +457,120 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error while deleting order" });
   }
 });
+
 /**
  * ---------------------------------------------------------
  *  BULK SMS SYSTEM
- *  - Parallel sending
- *  - Retry 3 times immediately
- *  - Auto retry after 10 minutes for failed numbers (2 more attempts)
  * ---------------------------------------------------------
  */
+router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message)
+      return res.status(400).json({ message: "Message text is required" });
 
-router.post(
-  "/bulk-sms",
-  authMiddleware,
-  adminMiddleware,
-  async (req, res) => {
-    try {
-      const { message } = req.body;
-      if (!message)
-        return res.status(400).json({ message: "Message text is required" });
+    const orderPhones = await prisma.order.findMany({
+      select: { phone: true },
+    });
+    const userPhones = await prisma.user.findMany({ select: { phone: true } });
 
-      // 1. Fetch all phones
-      const orderPhones = await prisma.order.findMany({
-        select: { phone: true },
-      });
-      const userPhones = await prisma.user.findMany({
-        select: { phone: true },
-      });
+    let allNumbers = [
+      ...orderPhones.map((o) => o.phone),
+      ...userPhones.map((u) => u.phone),
+    ];
 
-      let allNumbers = [
-        ...orderPhones.map((o) => o.phone),
-        ...userPhones.map((u) => u.phone),
-      ];
-
-      // Remove duplicates
-      let uniqueNumbers = [...new Set(allNumbers)];
+    let uniqueNumbers = [...new Set(allNumbers)];
 
       // Exclude your number — not part of promo
-      uniqueNumbers = uniqueNumbers.filter((n) => n !== "0954724664");
+    uniqueNumbers = uniqueNumbers.filter((n) => n !== "0954724664");
 
-      if (!uniqueNumbers.length)
-        return res
-          .status(404)
-          .json({ message: "No phone numbers available" });
+    if (!uniqueNumbers.length)
+      return res.status(404).json({ message: "No phone numbers available" });
 
-      console.log("📤 Sending bulk SMS to:", uniqueNumbers.length);
+    console.log("📤 Sending bulk SMS to:", uniqueNumbers.length);
 
       // 2. Retry function (3 attempts)
-      const sendWithRetry = async (phone, message) => {
-        let attempts = 0;
+    const sendWithRetry = async (phone, message) => {
+      let attempts = 0;
+      while (attempts < 3) {
+        try {
+          attempts++;
+          const res = await sendSMS(phone, message);
+          return { phone, status: "sent", attempts, info: res.info };
+        } catch (err) {
+          if (attempts >= 3) {
+            return { phone, status: "failed", attempts, error: err.message };
+          }
+        }
+      }
+    };
 
-        while (attempts < 3) {
+      // 3. Parallel sending (fast)
+    const firstResults = await Promise.all(
+      uniqueNumbers.map((phone) => sendWithRetry(phone, message))
+    );
+
+    const failedNumbers = firstResults
+      .filter((r) => r.status === "failed")
+      .map((r) => r.phone);
+
+    console.log("⏳ Scheduled retry for:", failedNumbers.length, "numbers");
+
+      // 4. Auto Retry After 10 Minutes
+    setTimeout(async () => {
+      console.log("🔁 Retrying failed numbers after 10 minutes...");
+
+      const retry2 = async (phone) => {
+        let attempts = 0;
+        while (attempts < 2) {
           try {
             attempts++;
             const res = await sendSMS(phone, message);
-            return { phone, status: "sent", attempts, info: res.info };
+            return {
+              phone,
+              status: "sent",
+              retryCycle: "10-minute",
+              attempts,
+              info: res.info,
+            };
           } catch (err) {
-            if (attempts >= 3) {
-              return { phone, status: "failed", attempts, error: err.message };
+            if (attempts >= 2) {
+              return {
+                phone,
+                status: "failed",
+                retryCycle: "10-minute",
+                attempts,
+                error: err.message,
+              };
             }
           }
         }
       };
 
-      // 3. Parallel sending (fast)
-      const firstResults = await Promise.all(
-        uniqueNumbers.map((phone) => sendWithRetry(phone, message))
-      );
-
-      const failedNumbers = firstResults
-        .filter((r) => r.status === "failed")
-        .map((r) => r.phone);
-
-      console.log("⏳ Scheduled retry for:", failedNumbers.length, "numbers");
-
-      // 4. Auto Retry After 10 Minutes
-      setTimeout(async () => {
-        console.log("🔁 Retrying failed numbers after 10 minutes...");
-
-        const retry2 = async (phone) => {
-          let attempts = 0;
-          while (attempts < 2) {
-            try {
-              attempts++;
-              const res = await sendSMS(phone, message);
-              return {
-                phone,
-                status: "sent",
-                retryCycle: "10-minute",
-                attempts,
-                info: res.info,
-              };
-            } catch (err) {
-              if (attempts >= 2) {
-                return {
-                  phone,
-                  status: "failed",
-                  retryCycle: "10-minute",
-                  attempts,
-                  error: err.message,
-                };
-              }
-            }
-          }
-        };
-
-        if (failedNumbers.length > 0) {
-          const secondResults = await Promise.all(
-            failedNumbers.map((phone) => retry2(phone))
-          );
-
-          console.log("🔁 Retry Results:", secondResults);
-        }
-      }, 10 * 60 * 1000); // 10 minutes
+      if (failedNumbers.length > 0) {
+        const secondResults = await Promise.all(
+          failedNumbers.map((phone) => retry2(phone))
+        );
+        console.log("🔁 Retry Results:", secondResults);
+      }
+    }, 10 * 60 * 1000);
 
       // 5. Response to frontend immediately
-      const sent = firstResults.filter((r) => r.status === "sent").length;
-      const failed = firstResults.filter((r) => r.status === "failed").length;
+    const sent = firstResults.filter((r) => r.status === "sent").length;
+    const failed = firstResults.filter((r) => r.status === "failed").length;
 
-      res.json({
-        success: true,
-        totalNumbers: uniqueNumbers.length,
-        sentFirstRound: sent,
-        failedFirstRound: failed,
-        autoRetryScheduled: true,
-        retryAfterMinutes: 10,
-      });
-    } catch (err) {
-      console.error("❌ Bulk SMS error:", err);
-      res.status(500).json({ message: "Server error" });
-    }
+    res.json({
+      success: true,
+      totalNumbers: uniqueNumbers.length,
+      sentFirstRound: sent,
+      failedFirstRound: failed,
+      autoRetryScheduled: true,
+      retryAfterMinutes: 10,
+    });
+  } catch (err) {
+    console.error("❌ Bulk SMS error:", err);
+    res.status(500).json({ message: "Server error" });
   }
-);
-
-
+});
 
 module.exports = router;
