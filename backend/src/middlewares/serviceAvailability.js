@@ -1,8 +1,11 @@
-// allow orders only Monday(1) - Thursday(4)
 function checkServiceAvailability(req, res, next) {
-  const today = new Date().getDay(); // 0=Sun,1=Mon,...6=Sat
+  const ethiopiaTime = new Date().toLocaleString("en-US", { timeZone: "Africa/Addis_Ababa" });
+  const today = new Date(ethiopiaTime).getDay(); // Ethiopia time day
+  
   if (today >= 1 && today <= 4) return next();
-  return res.status(403).json({ message: 'Service not available today. We serve Monday–Thursday.' });
+  
+  return res.status(403).json({
+    message: "Service not available today. We serve Monday–Thursday."
+  });
 }
-
-module.exports = checkServiceAvailability;
+module.exports = { checkServiceAvailability };
