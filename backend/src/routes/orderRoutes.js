@@ -362,7 +362,9 @@ router.get("/track/:code", async (req, res) => {
     });
 
     if (!order)
-      return res.status(404).json({ message: "No order found for today with this tracking code" });
+      return res
+        .status(404)
+        .json({ message: "No order found for today with this tracking code" });
 
     res.json({
       id: order.id,
@@ -384,7 +386,6 @@ router.get("/track/:code", async (req, res) => {
   }
 });
 
-
 /**
  * Update order by tracking code (guest or authenticated)
  * Only allowed before 17:30 server local time
@@ -402,11 +403,9 @@ router.put("/track/:code", async (req, res) => {
     const hrs = now.getHours();
     const mins = now.getMinutes();
     if (hrs > 17 || (hrs === 17 && mins >= 30)) {
-      return res
-        .status(400)
-        .json({
-          message: "You can only edit or cancel your order before 5:30.",
-        });
+      return res.status(400).json({
+        message: "You can only edit or cancel your order before 5:30.",
+      });
     }
 
     const { customerName, phone, location, items, total } = req.body;
@@ -446,11 +445,9 @@ router.delete("/track/:code", async (req, res) => {
     const hrs = now.getHours();
     const mins = now.getMinutes();
     if (hrs > 17 || (hrs === 17 && mins >= 30)) {
-      return res
-        .status(400)
-        .json({
-          message: "You can only edit or cancel your order before 5:30.",
-        });
+      return res.status(400).json({
+        message: "You can only edit or cancel your order before 5:30.",
+      });
     }
 
     await prisma.order.delete({ where: { id: order.id } });
@@ -484,7 +481,6 @@ router.get("/latest", authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 router.get(
   "/manual-orders",

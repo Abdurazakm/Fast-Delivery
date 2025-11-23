@@ -168,9 +168,11 @@ export default function Home() {
 
       {/* Availability Message */}
       {user?.role !== "admin" && !serviceAvailable && message && (
-        <div className="fixed top-4 z-50 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2
+        <div
+          className="fixed top-4 z-50 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2
                         p-4 bg-red-100/50 backdrop-blur-sm text-red-800 border border-red-300/40
-                        rounded-xl flex justify-between items-start max-w-md shadow-lg">
+                        rounded-xl flex justify-between items-start max-w-md shadow-lg"
+        >
           <span className="text-lg font-medium">{message}</span>
           <button onClick={() => setMessage("")} className="text-red-800">
             <AiOutlineClose size={20} />
@@ -186,8 +188,9 @@ export default function Home() {
         <p className="text-gray-700 mb-3 text-lg">
           We deliver{" "}
           <span className="font-semibold text-amber-700">Leyla’s Ertib</span>{" "}
-          straight from <span className="font-semibold">Tuludimtu</span> to your dorm —
-          exclusively for <span className="font-semibold">AASTU students</span>! 🚴‍♂️
+          straight from <span className="font-semibold">Tuludimtu</span> to your
+          dorm — exclusively for{" "}
+          <span className="font-semibold">AASTU students</span>! 🚴‍♂️
         </p>
 
         {/* Order + Dashboard buttons */}
@@ -318,7 +321,8 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="mt-12 text-gray-600 text-sm text-center">
-        © {new Date().getFullYear()} Fast Delivery Service — Exclusively for AASTU Students.
+        © {new Date().getFullYear()} Fast Delivery Service — Exclusively for
+        AASTU Students.
       </footer>
     </div>
   );

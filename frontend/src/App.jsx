@@ -57,7 +57,6 @@ const checkAvailability = (now = new Date()) => {
   return workingDay && beforeClosing; // true if service is available
 };
 
-
 /* ---------------- Protected Route ---------------- */
 function ProtectedRoute({ children, user, loadingUser }) {
   const navigate = useNavigate();
@@ -108,7 +107,6 @@ function ProtectedRoute({ children, user, loadingUser }) {
 
   return children;
 }
-
 
 /* ---------------- Main App ---------------- */
 function App() {
