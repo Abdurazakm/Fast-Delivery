@@ -55,7 +55,7 @@ export default function AdminDashboard() {
       // Fetch manual orders
       const resManual = await API.get("/orders/manual-orders", {
         headers: { Authorization: `Bearer ${token}` },
-          params: { date: date.format("YYYY-MM-DD") }, // pass selected day
+        params: { date: date.format("YYYY-MM-DD") }, // pass selected day
       });
       const manualOrders = (resManual.data || []).map((o) => ({
         ...o,
@@ -702,7 +702,7 @@ Normal - 110 Birr, Special - 135 Birr
                       order.source === "manual" ? "Hello" : `Hello ${name}`;
                     switch ((order.status || "").toLowerCase()) {
                       case "pending":
-                        return `${greeting}, your order (Code: ${code}) is pending. We have received your request and will notify you when it is being prepared. Track your order: ${baseLink}`;
+                        return `${greeting}, your order (Code: ${code}) is confirmed. We have received your request and will notify you when it is being prepared. Track your order: ${baseLink}`;
                       case "in_progress":
                         return `${greeting}, your order (Code: ${code}) is being prepared and will be out for delivery shortly. Track its progress here: ${baseLink}`;
                       case "arrived":
