@@ -314,26 +314,25 @@ export default function Order() {
           )}
         </div>
       </div>
-
-<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-600 via-orange-500 to-red-600 p-6">
-  {/* Order Form */}
-  <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
-    {message && (
-      <div
-        className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${msgMeta.container}`}
-      >
-        <div className="flex items-center gap-2">
-          <span>{msgMeta.icon}</span>
-          <span>{message}</span>
-        </div>
-        <button
-          onClick={() => setMessage("")}
-          className="text-gray-500 hover:text-gray-700"
-        >
-          <AiOutlineClose size={18} />
-        </button>
-      </div>
-    )}
+            {/* Order Form */}
+      <div className="flex-1 flex flex-col items-center justify-center w-full">
+      <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
+        {message && (
+          <div
+            className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${msgMeta.container}`}
+          >
+            <div className="flex items-center gap-2">
+              <span>{msgMeta.icon}</span>
+              <span>{message}</span>
+            </div>
+            <button
+              onClick={() => setMessage("")}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <AiOutlineClose size={18} />
+            </button>
+          </div>
+        )}
 
         {tracking && (
           <>
