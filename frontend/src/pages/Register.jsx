@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import API from "../api"; // import your Axios instance
+import API from "../api";
+import Toast from "./Toast"; // import the Toast component
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -8,11 +9,12 @@ const Register = () => {
     phone: "",
     email: "",
     password: "",
-    blockNumber: "", // added here
+    blockNumber: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [toast, setToast] = useState(null); // toast state
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -25,14 +27,24 @@ const Register = () => {
     setLoading(true);
 
     try {
-      const res = await API.post("/auth/register", formData); // use Axios instance
+      const res = await API.post("/auth/register", formData);
       if (res.status === 201 || res.status === 200) {
-        alert("🎉 Registration successful! You can now log in.");
-        navigate("/login");
+        // Show success toast
+        setToast({
+          message: "🎉 Registration successful! You can now log in.",
+          type: "success",
+        });
+
+        // Redirect after a short delay
+        setTimeout(() => navigate("/login"), 1500);
       }
     } catch (err) {
       console.error("Registration error:", err);
-      setError(err.response?.data?.message || "Something went wrong. Try again!");
+      const errorMessage =
+        err.response?.data?.message || "Something went wrong. Try again!";
+      setError(errorMessage);
+      // Show error toast
+      setToast({ message: errorMessage, type: "error" });
     } finally {
       setLoading(false);
     }
@@ -65,7 +77,9 @@ const Register = () => {
           </div>
 
           <div>
-            <label className="block font-medium text-gray-700">Phone Number</label>
+            <label className="block font-medium text-gray-700">
+              Phone Number
+            </label>
             <input
               type="text"
               name="phone"
@@ -78,7 +92,9 @@ const Register = () => {
           </div>
 
           <div>
-            <label className="block font-medium text-gray-700">Block Number</label>
+            <label className="block font-medium text-gray-700">
+              Block Number
+            </label>
             <input
               type="text"
               name="blockNumber"
@@ -113,11 +129,23 @@ const Register = () => {
 
         <p className="mt-4 text-center text-gray-600 text-sm">
           Already have an account?{" "}
-          <Link to="/login" className="text-amber-700 font-medium hover:underline">
+          <Link
+            to="/login"
+            className="text-amber-700 font-medium hover:underline"
+          >
             Login here
           </Link>
         </p>
       </div>
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 };

@@ -1,33 +1,71 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  FiInfo,
+  FiEdit,
+  FiTrash2,
+  FiCheckCircle,
+  FiXCircle,
+  FiCheck,
+  FiX,
+} from "react-icons/fi";
 import API from "../api";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Simple Toast component
-function Toast({ message, type = "success", onClose }) {
+function Toast({ message, type = "success", onClose, duration = 3000 }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [duration, onClose]);
+
   const colors = {
     success: "bg-green-500 text-white",
     error: "bg-red-500 text-white",
   };
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className={`fixed top-5 right-5 px-4 py-2 rounded shadow-lg ${colors[type]} z-50`}
-    >
-      <div className="flex justify-between items-center">
-        <span>{message}</span>
-        <button className="ml-2 font-bold" onClick={onClose}>
-          ✖
-        </button>
-      </div>
-    </motion.div>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3 }}
+        className={`fixed top-5 right-5 px-4 py-2 rounded shadow-lg ${colors[type]} z-50`}
+      >
+        <div className="flex justify-between items-center">
+          <span>{message}</span>
+          <button
+            onClick={onClose}
+            className="ml-2 p-1 rounded hover:bg-white/20 transition"
+          >
+            <FiX className="text-sm" />
+          </button>
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
 
 // Cancel Confirmation Modal
 function CancelModal({ onConfirm, onCancel }) {
+  const [inputValue, setInputValue] = useState("");
+  const [shake, setShake] = useState(false);
+
+  const handleConfirm = () => {
+    if (inputValue.trim() === "cancel") {
+      onConfirm();
+    } else {
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+    }
+  };
+
+  const isReadyToConfirm = inputValue.trim() === "cancel";
+
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
       <motion.div
@@ -36,32 +74,59 @@ function CancelModal({ onConfirm, onCancel }) {
         exit={{ scale: 0 }}
         className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full text-center"
       >
-        <h3 className="font-semibold text-lg mb-4">Confirm Cancellation</h3>
+        <h3 className="font-semibold text-lg mb-4 text-red-600">
+          Cancel Your Order
+        </h3>
         <p className="text-gray-700 mb-4">
-          Type <span className="font-bold text-red-500">'cancel'</span> below to
-          confirm cancellation. This action cannot be undone.
+          You are about to{" "}
+          <span className="font-bold text-red-500">cancel your order</span>.
+          This action{" "}
+          <span className="font-bold text-red-500">cannot be undone</span>. To
+          confirm, type <span className="font-bold text-red-500">'cancel'</span>{" "}
+          below.
         </p>
-        <input
-          type="text"
-          placeholder="Type 'cancel'"
-          id="cancelInput"
-          className="w-full px-4 py-2 border rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-red-400"
-        />
-        <div className="flex justify-between gap-2">
-          <button
-            onClick={() => {
-              const val = document.getElementById("cancelInput").value.trim();
-              if (val === "cancel") onConfirm();
+
+        {/* Input with shake animation and checkmark */}
+        <div className="relative w-full mb-4">
+          <motion.input
+            type="text"
+            placeholder="Type 'cancel' to confirm"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            animate={shake ? { x: [-5, 5, -5, 5, 0] } : { x: 0 }}
+            transition={{ duration: 0.4 }}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-center placeholder:text-center"
+          />
+          {isReadyToConfirm && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500"
+            >
+              <FiCheck className="text-lg" />
+            </motion.div>
+          )}
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-2">
+          <motion.button
+            onClick={handleConfirm}
+            animate={isReadyToConfirm ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+            transition={{
+              duration: 0.5,
+              repeat: isReadyToConfirm ? Infinity : 0,
             }}
-            className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
+            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
           >
-            ❌ Confirm
-          </button>
+            <FiCheckCircle className="text-sm" /> Confirm
+          </motion.button>
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-black rounded-lg transition"
+            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-black rounded-lg transition"
           >
-            ✖ Cancel
+            <FiXCircle className="text-sm" /> Cancel
           </button>
         </div>
       </motion.div>
@@ -323,29 +388,40 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         Placed on: {new Date(order.createdAt).toLocaleString()}
       </div>
 
+      {/* Edit / Cancel Info Highlighted */}
+      <motion.div
+        initial={{ opacity: 0, y: -5 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, repeat: 1 }}
+        className="mt-2 p-2 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 text-xs rounded flex items-center gap-2"
+      >
+        <FiInfo className="text-yellow-600" />
+        You can edit or cancel your order before the cutoff time.
+      </motion.div>
+
       {/* Edit / Cancel Buttons */}
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex gap-2 flex-wrap">
         <button
           disabled={!isBeforeCutoff()}
           onClick={handleEdit}
-          className={`px-3 py-1 text-xs font-medium rounded transition ${
+          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
             isBeforeCutoff()
               ? "bg-yellow-400 hover:bg-yellow-500 text-black"
               : "bg-gray-300 text-gray-600 cursor-not-allowed"
           }`}
         >
-          ✏️ Edit
+          <FiEdit className="text-sm" /> Edit
         </button>
         <button
           disabled={!isBeforeCutoff()}
           onClick={() => setShowCancelModal(true)}
-          className={`px-3 py-1 text-xs font-medium rounded transition ${
+          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
             isBeforeCutoff()
               ? "bg-red-500 hover:bg-red-600 text-white"
               : "bg-gray-300 text-gray-600 cursor-not-allowed"
           }`}
         >
-          ❌ Cancel
+          <FiTrash2 className="text-sm" /> Cancel
         </button>
       </div>
     </motion.div>
