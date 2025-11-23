@@ -845,7 +845,8 @@ Normal - 110 Birr, Special - 135 Birr
                       </td>
 
                       {/* Actions */}
-                      <td className="p-3 space-x-2 flex items-center">
+                      <td className="p-3 flex items-center gap-3">
+                        {/* Edit */}
                         <button
                           title="Edit order"
                           onClick={() =>
@@ -855,17 +856,32 @@ Normal - 110 Birr, Special - 135 Birr
                               )}`
                             )
                           }
-                          className="text-amber-600 hover:text-amber-800 p-2 rounded-md"
+                          className="text-amber-600 hover:text-amber-800 p-2 rounded-md bg-amber-100 hover:bg-amber-200 transition"
                         >
                           <FaEdit />
                         </button>
 
+                        {/* Delete */}
                         <button
                           title="Delete order"
                           onClick={() => openDeleteModal(orderId)}
-                          className="text-red-600 hover:text-red-800 p-2 rounded-md"
+                          className="text-red-600 hover:text-red-800 p-2 rounded-md bg-red-100 hover:bg-red-200 transition"
                         >
                           <FaTrash />
+                        </button>
+
+                        {/* NEW — Send Tracking SMS */}
+                        <button
+                          title="Send tracking SMS"
+                          onClick={() => {
+                            const smsUrl = `sms:${
+                              order.phone
+                            }?body=${encodeURIComponent(trackingMessage)}`;
+                            window.location.href = smsUrl;
+                          }}
+                          className="text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
+                        >
+                          <FaPaperPlane className="text-md" />
                         </button>
                       </td>
                     </tr>
