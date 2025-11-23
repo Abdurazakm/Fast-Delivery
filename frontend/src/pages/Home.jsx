@@ -93,64 +93,48 @@ export default function Home() {
     }
   };
 
-  const ServiceAvailability = ({ user }) => {
-    const [serviceAvailable, setServiceAvailable] = useState(true);
-    const [message, setMessage] = useState("");
+  useEffect(() => {
+    const checkAvailability = () => {
+      const now = new Date();
+      const day = now.getDay();
+      const hour = now.getHours();
+      const minute = now.getMinutes();
 
-    useEffect(() => {
-      const checkAvailability = () => {
-        const now = new Date();
-        const day = now.getDay();
-        const hour = now.getHours();
-        const minute = now.getMinutes();
+      const withinDays = day >= 1 && day <= 4;
+      const beforeTime = hour < 17 || (hour === 17 && minute <= 30);
 
-        const withinDays = day >= 1 && day <= 4;
-        const beforeTime = hour < 17 || (hour === 17 && minute <= 30);
-
-        if (!withinDays) {
-          setServiceAvailable(false);
-          setMessage(
-            <span>
-              ⚠️ Service unavailable. We’re open only Monday to Thursday.
-            </span>
-          );
-        } else if (!beforeTime) {
-          setServiceAvailable(false);
-          setMessage(
-            <span className="flex flex-col gap-1">
-              ⏰ Ordering time is over (after 11:30 PM). You can call us
-              directly if we’re still at the Ertib place:{" "}
-              <a
-                href="tel:+251954724664"
-                className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
-              >
-                <FiPhoneCall size={16} />
-                +251 95 472 4664
-              </a>
-            </span>
-          );
-        } else {
-          setServiceAvailable(true);
-          setMessage(null);
-        }
-      };
-
-      checkAvailability();
-      const interval = setInterval(checkAvailability, 60000);
-      return () => clearInterval(interval);
-    }, []);
-
-    // Insert React phone-call icon
-    useEffect(() => {
-      const iconSpot = document.getElementById("phone-icon");
-      if (iconSpot) {
-        const root = createRoot(iconSpot);
-        root.render(<FiPhoneCall size={20} className="text-blue-600" />);
+      if (!withinDays) {
+        setServiceAvailable(false);
+        setMessage(
+          <span>
+            ⚠️ Service unavailable. We’re open only Monday to Thursday.
+          </span>
+        );
+      } else if (!beforeTime) {
+        setServiceAvailable(false);
+        setMessage(
+          <span className="flex flex-col gap-1">
+            ⏰ Ordering time is over (after 11:30 LT). You can call us directly
+            if we’re still at the Ertib place:{" "}
+            <a
+              href="tel:+251954724664"
+              className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
+            >
+              <FiPhoneCall size={16} />
+              +251 95 472 4664
+            </a>
+          </span>
+        );
+      } else {
+        setServiceAvailable(true);
+        setMessage(null);
       }
-    }, [message]);
+    };
 
-    return { serviceAvailable, message };
-  };
+    checkAvailability();
+    const interval = setInterval(checkAvailability, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleOrderClick = () => {
     if (!serviceAvailable && user?.role !== "admin") {
@@ -204,18 +188,17 @@ export default function Home() {
         )}
       </div>
 
-      {/* Availability Message */}
       {user?.role !== "admin" && !serviceAvailable && message && (
         <div
           className="fixed top-4 z-50 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2
-                      p-4 bg-red-100/50 backdrop-blur-sm text-red-800 border border-red-300/40
-                      rounded-xl flex justify-between items-start max-w-md shadow-lg"
+               p-4 bg-red-100/50 backdrop-blur-sm text-red-800 border border-red-300/40
+               rounded-xl flex justify-between items-start max-w-md shadow-lg"
         >
-          <span
-            className="text-lg font-medium"
-            dangerouslySetInnerHTML={{ __html: message }}
-          ></span>
-          <button onClick={() => setMessage("")} className="text-red-800 ml-4">
+          <div className="text-lg font-medium">{message}</div>
+          <button
+            onClick={() => setMessage(null)}
+            className="text-red-800 ml-4"
+          >
             <AiOutlineClose size={20} />
           </button>
         </div>
