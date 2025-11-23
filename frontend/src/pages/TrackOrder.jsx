@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import dayjs from "dayjs";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
+import { FiArrowLeft } from "react-icons/fi";
 
 export default function TrackOrder() {
   const { code } = useParams();
@@ -48,14 +49,14 @@ export default function TrackOrder() {
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       {/* Back to Home Button */}
-      <div className="mb-4">
-        <Link
-          to="/"
-          className="inline-block px-4 py-2 bg-blue-400 hover:bg-blue-700 text-white text-sm font-medium rounded transition"
-        >
-          ← Back to Home
-        </Link>
-      </div>
+      <Link
+        to="/"
+        className="fixed top-4 left-4 z-50 inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-full shadow-lg transition-all duration-200"
+      >
+        <FiArrowLeft className="text-lg" />
+        Back
+      </Link>
+
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow p-6">

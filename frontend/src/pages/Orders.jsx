@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
-import { FiCopy } from "react-icons/fi"; // Feather icons
+import { FiCopy, FiArrowLeft } from "react-icons/fi"; // Feather icons
 import Toast from "./Toast"; // import the Toast component
 
 import API from "../api";
@@ -281,12 +281,20 @@ export default function Order() {
       {/* Header */}
       <div className="w-full flex items-center justify-between mb-4 sm:mb-6">
         <div>
-          {user?.role === "admin" && (
+          {user?.role === "admin" ? (
             <Link
               to="/admin"
               className="px-5 py-3 bg-white/20 backdrop-blur-md border border-white text-white rounded-full hover:bg-white/30 transition text-sm sm:text-base"
             >
               Dashboard
+            </Link>
+          ) : (
+            <Link
+              to="/"
+              className="fixed top-4 left-4 z-50 inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-full shadow-lg transition-all duration-200"
+            >
+              <FiArrowLeft className="text-lg" />
+              Back
             </Link>
           )}
         </div>
@@ -314,277 +322,277 @@ export default function Order() {
           )}
         </div>
       </div>
-            {/* Order Form */}
+      {/* Order Form */}
       <div className="flex-1 flex flex-col items-center justify-center w-full">
-      <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
-        {message && (
-          <div
-            className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${msgMeta.container}`}
-          >
-            <div className="flex items-center gap-2">
-              <span>{msgMeta.icon}</span>
-              <span>{message}</span>
-            </div>
-            <button
-              onClick={() => setMessage("")}
-              className="text-gray-500 hover:text-gray-700"
+        <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
+          {message && (
+            <div
+              className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${msgMeta.container}`}
             >
-              <AiOutlineClose size={18} />
-            </button>
-          </div>
-        )}
-
-        {tracking && (
-          <>
-            {/* Toast for tracking copy actions */}
-            {toast && (
-              <Toast
-                message={toast.message}
-                type={toast.type}
-                onClose={() => setToast(null)}
-              />
-            )}
-
-            <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm">
-              <div className="flex items-center justify-between mb-2">
-                <div className="font-semibold text-sm">
-                  📦 Order Tracking Details
-                </div>
-                <button
-                  onClick={() => setTracking(null)}
-                  className="text-xs text-gray-500 hover:text-gray-800"
-                  title="Hide tracking info"
-                >
-                  ✖
-                </button>
+              <div className="flex items-center gap-2">
+                <span>{msgMeta.icon}</span>
+                <span>{message}</span>
               </div>
-
-              <div className="mb-2 flex items-center">
-                <strong>Tracking Code:</strong>{" "}
-                <span className="bg-gray-200 px-2 py-1 rounded ml-1">
-                  {tracking.trackingCode}
-                </span>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(tracking.trackingCode);
-                    setToast({
-                      message: "✅ Tracking code copied!",
-                      type: "success",
-                    });
-                  }}
-                  className="ml-2 text-blue-700 hover:text-blue-900"
-                  title="Copy tracking code"
-                >
-                  <FiCopy />
-                </button>
-              </div>
-
-              <div className="mb-2 flex items-center">
-                <strong>Tracking Link:</strong>{" "}
-                <a
-                  href={tracking.trackingLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-blue-700 ml-1"
-                >
-                  View Order
-                </a>
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(tracking.trackingLink);
-                    setToast({
-                      message: "✅ Tracking link copied!",
-                      type: "success",
-                    });
-                  }}
-                  className="ml-2 text-blue-700 hover:text-blue-900"
-                  title="Copy tracking link"
-                >
-                  <FiCopy />
-                </button>
-              </div>
+              <button
+                onClick={() => setMessage("")}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <AiOutlineClose size={18} />
+              </button>
             </div>
-          </>
-        )}
+          )}
 
-        <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
-          🥙 Place Your Ertib Order
-        </h1>
+          {tracking && (
+            <>
+              {/* Toast for tracking copy actions */}
+              {toast && (
+                <Toast
+                  message={toast.message}
+                  type={toast.type}
+                  onClose={() => setToast(null)}
+                />
+              )}
 
-        {!reviewMode ? (
-          <form onSubmit={handleReview} className="space-y-5">
-            <input
-              type="text"
-              name="customerName"
-              placeholder="Your Name"
-              value={customer.customerName}
-              onChange={handleCustomerChange}
-              className="w-full border p-2 rounded-lg"
-              required
-            />
-            <input
-              type="text"
-              name="phone"
-              placeholder="Phone Number"
-              value={customer.phone}
-              onChange={handleCustomerChange}
-              className="w-full border p-2 rounded-lg"
-              required
-            />
-            <input
-              type="text"
-              name="location"
-              placeholder="Delivery Location (e.g. Block14)"
-              value={customer.location}
-              onChange={handleCustomerChange}
-              className="w-full border p-2 rounded-lg"
-              required
-            />
-
-            <div className="border-t pt-4 space-y-4">
-              {items.map((item, index) => (
-                <div key={index} className="border p-4 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <h2 className="font-semibold text-amber-700">
-                      Ertib #{index + 1}
-                    </h2>
-                    {items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="text-red-600 text-sm hover:underline"
-                      >
-                        Remove
-                      </button>
-                    )}
+              <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-semibold text-sm">
+                    📦 Order Tracking Details
                   </div>
-
-                  <select
-                    name="ertibType"
-                    value={item.ertibType}
-                    onChange={(e) => handleItemChange(index, e)}
-                    className="w-full border p-2 rounded-lg"
+                  <button
+                    onClick={() => setTracking(null)}
+                    className="text-xs text-gray-500 hover:text-gray-800"
+                    title="Hide tracking info"
                   >
-                    <option value="normal">Normal</option>
-                    <option value="special">Special</option>
-                  </select>
+                    ✖
+                  </button>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm mt-3">
-                    {[
-                      "ketchup",
-                      "spices",
-                      // "felafil",
-                      "extraKetchup",
-                      "extraFelafil",
-                    ].map((field) => (
-                      <label
-                        key={field}
-                        className="flex items-center space-x-2"
-                      >
-                        <input
-                          type="checkbox"
-                          name={field}
-                          checked={item[field]}
-                          onChange={(e) => handleItemChange(index, e)}
-                        />
-                        <span>
-                          {field
-                            .replace(/([A-Z])/g, " $1")
-                            // .replace("felafil", "Felafil")
-                            .trim()}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                <div className="mb-2 flex items-center">
+                  <strong>Tracking Code:</strong>{" "}
+                  <span className="bg-gray-200 px-2 py-1 rounded ml-1">
+                    {tracking.trackingCode}
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(tracking.trackingCode);
+                      setToast({
+                        message: "✅ Tracking code copied!",
+                        type: "success",
+                      });
+                    }}
+                    className="ml-2 text-blue-700 hover:text-blue-900"
+                    title="Copy tracking code"
+                  >
+                    <FiCopy />
+                  </button>
+                </div>
 
-                  <div className="mt-3">
-                    <label className="block font-medium">Quantity:</label>
-                    <input
-                      type="number"
-                      name="quantity"
-                      min="1"
-                      value={item.quantity}
+                <div className="mb-2 flex items-center">
+                  <strong>Tracking Link:</strong>{" "}
+                  <a
+                    href={tracking.trackingLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-1 inline-flex items-center px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-md transition-all duration-200 hover:shadow-lg"
+                  >
+                    View Order
+                  </a>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(tracking.trackingLink);
+                      setToast({
+                        message: "✅ Tracking link copied!",
+                        type: "success",
+                      });
+                    }}
+                    className="ml-2 text-blue-700 hover:text-blue-900"
+                    title="Copy tracking link"
+                  >
+                    <FiCopy />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
+            🥙 Place Your Ertib Order
+          </h1>
+
+          {!reviewMode ? (
+            <form onSubmit={handleReview} className="space-y-5">
+              <input
+                type="text"
+                name="customerName"
+                placeholder="Your Name"
+                value={customer.customerName}
+                onChange={handleCustomerChange}
+                className="w-full border p-2 rounded-lg"
+                required
+              />
+              <input
+                type="text"
+                name="phone"
+                placeholder="Phone Number"
+                value={customer.phone}
+                onChange={handleCustomerChange}
+                className="w-full border p-2 rounded-lg"
+                required
+              />
+              <input
+                type="text"
+                name="location"
+                placeholder="Delivery Location (e.g. Block14)"
+                value={customer.location}
+                onChange={handleCustomerChange}
+                className="w-full border p-2 rounded-lg"
+                required
+              />
+
+              <div className="border-t pt-4 space-y-4">
+                {items.map((item, index) => (
+                  <div key={index} className="border p-4 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <h2 className="font-semibold text-amber-700">
+                        Ertib #{index + 1}
+                      </h2>
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          className="text-red-600 text-sm hover:underline"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    <select
+                      name="ertibType"
+                      value={item.ertibType}
                       onChange={(e) => handleItemChange(index, e)}
                       className="w-full border p-2 rounded-lg"
-                    />
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="special">Special</option>
+                    </select>
+
+                    <div className="grid grid-cols-2 gap-3 text-sm mt-3">
+                      {[
+                        "ketchup",
+                        "spices",
+                        // "felafil",
+                        "extraKetchup",
+                        "extraFelafil",
+                      ].map((field) => (
+                        <label
+                          key={field}
+                          className="flex items-center space-x-2"
+                        >
+                          <input
+                            type="checkbox"
+                            name={field}
+                            checked={item[field]}
+                            onChange={(e) => handleItemChange(index, e)}
+                          />
+                          <span>
+                            {field
+                              .replace(/([A-Z])/g, " $1")
+                              // .replace("felafil", "Felafil")
+                              .trim()}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="mt-3">
+                      <label className="block font-medium">Quantity:</label>
+                      <input
+                        type="number"
+                        name="quantity"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(index, e)}
+                        className="w-full border p-2 rounded-lg"
+                      />
+                    </div>
+
+                    <div className="flex justify-between text-sm mt-2">
+                      <span>Unit: {getUnitPrice(item)} Birr</span>
+                      <span>
+                        Line Total: {getUnitPrice(item) * item.quantity} Birr
+                      </span>
+                    </div>
                   </div>
+                ))}
 
-                  <div className="flex justify-between text-sm mt-2">
-                    <span>Unit: {getUnitPrice(item)} Birr</span>
-                    <span>
-                      Line Total: {getUnitPrice(item) * item.quantity} Birr
-                    </span>
-                  </div>
-                </div>
-              ))}
+                <button
+                  type="button"
+                  onClick={addItem}
+                  className="w-full border border-amber-700 text-amber-700 py-2 rounded-lg hover:bg-amber-700 hover:text-white transition"
+                >
+                  + Add Another Ertib
+                </button>
+              </div>
+
+              <div className="text-right text-sm font-semibold text-gray-700">
+                Total:{" "}
+                {items.reduce(
+                  (sum, item) => sum + getUnitPrice(item) * item.quantity,
+                  0
+                )}{" "}
+                Birr
+              </div>
 
               <button
-                type="button"
-                onClick={addItem}
-                className="w-full border border-amber-700 text-amber-700 py-2 rounded-lg hover:bg-amber-700 hover:text-white transition"
+                type="submit"
+                className="w-full bg-amber-700 text-white py-2 rounded-lg hover:bg-amber-800 transition"
               >
-                + Add Another Ertib
+                Review Order
               </button>
-            </div>
+            </form>
+          ) : (
+            <div>
+              <h2 className="text-lg font-semibold mb-4 text-gray-700">
+                Review Your Order
+              </h2>
+              <div className="space-y-3">
+                {items.map((item, i) => (
+                  <p key={i} className="border p-2 rounded-lg text-sm">
+                    {describeItem(item)} —{" "}
+                    <strong>{getUnitPrice(item) * item.quantity} Birr</strong>
+                  </p>
+                ))}
+              </div>
 
-            <div className="text-right text-sm font-semibold text-gray-700">
-              Total:{" "}
-              {items.reduce(
-                (sum, item) => sum + getUnitPrice(item) * item.quantity,
-                0
-              )}{" "}
-              Birr
-            </div>
+              <div className="text-right mt-4 font-semibold text-gray-700">
+                Total:{" "}
+                {items.reduce(
+                  (sum, item) => sum + getUnitPrice(item) * item.quantity,
+                  0
+                )}{" "}
+                Birr
+              </div>
 
-            <button
-              type="submit"
-              className="w-full bg-amber-700 text-white py-2 rounded-lg hover:bg-amber-800 transition"
-            >
-              Review Order
-            </button>
-          </form>
-        ) : (
-          <div>
-            <h2 className="text-lg font-semibold mb-4 text-gray-700">
-              Review Your Order
-            </h2>
-            <div className="space-y-3">
-              {items.map((item, i) => (
-                <p key={i} className="border p-2 rounded-lg text-sm">
-                  {describeItem(item)} —{" "}
-                  <strong>{getUnitPrice(item) * item.quantity} Birr</strong>
-                </p>
-              ))}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleBack}
+                  className="flex-1 border border-gray-400 py-2 rounded-lg hover:bg-gray-100"
+                >
+                  Back & Edit
+                </button>
+                <button
+                  onClick={handleConfirmOrder}
+                  disabled={loading}
+                  className="flex-1 bg-amber-700 text-white py-2 rounded-lg hover:bg-amber-800 transition"
+                >
+                  {loading ? "Placing..." : "Confirm Order"}
+                </button>
+              </div>
             </div>
-
-            <div className="text-right mt-4 font-semibold text-gray-700">
-              Total:{" "}
-              {items.reduce(
-                (sum, item) => sum + getUnitPrice(item) * item.quantity,
-                0
-              )}{" "}
-              Birr
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={handleBack}
-                className="flex-1 border border-gray-400 py-2 rounded-lg hover:bg-gray-100"
-              >
-                Back & Edit
-              </button>
-              <button
-                onClick={handleConfirmOrder}
-                disabled={loading}
-                className="flex-1 bg-amber-700 text-white py-2 rounded-lg hover:bg-amber-800 transition"
-              >
-                {loading ? "Placing..." : "Confirm Order"}
-              </button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
     </div>
   );
 }
