@@ -121,7 +121,7 @@ export default function Home() {
               className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
             >
               <FiPhoneCall size={16} />
-              +251 95 472 4664
+              +251954724664
             </a>
           </span>
         );
@@ -338,7 +338,7 @@ export default function Home() {
               className="text-amber-700 font-semibold hover:underline flex items-center gap-1"
             >
               <FiPhoneCall size={16} className="text-amber-700" />
-              +251 95 472 4664
+              +251954724664
             </a>
           </p>
         </div>
