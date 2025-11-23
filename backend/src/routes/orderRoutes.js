@@ -11,7 +11,7 @@ const {
 } = require("../middlewares/authMiddleware");
 
 const TRACK_BASE_URL =
-  process.env.TRACK_BASE_URL || "http://localhost:3000/track";
+  process.env.TRACK_BASE_URL || "https://ertibdelivery.netlify.app/track";
 
 // Helper: calculate price for an item
 function calcUnitPrice(item) {
