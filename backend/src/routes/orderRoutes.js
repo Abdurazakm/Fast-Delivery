@@ -488,9 +488,21 @@ router.get(
   adminMiddleware,
   async (req, res) => {
     try {
+      const date = req.query.date;
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ message: "Invalid or missing date" });
+      }
+
+      // Compute start and end of the day
+      const start = new Date(date + "T00:00:00Z");
+      const end = new Date(date + "T23:59:59Z");
+
       const manualOrders = await prisma.order.findMany({
-        where: { source: "manual" }, // only manual orders
-        orderBy: { createdAt: "desc" }, // latest first
+        where: {
+          source: "manual",
+          createdAt: { gte: start, lt: end }, // filter by date
+        },
+        orderBy: { createdAt: "desc" },
         select: {
           id: true,
           trackingCode: true,
@@ -499,7 +511,6 @@ router.get(
           location: true,
           trackUrl: true,
           createdAt: true,
-          // include items and total so admin UI can show details and summaries
           items: true,
           total: true,
           status: true,
@@ -513,6 +524,7 @@ router.get(
     }
   }
 );
+
 
 /**
  * ------------------------

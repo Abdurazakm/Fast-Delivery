@@ -55,6 +55,7 @@ export default function AdminDashboard() {
       // Fetch manual orders
       const resManual = await API.get("/orders/manual-orders", {
         headers: { Authorization: `Bearer ${token}` },
+          params: { date: date.format("YYYY-MM-DD") }, // pass selected day
       });
       const manualOrders = (resManual.data || []).map((o) => ({
         ...o,
