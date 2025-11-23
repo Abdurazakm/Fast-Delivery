@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
 import { FaPlus } from "react-icons/fa";
+import { FiPhoneCall } from "react-icons/fi";
+import { createRoot } from "react-dom/client";
 import { ArrowRight } from "lucide-react";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
@@ -91,37 +93,64 @@ export default function Home() {
     }
   };
 
-  // Service availability check
-  useEffect(() => {
-    const checkAvailability = () => {
-      const now = new Date();
-      const day = now.getDay();
-      const hour = now.getHours();
-      const minute = now.getMinutes();
+  const ServiceAvailability = ({ user }) => {
+    const [serviceAvailable, setServiceAvailable] = useState(true);
+    const [message, setMessage] = useState("");
 
-      const withinDays = day >= 1 && day <= 4;
-      const beforeTime = hour < 17 || (hour === 17 && minute <= 30);
+    useEffect(() => {
+      const checkAvailability = () => {
+        const now = new Date();
+        const day = now.getDay();
+        const hour = now.getHours();
+        const minute = now.getMinutes();
 
-      if (!withinDays) {
-        setServiceAvailable(false);
-        setMessage(
-          "⚠️ Service unavailable. We’re open only Monday to Thursday."
-        );
-      } else if (!beforeTime) {
-        setServiceAvailable(false);
-        setMessage(
-          "⏰ Ordering time is over (after 5:30 PM). You can call us directly if we’re still at the Ertib place: +251954724664."
-        );
-      } else {
-        setServiceAvailable(true);
-        setMessage("");
+        const withinDays = day >= 1 && day <= 4;
+        const beforeTime = hour < 17 || (hour === 17 && minute <= 30);
+
+        if (!withinDays) {
+          setServiceAvailable(false);
+          setMessage(
+            <span>
+              ⚠️ Service unavailable. We’re open only Monday to Thursday.
+            </span>
+          );
+        } else if (!beforeTime) {
+          setServiceAvailable(false);
+          setMessage(
+            <span className="flex flex-col gap-1">
+              ⏰ Ordering time is over (after 11:30 PM). You can call us
+              directly if we’re still at the Ertib place:{" "}
+              <a
+                href="tel:+251954724664"
+                className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
+              >
+                <FiPhoneCall size={16} />
+                +251 95 472 4664
+              </a>
+            </span>
+          );
+        } else {
+          setServiceAvailable(true);
+          setMessage(null);
+        }
+      };
+
+      checkAvailability();
+      const interval = setInterval(checkAvailability, 60000);
+      return () => clearInterval(interval);
+    }, []);
+
+    // Insert React phone-call icon
+    useEffect(() => {
+      const iconSpot = document.getElementById("phone-icon");
+      if (iconSpot) {
+        const root = createRoot(iconSpot);
+        root.render(<FiPhoneCall size={20} className="text-blue-600" />);
       }
-    };
+    }, [message]);
 
-    checkAvailability();
-    const interval = setInterval(checkAvailability, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    return { serviceAvailable, message };
+  };
 
   const handleOrderClick = () => {
     if (!serviceAvailable && user?.role !== "admin") {
@@ -143,7 +172,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-orange-100 p-6">
-           {/* Toast Notification */}
+      {/* Toast Notification */}
       {toast && (
         <Toast
           message={toast.message}
@@ -179,11 +208,14 @@ export default function Home() {
       {user?.role !== "admin" && !serviceAvailable && message && (
         <div
           className="fixed top-4 z-50 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2
-                        p-4 bg-red-100/50 backdrop-blur-sm text-red-800 border border-red-300/40
-                        rounded-xl flex justify-between items-start max-w-md shadow-lg"
+                      p-4 bg-red-100/50 backdrop-blur-sm text-red-800 border border-red-300/40
+                      rounded-xl flex justify-between items-start max-w-md shadow-lg"
         >
-          <span className="text-lg font-medium">{message}</span>
-          <button onClick={() => setMessage("")} className="text-red-800">
+          <span
+            className="text-lg font-medium"
+            dangerouslySetInnerHTML={{ __html: message }}
+          ></span>
+          <button onClick={() => setMessage("")} className="text-red-800 ml-4">
             <AiOutlineClose size={20} />
           </button>
         </div>
@@ -192,7 +224,7 @@ export default function Home() {
       {/* Hero */}
       <div className="text-center max-w-2xl mt-6">
         <h1 className="text-3xl md:text-4xl font-bold mb-4 text-amber-700">
-          👋 Welcome To Fast Delivery Service!
+          👋 Welcome To Fetan Delivery Service!
         </h1>
         <p className="text-gray-700 mb-3 text-lg">
           We deliver{" "}
@@ -237,7 +269,7 @@ export default function Home() {
                 </span>
               )}
             </span>
-      )}
+          )}
 
           {user?.role === "admin" && (
             <Link
@@ -303,7 +335,7 @@ export default function Home() {
       {/* Features */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">
         <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1">Fast Campus Delivery</h3>
+          <h3 className="font-semibold text-lg mb-1">Fetan Campus Delivery</h3>
           <p className="text-gray-600 text-sm">
             We deliver your favorite Ertib quickly and fresh!
           </p>
@@ -316,13 +348,14 @@ export default function Home() {
         </div>
         <div className="bg-white p-6 rounded-2xl shadow text-center">
           <h3 className="font-semibold text-lg mb-1">Easy Contact</h3>
-          <p className="text-gray-600 text-sm">
-            Call{" "}
+          <p className="text-gray-600 text-sm flex items-center gap-1">
+            Call us anytime:{" "}
             <a
               href="tel:+251954724664"
-              className="text-amber-700 font-semibold hover:underline"
+              className="text-amber-700 font-semibold hover:underline flex items-center gap-1"
             >
-              +251954724664
+              <FiPhoneCall size={16} className="text-amber-700" />
+              +251 95 472 4664
             </a>
           </p>
         </div>
@@ -330,7 +363,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="mt-12 text-gray-600 text-sm text-center">
-        © {new Date().getFullYear()} Fast Delivery Service — Exclusively for
+        © {new Date().getFullYear()} Fetan Delivery Service — Exclusively for
         AASTU Students.
       </footer>
     </div>
