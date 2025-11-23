@@ -57,15 +57,15 @@ export default function TrackOrder() {
         Back
       </Link>
 
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 break-words">
             Tracking Order —{" "}
             <span className="text-amber-700">{order.trackingCode}</span>
           </h1>
 
-          <p className="text-sm text-gray-600">
+          <p className="text-xs sm:text-sm text-gray-600 break-words">
             {!isManual && order.customerName ? (
               <>
                 Customer:{" "}
@@ -75,17 +75,18 @@ export default function TrackOrder() {
             Location: <span className="font-medium">{order.location}</span>
           </p>
 
-          <div className="mt-3 text-xs text-gray-500">
+          <div className="mt-2 sm:mt-3 text-[10px] sm:text-xs text-gray-500">
             <span>Source: </span>
             <strong className="capitalize">
               {(order.source || "online").toString().replace("_", " ")}
             </strong>
-            <span className="ml-4">
-              Placed: {dayjs(order.createdAt).format("YYYY-MM-DD HH:mm")}
+            <span className="ml-2 sm:ml-4">
+              Placed on: {new Date(order.createdAt).toLocaleString()}
             </span>
           </div>
         </div>
-
+      </div>
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0 mt-4 sm:mt-6">
         {/* Tracking Info Card */}
         <TrackingInfoCard order={order} hideCustomerWhenManual />
 
@@ -119,7 +120,7 @@ export default function TrackOrder() {
                         {h.status.replace("_", " ")}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {dayjs(h.at).format("YYYY-MM-DD HH:mm")}
+                        {new Date(h.at).toLocaleString()}
                       </div>
                     </div>
                   </div>

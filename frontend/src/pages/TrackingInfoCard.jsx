@@ -384,9 +384,9 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         {statusMessages[order.status] || "Tracking your order..."}
       </motion.div>
 
-      <div className="mt-2 text-xs text-gray-500">
+      {/* <div className="mt-2 text-xs text-gray-500">
         Placed on: {new Date(order.createdAt).toLocaleString()}
-      </div>
+      </div> */}
 
       {/* Edit / Cancel Info Highlighted */}
       <motion.div
