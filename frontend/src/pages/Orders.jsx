@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
+import { FiCopy } from "react-icons/fi"; // Feather icons
+import Toast from "./Toast"; // import the Toast component
+
 import API from "../api";
 
 export default function Order() {
@@ -28,6 +31,8 @@ export default function Order() {
   const [reviewMode, setReviewMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editCode, setEditCode] = useState(null);
+  const [toast, setToast] = useState(null);
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -310,76 +315,97 @@ export default function Order() {
         </div>
       </div>
 
-      {/* Order Form */}
-      <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
-        {message && (
-          <div
-            className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${msgMeta.container}`}
-          >
-            <div className="flex items-center gap-2">
-              <span>{msgMeta.icon}</span>
-              <span>{message}</span>
-            </div>
-            <button
-              onClick={() => setMessage("")}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              <AiOutlineClose size={18} />
-            </button>
-          </div>
-        )}
+<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-amber-600 via-orange-500 to-red-600 p-6">
+  {/* Order Form */}
+  <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
+    {message && (
+      <div
+        className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${msgMeta.container}`}
+      >
+        <div className="flex items-center gap-2">
+          <span>{msgMeta.icon}</span>
+          <span>{message}</span>
+        </div>
+        <button
+          onClick={() => setMessage("")}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <AiOutlineClose size={18} />
+        </button>
+      </div>
+    )}
+
         {tracking && (
-          <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold text-sm">
-                📦 Order Tracking Details
+          <>
+            {/* Toast for tracking copy actions */}
+            {toast && (
+              <Toast
+                message={toast.message}
+                type={toast.type}
+                onClose={() => setToast(null)}
+              />
+            )}
+
+            <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-semibold text-sm">
+                  📦 Order Tracking Details
+                </div>
+                <button
+                  onClick={() => setTracking(null)}
+                  className="text-xs text-gray-500 hover:text-gray-800"
+                  title="Hide tracking info"
+                >
+                  ✖
+                </button>
               </div>
-              <button
-                onClick={() => setTracking(null)}
-                className="text-xs text-gray-500 hover:text-gray-800"
-                title="Hide tracking info"
-              >
-                ✖
-              </button>
-            </div>
 
-            <div className="mb-2">
-              <strong>Tracking Code:</strong>{" "}
-              <span className="bg-gray-200 px-2 py-1 rounded">
-                {tracking.trackingCode}
-              </span>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(tracking.trackingCode);
-                  alert("Tracking code copied!");
-                }}
-                className="ml-2 text-xs text-blue-700 underline"
-              >
-                Copy
-              </button>
-            </div>
+              <div className="mb-2 flex items-center">
+                <strong>Tracking Code:</strong>{" "}
+                <span className="bg-gray-200 px-2 py-1 rounded ml-1">
+                  {tracking.trackingCode}
+                </span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(tracking.trackingCode);
+                    setToast({
+                      message: "✅ Tracking code copied!",
+                      type: "success",
+                    });
+                  }}
+                  className="ml-2 text-blue-700 hover:text-blue-900"
+                  title="Copy tracking code"
+                >
+                  <FiCopy />
+                </button>
+              </div>
 
-            <div className="mb-2">
-              <strong>Tracking Link:</strong>{" "}
-              <a
-                href={tracking.trackingLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline text-blue-700"
-              >
-                View Order
-              </a>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(tracking.trackingLink);
-                  alert("Tracking link copied!");
-                }}
-                className="ml-2 text-xs text-blue-700 underline"
-              >
-                Copy Link
-              </button>
+              <div className="mb-2 flex items-center">
+                <strong>Tracking Link:</strong>{" "}
+                <a
+                  href={tracking.trackingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-blue-700 ml-1"
+                >
+                  View Order
+                </a>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(tracking.trackingLink);
+                    setToast({
+                      message: "✅ Tracking link copied!",
+                      type: "success",
+                    });
+                  }}
+                  className="ml-2 text-blue-700 hover:text-blue-900"
+                  title="Copy tracking link"
+                >
+                  <FiCopy />
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
@@ -559,6 +585,7 @@ export default function Order() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

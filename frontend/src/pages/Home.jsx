@@ -5,11 +5,13 @@ import { FaPlus } from "react-icons/fa";
 import { ArrowRight } from "lucide-react";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
+import Toast from "./Toast"; // import your reusable Toast component
 
 export default function Home() {
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState("");
   const [serviceAvailable, setServiceAvailable] = useState(true);
+  const [toast, setToast] = useState(null); // ✅ toast state
   const navigate = useNavigate();
 
   const [trackingCodeInput, setTrackingCodeInput] = useState("");
@@ -17,7 +19,7 @@ export default function Home() {
   const [trackingError, setTrackingError] = useState("");
   const [latestOrder, setLatestOrder] = useState(null);
 
-  // Fetch user & latest order (today-only)
+  // Fetch user & latest order
   useEffect(() => {
     const fetchUserAndOrder = async () => {
       const token = localStorage.getItem("token");
@@ -37,15 +39,13 @@ export default function Home() {
             headers: { Authorization: `Bearer ${token}` },
           });
 
-          if (resOrder.data && Object.keys(resOrder.data).length > 0) {
-            // Only set latestOrder if data exists
-            setLatestOrder(resOrder.data);
-          } else {
-            setLatestOrder(null);
-          }
-        } catch (orderErr) {
+          setLatestOrder(
+            resOrder.data && Object.keys(resOrder.data).length > 0
+              ? resOrder.data
+              : null
+          );
+        } catch {
           setLatestOrder(null);
-          console.log("No orders found for today.");
         }
       } catch (err) {
         console.error("❌ Failed to fetch user or order:", err);
@@ -123,25 +123,34 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    setMessage("Logged out successfully!");
-  };
-
   const handleOrderClick = () => {
     if (!serviceAvailable && user?.role !== "admin") {
-      alert(
-        "⚠️ Sorry! Ordering is not available right now.\n" +
-          "We’re open Monday to Thursday until 5:30 PM."
-      );
+      setToast({
+        message:
+          "⚠️ Sorry! Ordering is not available right now.\nWe’re open Monday to Thursday until 5:30 PM.",
+        type: "error",
+      });
       return;
     }
     navigate("/order");
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setUser(null);
+    setToast({ message: "Logged out successfully!", type: "success" });
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-orange-100 p-6">
+           {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
       {/* Top Right Auth Buttons */}
       <div className="w-full flex items-center justify-end max-w-6xl mb-6">
         {!user ? (
@@ -228,7 +237,7 @@ export default function Home() {
                 </span>
               )}
             </span>
-          )}
+      )}
 
           {user?.role === "admin" && (
             <Link
