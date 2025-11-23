@@ -693,7 +693,7 @@ Normal - 110 Birr, Special - 135 Birr
                     : `${order.source || "o"}-${idx}`;
 
                   // Build a professional tracking message depending on order status
-                  const baseLink = `${window.location.origin}/track/${order.trackingCode}`;
+                  const baseLink = `${window.location.origin}/track/${order.trackingCode}/`;
                   const trackingMessage = (() => {
                     const name = order.customerName || "Customer";
                     const code = order.trackingCode || orderId || "--";
