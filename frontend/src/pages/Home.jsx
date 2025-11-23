@@ -255,23 +255,23 @@ export default function Home() {
               {latestOrder ? (
                 <TrackingInfoCard order={latestOrder} />
               ) : (
-                <div className="text-gray-500">No orders today.</div>
+                <div className="text-gray-500 text-sm">No orders today.</div>
               )}
             </>
           ) : (
             /* Guest users: manual tracking */
-            <div className="flex flex-col gap-2 mb-3">
-              <div className="flex gap-2">
+            <div className="flex flex-col gap-3 mb-3">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   placeholder="Enter your tracking code"
                   value={trackingCodeInput}
                   onChange={(e) => setTrackingCodeInput(e.target.value)}
-                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 min-w-0 text-center placeholder:text-center text-sm"
                 />
                 <button
                   onClick={handleTrackOrder}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition"
+                  className="w-full sm:w-auto px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm"
                 >
                   Track
                 </button>
