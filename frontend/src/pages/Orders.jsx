@@ -352,8 +352,25 @@ export default function Order() {
                   onClose={() => setToast(null)}
                 />
               )}
+              <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm relative">
+                {/* Admin-created order → show ready-to-send SMS */}
+                {user?.role === "admin" && customer?.phone && (
+                  <button
+                    title="Send order SMS"
+                    onClick={() => {
+                      const message = `Hello, your order (Code: ${tracking.trackingCode}) is confirmed. We have received your request and will notify you when it is being prepared. Track your order: ${tracking.trackingLink}`;
+                      const smsUrl = `sms:${
+                        customer.phone
+                      }?body=${encodeURIComponent(message)}`;
+                      window.location.href = smsUrl; // opens SMS app
+                    }}
+                    className="absolute top-3 right-3 text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
+                  >
+                    <FaPaperPlane className="text-md" />
+                  </button>
+                )}
 
-              <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm">
+                {/* Tracking info for guest or authenticated user */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-semibold text-sm">
                     📦 Order Tracking Details
