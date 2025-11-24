@@ -461,17 +461,27 @@ router.delete("/track/:code", async (req, res) => {
 
 router.get("/latest", authMiddleware, async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // start of today
+    const now = new Date();
+    const offset = 3 * 60; // Ethiopia UTC+3 in minutes
+
+    // Start of today in Ethiopia
+    const today = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      0 - 3, 0, 0, 0
+    ));
+
+    // Start of tomorrow in Ethiopia
     const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1); // start of tomorrow
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
     const todaysOrder = await prisma.order.findFirst({
       where: {
         userId: req.user.id,
         createdAt: {
           gte: today,
-          lt: tomorrow, // only today's orders
+          lt: tomorrow,
         },
       },
       orderBy: { createdAt: "desc" },

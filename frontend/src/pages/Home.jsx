@@ -36,19 +36,24 @@ export default function Home() {
         setUser(currentUser);
 
         // 2️⃣ Fetch latest order for this user
-        try {
-          const resOrder = await API.get("/orders/latest", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+try {
+  const resOrder = await API.get("/orders/latest", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
-          setLatestOrder(
-            resOrder.data && Object.keys(resOrder.data).length > 0
-              ? resOrder.data
-              : null
-          );
-        } catch {
-          setLatestOrder(null);
-        }
+  console.log("Latest order data:", resOrder.data); // 🔍 check what's returned
+  
+
+  setLatestOrder(
+    resOrder.data && Object.keys(resOrder.data).length > 0
+      ? resOrder.data
+      : null
+  );
+} catch (err) {
+  console.error("Failed to fetch latest order:", err);
+  setLatestOrder(null);
+}
+
       } catch (err) {
         console.error("❌ Failed to fetch user or order:", err);
         setUser(null);
