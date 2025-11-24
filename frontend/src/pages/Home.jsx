@@ -284,7 +284,7 @@ try {
               {latestOrder ? (
                 <TrackingInfoCard order={latestOrder} />
               ) : (
-                <div className="text-gray-500 text-sm">No orders today.</div>
+                <div className="text-gray-500 text-sm">You have no orders today.</div>
               )}
             </>
           ) : (

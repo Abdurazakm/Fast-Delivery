@@ -12,7 +12,7 @@ const {
 
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
-  // process.env.TRACK_BASE_URL || "http://localhost:5173/track";
+// process.env.TRACK_BASE_URL || "http://localhost:5173/track";
 
 // Helper: calculate price for an item
 function calcUnitPrice(item) {
@@ -461,27 +461,17 @@ router.delete("/track/:code", async (req, res) => {
 
 router.get("/latest", authMiddleware, async (req, res) => {
   try {
-    const now = new Date();
-    const offset = 3 * 60; // Ethiopia UTC+3 in minutes
-
-    // Start of today in Ethiopia
-    const today = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      0 - 3, 0, 0, 0
-    ));
-
-    // Start of tomorrow in Ethiopia
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // start of today
     const tomorrow = new Date(today);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    tomorrow.setDate(tomorrow.getDate() + 1); // start of tomorrow
 
     const todaysOrder = await prisma.order.findFirst({
       where: {
         userId: req.user.id,
         createdAt: {
           gte: today,
-          lt: tomorrow,
+          lt: tomorrow, // only today's orders
         },
       },
       orderBy: { createdAt: "desc" },
@@ -535,7 +525,6 @@ router.get(
     }
   }
 );
-
 
 /**
  * ------------------------
