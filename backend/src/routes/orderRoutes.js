@@ -461,24 +461,18 @@ router.delete("/track/:code", async (req, res) => {
 
 router.get("/latest", authMiddleware, async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // start of today
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1); // start of tomorrow
-
-    const todaysOrder = await prisma.order.findFirst({
+    const latestOrder = await prisma.order.findFirst({
       where: {
-        userId: req.user.id,
-        createdAt: {
-          gte: today,
-          lt: tomorrow, // only today's orders
-        },
+        userId: req.user.id,   // authenticated user
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: {
+        createdAt: "desc",     // newest order first
+      },
     });
 
-    res.json(todaysOrder || null);
+    res.json(latestOrder || null);
   } catch (err) {
+    console.error("❌ Error fetching latest order:", err);
     res.status(500).json({ error: err.message });
   }
 });
