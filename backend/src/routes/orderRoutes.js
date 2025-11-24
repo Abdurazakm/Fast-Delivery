@@ -10,6 +10,8 @@ const {
   adminMiddleware,
 } = require("../middlewares/authMiddleware");
 
+const { getUserIdMiddleware } = require('../middlewares/getUserIdMiddleware.js');
+
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
 // process.env.TRACK_BASE_URL || "http://localhost:5173/track";
@@ -94,7 +96,7 @@ router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.post("/", checkServiceAvailability, async (req, res) => {
+router.post("/", getUserIdMiddleware,checkServiceAvailability, async (req, res) => {
   try {
     const { customerName, phone, location, items } = req.body;
 
@@ -125,19 +127,21 @@ router.post("/", checkServiceAvailability, async (req, res) => {
     const trackUrl = `${TRACK_BASE_URL}/${trackingCode}`;
 
     // Optional userId
-    let userId = null;
+      const userId = req.userId; // will be null if guest
+    console.log('Authenticated user:', req.userId);
+
     const authHeader = req.headers.authorization;
-    if (authHeader) {
-      const token = authHeader.split(" ")[1];
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET);
-          userId = decoded.id; // assign userId if logged in
-        } catch (err) {
-          console.warn("⚠️ Invalid token, proceeding as guest");
-        }
-      }
-    }
+    // if (authHeader) {
+    //   const token = authHeader.split(" ")[1];
+    //   if (token) {
+    //     try {
+    //       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    //       userId = decoded.id; // assign userId if logged in
+    //     } catch (err) {
+    //       console.warn("⚠️ Invalid token, proceeding as guest");
+    //     }
+    //   }
+    // }
 
     const orderData = {
       customerName,
@@ -461,42 +465,31 @@ router.delete("/track/:code", async (req, res) => {
 
 router.get("/latest", authMiddleware, async (req, res) => {
   try {
-    // 1️⃣ Get current date in UTC
     const now = new Date();
+    const eightHoursAgo = new Date(now.getTime() - 8 * 60 * 60 * 1000); // 8 hours ago
 
-    // Start of today in local timezone (Ethiopia UTC+3)
-    const offsetHours = 3; // adjust if your local timezone is different
-    const todayStart = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate(),
-      -offsetHours, 0, 0, 0
-    ));
-
-    // Start of tomorrow in local timezone
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
-
-    // 2️⃣ Fetch today's latest order
-    const todaysOrder = await prisma.order.findFirst({
+    // Fetch latest order in the last 8 hours for the logged-in user
+    const latestOrder = await prisma.order.findFirst({
       where: {
         userId: req.user.id,
-        createdAt: {
-          gte: todayStart,
-          lt: tomorrowStart
-        },
+        // createdAt: {
+        //   gte: eightHoursAgo, // orders from 8 hours ago until now
+        //   lt: now
+        // },
       },
       orderBy: {
         createdAt: "desc"
       },
     });
 
-    res.json(todaysOrder || null);
+    res.json(latestOrder || null);
   } catch (err) {
-    console.error("❌ Error fetching today's order:", err);
+    console.error("❌ Error fetching latest order:", err);
     res.status(500).json({ error: err.message });
   }
 });
+
+
 
 router.get(
   "/manual-orders",

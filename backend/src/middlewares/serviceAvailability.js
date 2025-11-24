@@ -7,4 +7,4 @@ function checkServiceAvailability(req, res, next) {
   });
 }
 
-module.exports = { checkServiceAvailability };
+module.exports = checkServiceAvailability;
