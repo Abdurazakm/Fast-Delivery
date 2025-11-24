@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
 import { FaPlus } from "react-icons/fa";
 import { FiPhoneCall } from "react-icons/fi";
-import { createRoot } from "react-dom/client";
 import { ArrowRight } from "lucide-react";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
@@ -21,45 +20,39 @@ export default function Home() {
   const [trackingError, setTrackingError] = useState("");
   const [latestOrder, setLatestOrder] = useState(null);
 
-  // Fetch Authenticated User & Latest Order
+  // Fetch user & latest order
   useEffect(() => {
     const fetchUserAndOrder = async () => {
       const token = localStorage.getItem("token");
-      if (!token) {
-        setUser(null);
-        setLatestOrder(null);
-        return;
-      }
-
-      const authHeader = {
-        headers: { Authorization: `Bearer ${token}` },
-      };
+      if (!token) return;
 
       try {
         // 1️⃣ Fetch authenticated user
-        const resUser = await API.get("/auth/me", authHeader);
-        const authenticatedUser = resUser.data;
-        setUser(authenticatedUser);
+        const resUser = await API.get("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const currentUser = resUser.data;
+        setUser(currentUser);
 
-        // 2️⃣ Fetch latest order for this authenticated user
+        // 2️⃣ Fetch latest order for this user
         try {
-          const resOrder = await API.get("/orders/latest", authHeader);
+          const resOrder = await API.get("/orders/latest", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
 
-          console.log("Latest order response:", resOrder.data);
-
-          const order = resOrder.data;
+          console.log("Latest order data:", resOrder.data); // 🔍 check what's returned
 
           setLatestOrder(
-            order && typeof order === "object" && Object.keys(order).length > 0
-              ? order
+            resOrder.data && Object.keys(resOrder.data).length > 0
+              ? resOrder.data
               : null
           );
-        } catch (orderErr) {
-          console.error("❌ Failed to fetch latest order:", orderErr);
+        } catch (err) {
+          console.error("Failed to fetch latest order:", err);
           setLatestOrder(null);
         }
-      } catch (userErr) {
-        console.error("❌ Failed to fetch authenticated user:", userErr);
+      } catch (err) {
+        console.error("❌ Failed to fetch user or order:", err);
         setUser(null);
         setLatestOrder(null);
       }
@@ -289,7 +282,7 @@ export default function Home() {
                 <TrackingInfoCard order={latestOrder} />
               ) : (
                 <div className="text-gray-500 text-sm text-center py-3">
-                  You have no active orders.
+                  You have no orders today.
                 </div>
               )}
             </>
@@ -302,15 +295,11 @@ export default function Home() {
                   placeholder="Enter your tracking code"
                   value={trackingCodeInput}
                   onChange={(e) => setTrackingCodeInput(e.target.value)}
-                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none 
-                   focus:ring-2 focus:ring-amber-400 min-w-0 text-center 
-                   placeholder:text-center text-sm"
+                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 min-w-0 text-center placeholder:text-center text-sm"
                 />
-
                 <button
                   onClick={handleTrackOrder}
-                  className="w-full sm:w-auto px-4 py-2 bg-amber-600 text-white 
-                   rounded-lg hover:bg-amber-700 transition text-sm"
+                  className="w-full sm:w-auto px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm"
                 >
                   Track
                 </button>

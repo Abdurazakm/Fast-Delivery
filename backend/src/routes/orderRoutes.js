@@ -461,18 +461,39 @@ router.delete("/track/:code", async (req, res) => {
 
 router.get("/latest", authMiddleware, async (req, res) => {
   try {
-    const latestOrder = await prisma.order.findFirst({
+    // 1️⃣ Get current date in UTC
+    const now = new Date();
+
+    // Start of today in local timezone (Ethiopia UTC+3)
+    const offsetHours = 3; // adjust if your local timezone is different
+    const todayStart = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      -offsetHours, 0, 0, 0
+    ));
+
+    // Start of tomorrow in local timezone
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
+
+    // 2️⃣ Fetch today's latest order
+    const todaysOrder = await prisma.order.findFirst({
       where: {
-        userId: req.user.id,   // authenticated user
+        userId: req.user.id,
+        createdAt: {
+          gte: todayStart,
+          lt: tomorrowStart
+        },
       },
       orderBy: {
-        createdAt: "desc",     // newest order first
+        createdAt: "desc"
       },
     });
 
-    res.json(latestOrder || null);
+    res.json(todaysOrder || null);
   } catch (err) {
-    console.error("❌ Error fetching latest order:", err);
+    console.error("❌ Error fetching today's order:", err);
     res.status(500).json({ error: err.message });
   }
 });
