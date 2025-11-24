@@ -251,11 +251,11 @@ export default function AdminDashboard() {
           : item.ketchup
           ? "Ketchup"
           : item.spices
-          ? "Spices"
-          : "Plain"
+          ? "data"
+          : "yale data yale ketchup"
       }`;
       if (item.extraKetchup) key += " + Extra Ketchup";
-      if (item.extraFelafil) key += " + Extra Felafil";
+      if (item.extraFelafil) key += " + double Felafil";
 
       summary[key] = (summary[key] || 0) + qty;
       totalPrice += lineTotal;
@@ -267,6 +267,20 @@ export default function AdminDashboard() {
   // const displayedOrders = filteredOrders.filter((order) =>
   //   !trackingSearch || (order.trackingCode || "").toLowerCase().includes(trackingSearch.toLowerCase())
   // );
+const buildSummaryMessage = () => {
+  let msg = `አሳላሙ ዐለይኩም ወረህመቱላህ ወበረካቱ Mom,\n\n`;
+
+  Object.keys(summary || {}).forEach((key) => {
+    if (checkedItems[key]) {
+      msg += `${summary[key]} — ${key}\n`;
+    }
+  });
+
+  return msg.trim();
+};
+
+
+
   // Color mapping for order statuses
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-700 border-yellow-400",
@@ -621,8 +635,23 @@ Normal - 110 Birr, Special - 135 Birr
 
         {/* Summary card */}
         {filteredOrders.length > 0 && (
-          <div className="bg-amber-100 p-4 rounded-lg mb-4 shadow">
-            <h2 className="font-semibold text-lg mb-2">
+          <div className="bg-amber-100 p-4 rounded-lg mb-4 shadow relative">
+            {/* TOP RIGHT SEND SMS BUTTON */}
+            <button
+              title="Send summary SMS"
+              onClick={() => {
+                const message = buildSummaryMessage();
+                const smsUrl = `sms:+251974149999?body=${encodeURIComponent(
+                  message
+                )}`;
+                window.location.href = smsUrl;
+              }}
+              className="absolute top-3 right-3 text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
+            >
+              <FaPaperPlane className="text-md" />
+            </button>
+
+            <h2 className="font-semibold text-lg mb-2 pr-10">
               📊 Order Summary ({selectedLocation})
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
