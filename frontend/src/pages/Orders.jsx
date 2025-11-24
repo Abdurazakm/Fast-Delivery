@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
 import { FiCopy, FiArrowLeft } from "react-icons/fi"; // Feather icons
+import { FaPaperPlane } from "react-icons/fa"; // FontAwesome icon
 import Toast from "./Toast"; // import the Toast component
 
 import API from "../api";
