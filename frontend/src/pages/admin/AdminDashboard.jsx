@@ -267,19 +267,16 @@ export default function AdminDashboard() {
   // const displayedOrders = filteredOrders.filter((order) =>
   //   !trackingSearch || (order.trackingCode || "").toLowerCase().includes(trackingSearch.toLowerCase())
   // );
-const buildSummaryMessage = () => {
-  let msg = `አሳላሙ ዐለይኩም ወረህመቱላህ ወበረካቱ Mom,\n\n`;
+  const buildSummaryMessage = () => {
+    let msg = `አሳላሙ ዐለይኩም ወረህመቱላህ ወበረካቱ Mom,\n\n`;
 
-  Object.keys(summary || {}).forEach((key) => {
-    if (checkedItems[key]) {
-      msg += `${summary[key]} — ${key}\n`;
-    }
-  });
+    Object.keys(summary || {}).forEach((key) => {
+      msg += `${summary[key]} — ${key}\n`; // include all items
+    });
 
-  return msg.trim();
-};
-
-
+    return msg.trim();
+  };
+  // console.log("Summary message:", buildSummaryMessage());
 
   // Color mapping for order statuses
   const statusColors = {
@@ -641,6 +638,8 @@ Normal - 110 Birr, Special - 135 Birr
               title="Send summary SMS"
               onClick={() => {
                 const message = buildSummaryMessage();
+                console.log("Sending SMS message:\n", message);
+
                 const smsUrl = `sms:+251974149999?body=${encodeURIComponent(
                   message
                 )}`;

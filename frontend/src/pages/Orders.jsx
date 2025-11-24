@@ -159,7 +159,6 @@ export default function Order() {
     e.preventDefault();
     setReviewMode(true);
   };
-
   const handleConfirmOrder = async () => {
     setLoading(true);
     setMessage("");
@@ -173,7 +172,7 @@ export default function Order() {
     const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
 
     const payload = {
-      ...customer,
+      ...customer, // includes customerName, phone, location
       items: itemList,
       total,
     };
@@ -184,11 +183,14 @@ export default function Order() {
         const res = await API.put(`/orders/track/${editCode}`, payload);
         const updated = res.data.order || res.data;
         setMessage("Order updated successfully!");
+
         setTracking({
           trackingCode: updated.trackingCode || editCode,
           trackingLink: updated.trackUrl,
+          createdByAdmin: updated.userRole === "admin", // from server
+          customerPhone: updated.phone, // ensure correct phone
         });
-        // clear edit mode and redirect to tracking page
+
         setEditMode(false);
         setEditCode(null);
         navigate(`/track/${updated.trackingCode || editCode}`);
@@ -202,9 +204,7 @@ export default function Order() {
           headers.Authorization = `Bearer ${token}`;
         }
 
-        // Create new order
         const res = await API.post(endpoint, payload, { headers });
-
         const orderData = res.data.order || res.data;
 
         if (!orderData?.trackingCode) {
@@ -215,17 +215,18 @@ export default function Order() {
         setTracking({
           trackingCode: orderData.trackingCode,
           trackingLink: orderData.trackUrl,
+          createdByAdmin: user?.role === "admin",
+          customerPhone: orderData.phone || customer.phone, // ensure correct phone
         });
       }
 
-      // Reset form for both create and update flows
+      // Reset form
       setCustomer({ customerName: "", phone: "", location: "" });
       setItems([
         {
           ertibType: "normal",
           ketchup: true,
           spices: true,
-          // felafil: true,
           extraKetchup: false,
           extraFelafil: false,
           quantity: 1,
@@ -342,10 +343,8 @@ export default function Order() {
               </button>
             </div>
           )}
-
           {tracking && (
             <>
-              {/* Toast for tracking copy actions */}
               {toast && (
                 <Toast
                   message={toast.message}
@@ -354,81 +353,86 @@ export default function Order() {
                 />
               )}
               <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm relative">
-                {/* Admin-created order → show ready-to-send SMS */}
-                {user?.role === "admin" && customer?.phone && (
+                {/* Close button always visible */}
+                <button
+                  onClick={() => setTracking(null)}
+                  className="absolute top-3 right-3 text-xs text-gray-500 hover:text-gray-800"
+                  title="Hide tracking info"
+                >
+                  ✖
+                </button>
+
+                {/* Show SMS button only if created by admin AND customer phone exists */}
+                {tracking.createdByAdmin && tracking.customerPhone && (
                   <button
                     title="Send order SMS"
                     onClick={() => {
                       const message = `Hello, your order (Code: ${tracking.trackingCode}) is confirmed. We have received your request and will notify you when it is being prepared. Track your order: ${tracking.trackingLink}`;
                       const smsUrl = `sms:${
-                        customer.phone
+                        tracking.customerPhone
                       }?body=${encodeURIComponent(message)}`;
-                      window.location.href = smsUrl; // opens SMS app
+                      window.location.href = smsUrl;
                     }}
-                    className="absolute top-3 right-3 text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
+                    className="absolute top-2 right-12 text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
                   >
                     <FaPaperPlane className="text-md" />
                   </button>
                 )}
 
-                {/* Tracking info for guest or authenticated user */}
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-semibold text-sm">
-                    📦 Order Tracking Details
-                  </div>
-                  <button
-                    onClick={() => setTracking(null)}
-                    className="text-xs text-gray-500 hover:text-gray-800"
-                    title="Hide tracking info"
-                  >
-                    ✖
-                  </button>
-                </div>
+                {tracking.trackingCode && tracking.trackingLink && (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-semibold text-sm">
+                        📦 Order Tracking Details
+                      </div>
+                    </div>
 
-                <div className="mb-2 flex items-center">
-                  <strong>Tracking Code:</strong>{" "}
-                  <span className="bg-gray-200 px-2 py-1 rounded ml-1">
-                    {tracking.trackingCode}
-                  </span>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(tracking.trackingCode);
-                      setToast({
-                        message: "✅ Tracking code copied!",
-                        type: "success",
-                      });
-                    }}
-                    className="ml-2 text-blue-700 hover:text-blue-900"
-                    title="Copy tracking code"
-                  >
-                    <FiCopy />
-                  </button>
-                </div>
+                    <div className="mb-2 flex items-center">
+                      <strong>Tracking Code:</strong>{" "}
+                      <span className="bg-gray-200 px-2 py-1 rounded ml-1">
+                        {tracking.trackingCode}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(tracking.trackingCode);
+                          setToast({
+                            message: "✅ Tracking code copied!",
+                            type: "success",
+                          });
+                        }}
+                        className="ml-2 text-blue-700 hover:text-blue-900"
+                        title="Copy tracking code"
+                      >
+                        <FiCopy />
+                      </button>
+                    </div>
 
-                <div className="mb-2 flex items-center">
-                  <strong>Tracking Link:</strong>{" "}
-                  <a
-                    href={tracking.trackingLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-1 inline-flex items-center px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-md transition-all duration-200 hover:shadow-lg"
-                  >
-                    View Order
-                  </a>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(tracking.trackingLink);
-                      setToast({
-                        message: "✅ Tracking link copied!",
-                        type: "success",
-                      });
-                    }}
-                    className="ml-2 text-blue-700 hover:text-blue-900"
-                    title="Copy tracking link"
-                  >
-                    <FiCopy />
-                  </button>
-                </div>
+                    <div className="mb-2 flex items-center">
+                      <strong>Tracking Link:</strong>{" "}
+                      <a
+                        href={tracking.trackingLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ml-1 inline-flex items-center px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-md transition-all duration-200 hover:shadow-lg"
+                      >
+                        View Order
+                      </a>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(tracking.trackingLink);
+                          setToast({
+                            message: "✅ Tracking link copied!",
+                            type: "success",
+                          });
+                        }}
+                        className="ml-2 text-blue-700 hover:text-blue-900"
+                        title="Copy tracking link"
+                      >
+                        <FiCopy />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}
