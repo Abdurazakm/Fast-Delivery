@@ -4,8 +4,12 @@
   "description": "Backend for Ertib Delivery (Node.js + Express + MongoDB)",
   "main": "server.js",
   "scripts": {
+    "dev": "nodemon server.js",
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "migrate:dev": "npx prisma migrate dev",
+    "migrate:deploy": "npx prisma migrate deploy",
+    "studio:dev": "npx prisma studio",
+    "studio:prod": "npx prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
@@ -23,6 +27,8 @@
     "twilio": "^5.10.5"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "dotenv-cli": "^11.0.0",
+    "nodemon": "^2.0.22",
+    "prisma": "^6.19.0"
   }
 }

@@ -21,7 +21,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [selectedDate, setSelectedDate] = useState(dayjs());
-  const [selectedLocation, setSelectedLocation] = useState("All"); // ✅ new
+  const [selectedLocation, setSelectedLocation] = useState("All");
   const [checkedItems, setCheckedItems] = useState({});
   const [trackingSearch, setTrackingSearch] = useState("");
   const [prevStatuses, setPrevStatuses] = useState({});
@@ -146,7 +146,6 @@ export default function AdminDashboard() {
     fetchOrders(selectedDate);
   }, [selectedDate]);
 
-  // Update status
   const updateStatus = async (id, newStatus) => {
     try {
       const token = localStorage.getItem("token");
@@ -180,7 +179,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Delete modal functions
   const openDeleteModal = (orderId) => {
     setSelectedOrderId(orderId);
     setDeleteModalOpen(true);
@@ -207,7 +205,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // Day navigation
   const prevDay = () => setSelectedDate((prev) => prev.subtract(1, "day"));
   const nextDay = () => {
     const today = dayjs();
@@ -218,67 +215,86 @@ export default function AdminDashboard() {
 
   // Helper to determine unit price for an item when backend doesn't provide it
   const getUnitPrice = (item) => {
+    if (item.foodType === "sambusa") {
+      return 30; // fixed price for Sambusa
+    }
+
+    // Ertib
     const type = (item?.ertibType || "").toLowerCase();
     let base = type === "special" ? 135 : 110;
     if (item?.extraKetchup) base += 10;
-    if (item?.extraFelafil) base += 15;
+    if (item?.doubleFelafil) base += 15;
     return base;
   };
 
   // Generate summary card
   const summary = {};
   let totalPrice = 0;
-  let totalertibPrice = 0;
   let profit = 0;
 
-  // ✅ Apply location filter for summary too
   const filteredOrders =
     selectedLocation === "All"
       ? orders
       : orders.filter((order) => order.location === selectedLocation);
 
   filteredOrders.forEach((order) => {
-    if (!order.items || order.items.length === 0) return; // skip orders without items
+    if (!order.items || order.items.length === 0) return;
 
     order.items.forEach((item) => {
-      const qty = Number(item?.quantity) || 0;
-      const unitPrice = Number(item?.unitPrice ?? getUnitPrice(item)) || 0;
-      const lineTotal = Number(item?.lineTotal ?? qty * unitPrice) || 0;
+      let key;
+      const unitPrice = Number(item.unitPrice ?? getUnitPrice(item)) || 0;
+      const qty = Number(item.quantity) || 0;
 
-      let key = `${item.ertibType} ${
-        item.ketchup && item.spices
-          ? "Both"
-          : item.ketchup
-          ? "Ketchup"
-          : item.spices
-          ? "data"
-          : "yale data yale ketchup"
-      }`;
-      if (item.extraKetchup) key += " + Extra Ketchup";
-      if (item.extraFelafil) key += " + double Felafil";
+      if (item.foodType === "sambusa") {
+        key = "Sambusa";
+
+        profit += qty * 10; // profit per Sambusa
+      } else {
+        // Ertib logic
+        let base = item.ertibType;
+
+        // Ketchup/Spices
+        let cond = "";
+        if (item.ketchup && item.spices) cond = "Both";
+        else if (item.ketchup) cond = "Ketchup";
+        else if (item.spices) cond = "Spices";
+        else cond = "Plain";
+
+        key = `${base} ${cond}`;
+
+        // FELAFIL logic
+        if (!item.Felafil) {
+          key += ", No Felafil";
+        }
+
+        // Extras
+        if (item.extraKetchup) key += " + Extra Ketchup";
+        if (item.doubleFelafil) key += " + Double Felafil";
+
+        profit += qty * 15; // profit per Ertib
+      }
 
       summary[key] = (summary[key] || 0) + qty;
-      totalPrice += lineTotal;
-      profit += qty * 15; // profit per ertib
+      totalPrice += item.lineTotal || qty * unitPrice;
     });
   });
-  totalertibPrice = totalPrice - profit;
 
-  // const displayedOrders = filteredOrders.filter((order) =>
-  //   !trackingSearch || (order.trackingCode || "").toLowerCase().includes(trackingSearch.toLowerCase())
-  // );
+  // ❌ REMOVE THIS (caused the error)
+  // totalertibPrice = totalPrice - profit;
+
+  // ✅ KEEP ONLY THIS
+  const totalertibPrice = totalPrice - profit;
+
   const buildSummaryMessage = () => {
     let msg = `አሳላሙ ዐለይኩም ወረህመቱላህ ወበረካቱ Mom,\n\n`;
 
     Object.keys(summary || {}).forEach((key) => {
-      msg += `${summary[key]} — ${key}\n`; // include all items
+      msg += `${summary[key]} — ${key}\n`;
     });
 
     return msg.trim();
   };
-  // console.log("Summary message:", buildSummaryMessage());
 
-  // Color mapping for order statuses
   const statusColors = {
     pending: "bg-yellow-100 text-yellow-700 border-yellow-400",
     in_progress: "bg-blue-100 text-blue-700 border-blue-400",
@@ -289,10 +305,7 @@ export default function AdminDashboard() {
   };
 
   const toggleCheckbox = (key) => {
-    setCheckedItems((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setCheckedItems((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   // ✅ Unique locations list
@@ -304,23 +317,33 @@ export default function AdminDashboard() {
   let normalCount = 0;
   let specialCount = 0;
   let extraKetchupCount = 0;
-  let extraFelafilCount = 0;
+  let doubleFelafilCount = 0;
+  let sambusaCount = 0; // New
   let totalPriceWithoutProfit = 0;
 
   filteredOrders.forEach((order) => {
-    if (!order.items || order.items.length === 0) return; // skip
+    if (!order.items || order.items.length === 0) return;
 
     order.items.forEach((item) => {
       const qty = Number(item?.quantity) || 0;
-      const type = (item?.ertibType || "").toLowerCase();
-      if (type === "normal") normalCount += qty;
-      if (type === "special") specialCount += qty;
-      if (item?.extraKetchup) extraKetchupCount += qty;
-      if (item?.extraFelafil) extraFelafilCount += qty;
+
+      // Count by type
+      if (item.foodType === "sambusa") {
+        sambusaCount += qty; // count sambusa
+      } else {
+        const type = (item?.ertibType || "").toLowerCase();
+        if (type === "normal") normalCount += qty;
+        if (type === "special") specialCount += qty;
+        if (item?.extraKetchup) extraKetchupCount += qty;
+        if (item?.doubleFelafil || item?.extraFelafil)
+          doubleFelafilCount += qty;
+      }
 
       const unitPrice = Number(item?.unitPrice ?? getUnitPrice(item)) || 0;
       const lineTotal = Number(item?.lineTotal ?? qty * unitPrice) || 0;
-      const itemProfit = qty * 15;
+
+      // Profit: Sambusa usually has 10, Ertib 15
+      const itemProfit = item.foodType === "sambusa" ? qty * 10 : qty * 15;
       totalPriceWithoutProfit += lineTotal - itemProfit;
     });
   });
@@ -451,9 +474,7 @@ Normal - 110 Birr, Special - 135 Birr
           <h1 className="text-2xl font-bold text-amber-700">📦My Dashboard</h1>
         </div>
 
-        {/* Day navigation */}
         <div className="flex items-center justify-between mb-4">
-          {/* Left side: arrows + date */}
           <div className="flex items-center space-x-2">
             <button
               onClick={prevDay}
@@ -461,11 +482,9 @@ Normal - 110 Birr, Special - 135 Birr
             >
               ⬅️
             </button>
-
             <span className="font-medium">
               {selectedDate.format("YYYY-MM-DD")}
             </span>
-
             <button
               onClick={nextDay}
               disabled={selectedDate.isSame(dayjs(), "day")}
@@ -603,7 +622,15 @@ Normal - 110 Birr, Special - 135 Birr
                   Double Felafil
                 </td>
                 <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
-                  {extraFelafilCount}
+                  {doubleFelafilCount}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Sambusa
+                </td>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  {sambusaCount}
                 </td>
               </tr>
             </tbody>
@@ -784,31 +811,41 @@ Normal - 110 Birr, Special - 135 Birr
 
                       {/* Items */}
                       <td className="p-3">
-                        {(order.items || []).map((item, idx) => {
-                          const qty = Number(item?.quantity) || 0;
-                          const up =
-                            Number(item?.unitPrice ?? getUnitPrice(item)) || 0;
-                          const lt = Number(item?.lineTotal ?? qty * up) || 0;
+                        {order.items.map((item, idx) => {
+                          // Build food description dynamically
+                          let foodDesc = "";
+
+                          if (item.foodType === "sambusa") {
+                            foodDesc = `${item.quantity} × Sambusa`;
+                          } else {
+                            // Ertib base
+                            foodDesc = `${item.quantity} × ${item.ertibType}`;
+
+                            // Ketchup/Spices
+                            if (item.ketchup && item.spices)
+                              foodDesc += " Both";
+                            else if (item.ketchup) foodDesc += " Ketchup";
+                            else if (item.spices) foodDesc += " Spices";
+                            else foodDesc += " Plain";
+
+                            // Felafil check
+                            if (!item.Felafil) foodDesc += ", No Felafil";
+
+                            // Extras
+                            if (item.extraKetchup)
+                              foodDesc += ", Extra Ketchup";
+                            if (item.doubleFelafil)
+                              foodDesc += ", Double Felafil";
+                          }
+
                           return (
                             <div
                               key={idx}
                               className="border border-gray-200 rounded-md p-2 mb-1 bg-gray-50"
                             >
                               <p className="font-semibold text-gray-800">
-                                {qty}×{item.ertibType || "—"}
+                                {foodDesc}
                               </p>
-                              <ul className="text-gray-600 list-disc list-inside">
-                                {item.ketchup && item.spices ? (
-                                  <li>Both</li>
-                                ) : (
-                                  <>
-                                    {item.ketchup && <li>Ketchup</li>}
-                                    {item.spices && <li>Spices</li>}
-                                  </>
-                                )}
-                                {item.extraKetchup && <li>Extra Ketchup</li>}
-                                {item.extraFelafil && <li>Double Felafil</li>}
-                              </ul>
                             </div>
                           );
                         })}
@@ -921,7 +958,6 @@ Normal - 110 Birr, Special - 135 Birr
           </div>
         )}
 
-        {/* Delete Modal */}
         {deleteModalOpen && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
             <div className="bg-white p-6 rounded-xl shadow-lg w-80 text-center">

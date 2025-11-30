@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
-import { FiCopy, FiArrowLeft } from "react-icons/fi"; // Feather icons
-import { FaPaperPlane } from "react-icons/fa"; // FontAwesome icon
-import Toast from "./Toast"; // import the Toast component
-
+import { FiCopy, FiArrowLeft } from "react-icons/fi";
+import { FaPaperPlane } from "react-icons/fa";
+import Toast from "./Toast";
 import API from "../api";
 
 export default function Order() {
@@ -17,12 +16,13 @@ export default function Order() {
   const [user, setUser] = useState(null);
   const [items, setItems] = useState([
     {
+      foodType: "ertib", // "ertib" or "sambusa"
       ertibType: "normal",
+      Felafil: true,
       ketchup: true,
       spices: true,
-      // felafil: true,
       extraKetchup: false,
-      extraFelafil: false,
+      doubleFelafil: false,
       quantity: 1,
     },
   ]);
@@ -37,7 +37,6 @@ export default function Order() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Fetch logged-in user
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
@@ -59,7 +58,7 @@ export default function Order() {
     fetchUser();
   }, []);
 
-  // Check for edit query param to prefill form
+  // Prefill when editing
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const code = params.get("edit");
@@ -75,7 +74,32 @@ export default function Order() {
             phone: o.phone || "",
             location: o.location || "",
           });
-          setItems(o.items && o.items.length ? o.items : items);
+
+          // Ensure each item has foodType (backwards compatibility)
+          const safeItems =
+            o.items && o.items.length
+              ? o.items.map((it) => ({
+                  foodType: it.foodType || "ertib",
+                  ertibType: it.ertibType || "normal",
+                  Felafil: typeof it.Felafil === "boolean" ? it.Felafil : true,
+                  ketchup: typeof it.ketchup === "boolean" ? it.ketchup : true,
+                  spices: typeof it.spices === "boolean" ? it.spices : true,
+                  extraKetchup:
+                    typeof it.extraKetchup === "boolean"
+                      ? it.extraKetchup
+                      : false,
+                  doubleFelafil:
+                    typeof it.doubleFelafil === "boolean"
+                      ? it.doubleFelafil
+                      : false,
+                  quantity:
+                    typeof it.quantity === "number"
+                      ? it.quantity
+                      : +it.quantity || 1,
+                }))
+              : items;
+
+          setItems(safeItems);
           setEditMode(true);
           setEditCode(code);
           setMessage("Editing existing order — update values and confirm.");
@@ -98,26 +122,72 @@ export default function Order() {
     setCustomer({ customerName: "", phone: "", location: "" });
   };
 
+  // Pricing logic
   const getUnitPrice = (item) => {
+    if (item.foodType === "sambusa") return 30; // confirmed price
     let base = item.ertibType === "normal" ? 110 : 135;
     if (item.extraKetchup) base += 10;
-    if (item.extraFelafil) base += 15;
+    if (item.doubleFelafil) base += 15;
     return base;
   };
 
+  // Handle customer input
   const handleCustomerChange = (e) => {
     const { name, value } = e.target;
     setCustomer((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Handle item changes robustly
   const handleItemChange = (index, e) => {
     const { name, value, type, checked } = e.target;
+
     setItems((prev) =>
-      prev.map((item, i) =>
-        i === index
-          ? { ...item, [name]: type === "checkbox" ? checked : value }
-          : item
-      )
+      prev.map((item, i) => {
+        if (i !== index) return item;
+
+        // If changing the food type, reset ertib-specific fields when switching to sambusa
+        if (name === "foodType") {
+          if (value === "sambusa") {
+            return {
+              ...item,
+              foodType: "sambusa",
+              // Clear ertib-specific options (keeps quantity)
+              ertibType: "normal",
+              Felafil: false,
+              ketchup: false,
+              spices: false,
+              extraKetchup: false,
+              doubleFelafil: false,
+            };
+          } else {
+            // switching to ertib: ensure ertib defaults enabled
+            return {
+              ...item,
+              foodType: "ertib",
+              ertibType: item.ertibType || "normal",
+              Felafil: typeof item.Felafil === "boolean" ? item.Felafil : true,
+              ketchup: typeof item.ketchup === "boolean" ? item.ketchup : true,
+              spices: typeof item.spices === "boolean" ? item.spices : true,
+              extraKetchup: item.extraKetchup || false,
+              doubleFelafil: item.doubleFelafil || false,
+            };
+          }
+        }
+
+        // Handle number input properly
+        if (type === "number") {
+          const num = Number(value || 0);
+          return { ...item, [name]: num };
+        }
+
+        // Handle checkbox
+        if (type === "checkbox") {
+          return { ...item, [name]: !!checked };
+        }
+
+        // Normal text/select values
+        return { ...item, [name]: value };
+      })
     );
   };
 
@@ -125,12 +195,13 @@ export default function Order() {
     setItems((prev) => [
       ...prev,
       {
+        foodType: "ertib",
         ertibType: "normal",
+        Felafil: true,
         ketchup: true,
         spices: true,
-        // felafil: true,
         extraKetchup: false,
-        extraFelafil: false,
+        doubleFelafil: false,
         quantity: 1,
       },
     ]);
@@ -141,16 +212,24 @@ export default function Order() {
   };
 
   const describeItem = (item) => {
+    if (item.foodType === "sambusa") {
+      return `${item.quantity} × Sambusa`;
+    }
+
     let desc = `${item.quantity} × ${item.ertibType} Ertib`;
 
+    // Spices and ketchup
     if (item.spices && item.ketchup) desc += " with both spices and ketchup";
     else if (item.spices && !item.ketchup) desc += " with only spices";
     else if (!item.spices && item.ketchup) desc += " with only ketchup";
     else desc += " with no ketchup or spices";
 
-    // if (!item.felafil) desc += ", no felafil";
+    // Extra ketchup
     if (item.extraKetchup) desc += ", extra ketchup";
-    if (item.extraFelafil) desc += ", extra felafil";
+
+    // Felafil
+    if (item.doubleFelafil) desc += ", double felafil";
+    else if (item.Felafil === false) desc += ", no felafil";
 
     return desc;
   };
@@ -159,27 +238,32 @@ export default function Order() {
     e.preventDefault();
     setReviewMode(true);
   };
+
   const handleConfirmOrder = async () => {
     setLoading(true);
     setMessage("");
 
+    // ensure numeric quantities and compute line totals
     const itemList = items.map((item) => {
-      const unitPrice = getUnitPrice(item);
-      const lineTotal = unitPrice * item.quantity;
-      return { ...item, unitPrice, lineTotal };
+      const sanitized = {
+        ...item,
+        quantity: Number(item.quantity) || 0,
+      };
+      const unitPrice = getUnitPrice(sanitized);
+      const lineTotal = unitPrice * sanitized.quantity;
+      return { ...sanitized, unitPrice, lineTotal };
     });
 
     const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
 
     const payload = {
-      ...customer, // includes customerName, phone, location
+      ...customer,
       items: itemList,
       total,
     };
 
     try {
       if (editMode && editCode) {
-        // Update existing order by tracking code
         const res = await API.put(`/orders/track/${editCode}`, payload);
         const updated = res.data.order || res.data;
         setMessage("Order updated successfully!");
@@ -187,8 +271,8 @@ export default function Order() {
         setTracking({
           trackingCode: updated.trackingCode || editCode,
           trackingLink: updated.trackUrl,
-          createdByAdmin: updated.userRole === "admin", // from server
-          customerPhone: updated.phone, // ensure correct phone
+          createdByAdmin: updated.userRole === "admin",
+          customerPhone: updated.phone,
         });
 
         setEditMode(false);
@@ -216,19 +300,21 @@ export default function Order() {
           trackingCode: orderData.trackingCode,
           trackingLink: orderData.trackUrl,
           createdByAdmin: user?.role === "admin",
-          customerPhone: orderData.phone || customer.phone, // ensure correct phone
+          customerPhone: orderData.phone || customer.phone,
         });
       }
 
-      // Reset form
+      // Reset form after success
       setCustomer({ customerName: "", phone: "", location: "" });
       setItems([
         {
+          foodType: "ertib",
           ertibType: "normal",
+          Felafil: true,
           ketchup: true,
           spices: true,
           extraKetchup: false,
-          extraFelafil: false,
+          doubleFelafil: false,
           quantity: 1,
         },
       ]);
@@ -269,7 +355,6 @@ export default function Order() {
       };
     }
 
-    // Default to info style for neutral messages (like editing notice)
     return {
       container: "bg-amber-100 text-amber-800 border border-amber-300",
       icon: "ℹ️",
@@ -324,9 +409,11 @@ export default function Order() {
           )}
         </div>
       </div>
-      {/* Order Form */}
+
+      {/* Order Form Card */}
       <div className="flex-1 flex flex-col items-center justify-center w-full">
         <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
+          {/* Message */}
           {message && (
             <div
               className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${msgMeta.container}`}
@@ -343,6 +430,8 @@ export default function Order() {
               </button>
             </div>
           )}
+
+          {/* Tracking card */}
           {tracking && (
             <>
               {toast && (
@@ -353,7 +442,6 @@ export default function Order() {
                 />
               )}
               <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm relative">
-                {/* Close button always visible */}
                 <button
                   onClick={() => setTracking(null)}
                   className="absolute top-3 right-3 text-xs text-gray-500 hover:text-gray-800"
@@ -362,15 +450,14 @@ export default function Order() {
                   ✖
                 </button>
 
-                {/* Show SMS button only if created by admin AND customer phone exists */}
                 {tracking.createdByAdmin && tracking.customerPhone && (
                   <button
                     title="Send order SMS"
                     onClick={() => {
-                      const message = `Hello, your order (Code: ${tracking.trackingCode}) is confirmed. We have received your request and will notify you when it is being prepared. Track your order: ${tracking.trackingLink}`;
+                      const messageToSend = `Hello, your order (Code: ${tracking.trackingCode}) is confirmed. Track: ${tracking.trackingLink}`;
                       const smsUrl = `sms:${
                         tracking.customerPhone
-                      }?body=${encodeURIComponent(message)}`;
+                      }?body=${encodeURIComponent(messageToSend)}`;
                       window.location.href = smsUrl;
                     }}
                     className="absolute top-2 right-12 text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
@@ -438,7 +525,7 @@ export default function Order() {
           )}
 
           <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
-            🥙 Place Your Ertib Order
+            🥙 Place Your Order
           </h1>
 
           {!reviewMode ? (
@@ -476,7 +563,7 @@ export default function Order() {
                   <div key={index} className="border p-4 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <h2 className="font-semibold text-amber-700">
-                        Ertib #{index + 1}
+                        Item #{index + 1}
                       </h2>
                       {items.length > 1 && (
                         <button
@@ -489,44 +576,58 @@ export default function Order() {
                       )}
                     </div>
 
+                    {/* Food type selector (Option A) */}
                     <select
-                      name="ertibType"
-                      value={item.ertibType}
+                      name="foodType"
+                      value={item.foodType}
                       onChange={(e) => handleItemChange(index, e)}
-                      className="w-full border p-2 rounded-lg"
+                      className="w-full border p-2 rounded-lg mb-3"
                     >
-                      <option value="normal">Normal</option>
-                      <option value="special">Special</option>
+                      <option value="ertib">Ertib</option>
+                      <option value="sambusa">Sambusa</option>
                     </select>
 
-                    <div className="grid grid-cols-2 gap-3 text-sm mt-3">
-                      {[
-                        "ketchup",
-                        "spices",
-                        // "felafil",
-                        "extraKetchup",
-                        "extraFelafil",
-                      ].map((field) => (
-                        <label
-                          key={field}
-                          className="flex items-center space-x-2"
+                    {/* Ertib options — only show when foodType === 'ertib' */}
+                    {item.foodType === "ertib" && (
+                      <>
+                        <select
+                          name="ertibType"
+                          value={item.ertibType}
+                          onChange={(e) => handleItemChange(index, e)}
+                          className="w-full border p-2 rounded-lg"
                         >
-                          <input
-                            type="checkbox"
-                            name={field}
-                            checked={item[field]}
-                            onChange={(e) => handleItemChange(index, e)}
-                          />
-                          <span>
-                            {field
-                              .replace(/([A-Z])/g, " $1")
-                              // .replace("felafil", "Felafil")
-                              .trim()}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
+                          <option value="normal">Normal</option>
+                          <option value="special">Special</option>
+                        </select>
 
+                        <div className="grid grid-cols-2 gap-3 text-sm mt-3">
+                          {[
+                            "Felafil",
+                            "ketchup",
+                            "spices",
+                            "extraKetchup",
+                            "doubleFelafil",
+                          ].map((field) => (
+                            <label
+                              key={field}
+                              className="flex items-center space-x-2"
+                            >
+                              <input
+                                type="checkbox"
+                                name={field}
+                                checked={!!item[field]}
+                                onChange={(e) => handleItemChange(index, e)}
+                              />
+                              <span>
+                                {field.replace(/([A-Z])/g, " $1").trim()}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Quantity — always visible for both food types */}
                     <div className="mt-3">
                       <label className="block font-medium">Quantity:</label>
                       <input
@@ -553,14 +654,15 @@ export default function Order() {
                   onClick={addItem}
                   className="w-full border border-amber-700 text-amber-700 py-2 rounded-lg hover:bg-amber-700 hover:text-white transition"
                 >
-                  + Add Another Ertib
+                  + Add Another Item
                 </button>
               </div>
 
               <div className="text-right text-sm font-semibold text-gray-700">
                 Total:{" "}
                 {items.reduce(
-                  (sum, item) => sum + getUnitPrice(item) * item.quantity,
+                  (sum, item) =>
+                    sum + getUnitPrice(item) * Number(item.quantity || 0),
                   0
                 )}{" "}
                 Birr
@@ -578,6 +680,7 @@ export default function Order() {
               <h2 className="text-lg font-semibold mb-4 text-gray-700">
                 Review Your Order
               </h2>
+
               <div className="space-y-3">
                 {items.map((item, i) => (
                   <p key={i} className="border p-2 rounded-lg text-sm">
@@ -590,7 +693,8 @@ export default function Order() {
               <div className="text-right mt-4 font-semibold text-gray-700">
                 Total:{" "}
                 {items.reduce(
-                  (sum, item) => sum + getUnitPrice(item) * item.quantity,
+                  (sum, item) =>
+                    sum + getUnitPrice(item) * Number(item.quantity || 0),
                   0
                 )}{" "}
                 Birr
@@ -608,7 +712,11 @@ export default function Order() {
                   disabled={loading}
                   className="flex-1 bg-amber-700 text-white py-2 rounded-lg hover:bg-amber-800 transition"
                 >
-                  {loading ? "Placing..." : "Confirm Order"}
+                  {loading
+                    ? "Placing..."
+                    : editMode
+                    ? "Update Order"
+                    : "Confirm Order"}
                 </button>
               </div>
             </div>

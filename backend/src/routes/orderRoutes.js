@@ -10,7 +10,9 @@ const {
   adminMiddleware,
 } = require("../middlewares/authMiddleware");
 
-const { getUserIdMiddleware } = require('../middlewares/getUserIdMiddleware.js');
+const {
+  getUserIdMiddleware,
+} = require("../middlewares/getUserIdMiddleware.js");
 
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
@@ -18,9 +20,15 @@ const TRACK_BASE_URL =
 
 // Helper: calculate price for an item
 function calcUnitPrice(item) {
+  // Sambusa Pricing
+  if (item.foodType === "sambusa") {
+    return 30; // fixed sambusa price
+  }
+
+  // Ertib Pricing
   let base = item.ertibType === "special" ? 135 : 110;
   if (item.extraKetchup) base += 10;
-  if (item.extraFelafil) base += 15;
+  if (item.doubleFelafil) base += 15;
   return base;
 }
 
@@ -44,10 +52,11 @@ async function isDuplicate(phone, items) {
     JSON.stringify(
       arr.map((i) => ({
         ertibType: i.ertibType,
+        Felafil: !!i.Felafil,
         ketchup: !!i.ketchup,
         spices: !!i.spices,
         extraKetchup: !!i.extraKetchup,
-        extraFelafil: !!i.extraFelafil,
+        doubleFelafil: !!i.doubleFelafil,
         quantity: i.quantity || 1,
       }))
     );
@@ -96,101 +105,94 @@ router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.post("/", getUserIdMiddleware,checkServiceAvailability, async (req, res) => {
-  try {
-    const { customerName, phone, location, items } = req.body;
+router.post(
+  "/",
+  getUserIdMiddleware,
+  checkServiceAvailability,
+  async (req, res) => {
+    try {
+      const { customerName, phone, location, items } = req.body;
 
-    if (
-      !customerName ||
-      !phone ||
-      !location ||
-      !Array.isArray(items) ||
-      items.length === 0
-    ) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
+      if (
+        !customerName ||
+        !phone ||
+        !location ||
+        !Array.isArray(items) ||
+        items.length === 0
+      ) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
 
-    const normalizedPhone = normalizePhone(phone);
-    if (!isValidPhone(normalizedPhone)) {
-      return res.status(400).json({ message: "Invalid phone number" });
-    }
+      const normalizedPhone = normalizePhone(phone);
+      if (!isValidPhone(normalizedPhone)) {
+        return res.status(400).json({ message: "Invalid phone number" });
+      }
 
-    let total = 0;
-    const builtItems = items.map((it) => {
-      const unitPrice = calcUnitPrice(it);
-      const quantity = parseInt(it.quantity) || 1;
-      total += unitPrice * quantity;
-      return { ...it, quantity, unitPrice, lineTotal: unitPrice * quantity };
-    });
+      let total = 0;
+      const builtItems = items.map((it) => {
+        const unitPrice = calcUnitPrice(it);
+        const quantity = parseInt(it.quantity) || 1;
+        total += unitPrice * quantity;
+        return { ...it, quantity, unitPrice, lineTotal: unitPrice * quantity };
+      });
 
-    const trackingCode = generateTrackingCode();
-    const trackUrl = `${TRACK_BASE_URL}/${trackingCode}`;
+      const trackingCode = generateTrackingCode();
+      const trackUrl = `${TRACK_BASE_URL}/${trackingCode}`;
 
-    // Optional userId
+      // Optional userId
       const userId = req.userId; // will be null if guest
-    console.log('Authenticated user:', req.userId);
+      console.log("Authenticated user:", req.userId);
 
-    const authHeader = req.headers.authorization;
-    // if (authHeader) {
-    //   const token = authHeader.split(" ")[1];
-    //   if (token) {
-    //     try {
-    //       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    //       userId = decoded.id; // assign userId if logged in
-    //     } catch (err) {
-    //       console.warn("⚠️ Invalid token, proceeding as guest");
-    //     }
-    //   }
-    // }
+      const authHeader = req.headers.authorization;
+      const orderData = {
+        customerName,
+        phone: normalizedPhone,
+        location,
+        source: "online",
+        items: builtItems,
+        smsHistory: [],
+        total,
+        trackingCode,
+        trackUrl,
+        statusHistory: [{ status: "pending", at: new Date().toISOString() }],
+        userId, // <-- null if guest
+      };
 
-    const orderData = {
-      customerName,
-      phone: normalizedPhone,
-      location,
-      source: "online",
-      items: builtItems,
-      smsHistory: [],
-      total,
-      trackingCode,
-      trackUrl,
-      statusHistory: [{ status: "pending", at: new Date().toISOString() }],
-      userId, // <-- null if guest
-    };
+      const order = await prisma.order.create({ data: orderData });
 
-    const order = await prisma.order.create({ data: orderData });
+      // Send SMS (non-blocking)
+      const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
+      sendSMS(normalizedPhone, smsText)
+        .then((smsResp) =>
+          prisma.order.update({
+            where: { id: order.id },
+            data: {
+              smsHistory: [
+                ...(order.smsHistory || []),
+                {
+                  type: "confirmation",
+                  status: smsResp.status,
+                  providerResponse: smsResp.info,
+                  at: new Date().toISOString(),
+                },
+              ],
+            },
+          })
+        )
+        .catch((err) => console.error("❌ SMS failed:", err));
 
-    // Send SMS (non-blocking)
-    const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
-    sendSMS(normalizedPhone, smsText)
-      .then((smsResp) =>
-        prisma.order.update({
-          where: { id: order.id },
-          data: {
-            smsHistory: [
-              ...(order.smsHistory || []),
-              {
-                type: "confirmation",
-                status: smsResp.status,
-                providerResponse: smsResp.info,
-                at: new Date().toISOString(),
-              },
-            ],
-          },
-        })
-      )
-      .catch((err) => console.error("❌ SMS failed:", err));
-
-    return res.json({
-      message: "Order placed successfully",
-      orderId: order.id,
-      trackingCode,
-      trackUrl,
-    });
-  } catch (err) {
-    console.error("❌ Error creating order:", err);
-    return res.status(500).json({ message: "Server error" });
+      return res.json({
+        message: "Order placed successfully",
+        orderId: order.id,
+        trackingCode,
+        trackUrl,
+      });
+    } catch (err) {
+      console.error("❌ Error creating order:", err);
+      return res.status(500).json({ message: "Server error" });
+    }
   }
-});
+);
 
 /**
  * ------------------------
@@ -478,7 +480,7 @@ router.get("/latest", authMiddleware, async (req, res) => {
         // },
       },
       orderBy: {
-        createdAt: "desc"
+        createdAt: "desc",
       },
     });
 
@@ -488,8 +490,6 @@ router.get("/latest", authMiddleware, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
 
 router.get(
   "/manual-orders",
