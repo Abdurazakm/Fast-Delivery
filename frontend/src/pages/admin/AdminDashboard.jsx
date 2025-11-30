@@ -179,6 +179,15 @@ export default function AdminDashboard() {
     }
   };
 
+  const updateAllStatus = (newStatus) => {
+    if (!newStatus) return;
+
+    filteredOrders.forEach((order) => {
+      const orderId = order._id || order.id;
+      if (orderId) updateStatus(orderId, newStatus);
+    });
+  };
+
   const openDeleteModal = (orderId) => {
     setSelectedOrderId(orderId);
     setDeleteModalOpen(true);
@@ -520,24 +529,46 @@ Normal - 110 Birr, Special - 135 Birr
             </Link>
           </div>
         </div>
+       {filteredOrders.length > 0 && (
+  <div className="flex justify-end items-center gap-2 mb-4">
+    {/* Update All Status */}
+    <select
+      onChange={(e) => updateAllStatus(e.target.value)}
+      className="border rounded-md px-3 py-2 h-10"
+      defaultValue=""
+    >
+      <option value="" disabled>
+        Select status
+      </option>
+      {[
+        "pending",
+        "in_progress",
+        "arrived",
+        "delivered",
+        "canceled",
+        "no_show",
+      ].map((s) => (
+        <option key={s} value={s}>
+          {s}
+        </option>
+      ))}
+    </select>
 
-        {/* Filter + Download Row (Below) */}
-        {orders.length > 0 && (
-          <div className="flex justify-end items-center mb-4">
-            {/* Location Filter (Right) */}
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              className="border p-2 rounded-md bg-white shadow-sm"
-            >
-              {(uniqueLocations || []).map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+    {/* Location Filter */}
+    <select
+      value={selectedLocation}
+      onChange={(e) => setSelectedLocation(e.target.value)}
+      className="border rounded-md px-3 py-2 h-10 bg-white shadow-sm"
+    >
+      {(uniqueLocations || []).map((loc) => (
+        <option key={loc} value={loc}>
+          {loc}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
+
 
         {/* Hidden Summary Card for Download */}
         <div
