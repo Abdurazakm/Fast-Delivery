@@ -161,15 +161,25 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
   };
 
   const describeItem = (item) => {
-    const qty = item.quantity || 1;
-    const unitPrice = getUnitPrice(item);
-    let desc = `${qty} × ${item.ertibType} Ertib`;
-    if (item.spices && item.ketchup) desc += " with spices & ketchup";
-    else if (item.spices) desc += " with only spices";
-    else if (item.ketchup) desc += " with only ketchup";
+    if (item.foodType === "sambusa") {
+      return `${item.quantity} × Sambusa`;
+    }
+
+    let desc = `${item.quantity} × ${item.ertibType} Ertib`;
+
+    // Spices and ketchup
+    if (item.spices && item.ketchup) desc += " with both spices and ketchup";
+    else if (item.spices && !item.ketchup) desc += " with only spices";
+    else if (!item.spices && item.ketchup) desc += " with only ketchup";
     else desc += " with no ketchup or spices";
+
+    // Extra ketchup
     if (item.extraKetchup) desc += ", extra ketchup";
-    if (item.extraFelafil) desc += ", extra felafil";
+
+    // Felafil
+    if (item.doubleFelafil) desc += ", double felafil";
+    else if (item.Felafil === false) desc += ", no felafil";
+
     return desc;
   };
 
@@ -201,16 +211,18 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
   }, []);
 
   const isBeforeCutoff = () => {
-    const now = new Date(Date.now() + (serverOffsetMs || 0));
+    const now = new Date(Date.now() + (serverOffsetMs || 0)); // already converts to Ethiopia time if offset used
     const hrs = now.getHours();
     const mins = now.getMinutes();
-    return !(hrs > 17 || (hrs === 17 && mins >= 30));
+
+    // 6:00 PM cutoff
+    return !(hrs > 18 || (hrs === 18 && mins > 0));
   };
 
   const handleEdit = () => {
     if (!isBeforeCutoff()) {
       setToast({
-        message: "❌ Editing is only allowed before 5:30 PM",
+        message: "Editing is only allowed before 6:00 PM",
         type: "error",
       });
       return;
@@ -401,25 +413,38 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
 
       {/* Edit / Cancel Buttons */}
       <div className="mt-4 flex gap-2 flex-wrap">
+        {/* Edit Button */}
         <button
-          disabled={!isBeforeCutoff()}
-          onClick={handleEdit}
-          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
-            isBeforeCutoff()
-              ? "bg-yellow-400 hover:bg-yellow-500 text-black"
-              : "bg-gray-300 text-gray-600 cursor-not-allowed"
-          }`}
+          onClick={handleEdit} // always clickable
+          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1
+      ${
+        isBeforeCutoff()
+          ? "bg-yellow-400 hover:bg-yellow-500 text-black"
+          : "bg-gray-200 text-gray-500 border border-gray-400 cursor-pointer"
+      }`}
         >
           <FiEdit className="text-sm" /> Edit
         </button>
+
+        {/* Cancel Button */}
         <button
-          disabled={!isBeforeCutoff()}
-          onClick={() => setShowCancelModal(true)}
-          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
-            isBeforeCutoff()
-              ? "bg-red-500 hover:bg-red-600 text-white"
-              : "bg-gray-300 text-gray-600 cursor-not-allowed"
-          }`}
+          onClick={() => {
+            if (isBeforeCutoff()) {
+              setShowCancelModal(true);
+            } else {
+              // show toast if after cutoff
+              setToast({
+                message: "Cancelling is only allowed before 6:00 PM",
+                type: "error",
+              });
+            }
+          }}
+          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1
+      ${
+        isBeforeCutoff()
+          ? "bg-red-500 hover:bg-red-600 text-white"
+          : "bg-gray-200 text-gray-500 border border-gray-400 cursor-pointer"
+      }`}
         >
           <FiTrash2 className="text-sm" /> Cancel
         </button>

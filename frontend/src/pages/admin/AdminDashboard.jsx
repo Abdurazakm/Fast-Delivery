@@ -530,11 +530,24 @@ Normal - 110 Birr, Special - 135 Birr
           </div>
         </div>
         {filteredOrders.length > 0 && (
-          <div className="flex justify-end items-center gap-2 mb-4">
+          <div className="flex flex-wrap justify-end items-center gap-2 mb-4">
+            {/* Location Filter */}
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="border rounded-md px-3 py-2 h-10 bg-white shadow-sm w-full sm:w-[220px] whitespace-normal break-words"
+            >
+              {(uniqueLocations || []).map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+
             {/* Update All Status */}
             <select
               onChange={(e) => updateAllStatus(e.target.value)}
-              className="border rounded-md px-3 py-2 h-10"
+              className="border rounded-md px-3 py-2 h-10 w-full sm:w-[220px] whitespace-normal break-words"
               defaultValue=""
             >
               <option value="" disabled>
@@ -550,19 +563,6 @@ Normal - 110 Birr, Special - 135 Birr
               ].map((s) => (
                 <option key={s} value={s}>
                   {s}
-                </option>
-              ))}
-            </select>
-
-            {/* Location Filter */}
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              className="border rounded-md px-3 py-2 h-10 bg-white shadow-sm"
-            >
-              {(uniqueLocations || []).map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
                 </option>
               ))}
             </select>

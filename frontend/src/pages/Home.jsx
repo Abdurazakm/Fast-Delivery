@@ -7,6 +7,7 @@ import { ArrowRight } from "lucide-react";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
 import Toast from "./Toast"; // import your reusable Toast component
+import OrderingInfoCards from "./OrderingInfoCards";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -19,6 +20,7 @@ export default function Home() {
   const [trackingResult, setTrackingResult] = useState(null);
   const [trackingError, setTrackingError] = useState("");
   const [latestOrder, setLatestOrder] = useState(null);
+  const [serverOffsetMs, setServerOffsetMs] = useState(0);
 
   // Fetch user & latest order
   useEffect(() => {
@@ -103,7 +105,7 @@ export default function Home() {
       const minute = now.getMinutes();
 
       const withinDays = day >= 1 && day <= 4;
-      const beforeTime = hour < 17 || (hour === 17 && minute <= 30);
+      const beforeTime = hour < 18 || (hour === 18 && minute === 0); // before or at 6:00 PM
 
       if (!withinDays) {
         setServiceAvailable(false);
@@ -116,7 +118,7 @@ export default function Home() {
         setServiceAvailable(false);
         setMessage(
           <span className="flex flex-col gap-1">
-            ⏰ Ordering time is over (after 11:30 LT). You can call us directly
+            ⏰ Ordering time is over (after 12:00 LT). You can call us directly
             if we’re still at the Ertib place:{" "}
             <a
               href="tel:+251954724664"
@@ -267,7 +269,8 @@ export default function Home() {
           )}
         </div>
       </div>
-
+      {/* // Inside return(), below Hero section */}
+      <OrderingInfoCards serverOffsetMs={serverOffsetMs} />
       {/* Track Your Order */}
       {user?.role !== "admin" && (
         <div className="mt-10 max-w-md w-full mx-auto bg-white p-6 rounded-2xl shadow text-center">

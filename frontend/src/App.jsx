@@ -52,7 +52,7 @@ const checkAvailability = (now = new Date()) => {
   // const hour = 17;
 
   const workingDay = day >= 1 && day <= 4; // Mon–Thu
-  const beforeClosing = hour < 17 || (hour === 17 && minute <= 30); // before 5:30 PM
+  const beforeClosing = hour < 18 || (hour === 18 && minute === 0); // before or at 6:00 PM
 
   return workingDay && beforeClosing; // true if service is available
 };

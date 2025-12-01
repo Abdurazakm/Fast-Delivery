@@ -395,7 +395,7 @@ router.get("/track/:code", async (req, res) => {
 
 /**
  * Update order by tracking code (guest or authenticated)
- * Only allowed before 17:30 server local time
+ * Only allowed before 15:00 server local time
  */
 router.put("/track/:code", async (req, res) => {
   try {
@@ -405,13 +405,14 @@ router.put("/track/:code", async (req, res) => {
     });
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Time restriction: only allow before 17:30
+    // Time restriction: only allow before 15:00 (6 PM)
     const now = new Date();
     const hrs = now.getHours();
     const mins = now.getMinutes();
-    if (hrs > 17 || (hrs === 17 && mins >= 30)) {
+
+    if (hrs > 15 || (hrs === 15 && mins > 0)) {
       return res.status(400).json({
-        message: "You can only edit or cancel your order before 5:30.",
+        message: "You can only edit or cancel your order before 6:00 PM.",
       });
     }
 
@@ -447,13 +448,14 @@ router.delete("/track/:code", async (req, res) => {
     });
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Time restriction: only allow before 17:30
+    // Time restriction: only allow before 18:00 (6 PM)
     const now = new Date();
     const hrs = now.getHours();
     const mins = now.getMinutes();
-    if (hrs > 17 || (hrs === 17 && mins >= 30)) {
+
+    if (hrs > 15 || (hrs === 15 && mins > 0)) {
       return res.status(400).json({
-        message: "You can only edit or cancel your order before 5:30.",
+        message: "You can only edit or cancel your order before 6:00 PM.",
       });
     }
 
