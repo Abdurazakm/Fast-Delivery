@@ -107,13 +107,10 @@ export default function OrderingInfoCards({ serverOffsetMs = 0 }) {
 
   return (
     <div className="w-full max-w-3xl mx-auto mt-6 grid grid-cols-1 sm:grid-cols-2 gap-5 px-4">
-      
       {/* Order Cutoff */}
       <div
         className={`${cardBase} ${
-          isClosed
-            ? "bg-red-500 text-white"
-            : "bg-amber-500 text-white"
+          isClosed ? "bg-red-500 text-white" : "bg-amber-500 text-white"
         }`}
       >
         <span className="text-base font-bold tracking-wide">Order Cutoff</span>
@@ -122,7 +119,9 @@ export default function OrderingInfoCards({ serverOffsetMs = 0 }) {
 
       {/* Estimated Delivery */}
       <div className={`${cardBase} bg-green-500 text-white`}>
-        <span className="text-base font-bold tracking-wide">Estimated Delivery</span>
+        <span className="text-base font-bold tracking-wide">
+          Estimated Delivery
+        </span>
         <span className="mt-2 text-xl font-semibold">{estimatedDelivery}</span>
       </div>
     </div>

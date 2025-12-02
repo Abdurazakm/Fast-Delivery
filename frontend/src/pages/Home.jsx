@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaLaptopCode } from "react-icons/fa";
 import { FiPhoneCall, FiArrowLeft } from "react-icons/fi";
 import { ArrowRight } from "lucide-react";
 import { MdEventAvailable } from "react-icons/md";
@@ -214,12 +214,12 @@ export default function Home() {
       {/* Top Right Auth Buttons */}
       <div className="w-full flex items-center justify-end max-w-6xl mb-6">
         {user?.role === "admin" ? (
-<Link
-      to="/availability"
-      className="fixed top-4 left-4 z-50 inline-flex items-center gap-2 p-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-full shadow-lg transition-all duration-200"
-    >
-      {/* Icon goes here with a slight size adjustment if needed */}
-      <MdEventAvailable className="text-xl" /> 
+          <Link
+            to="/availability"
+            className="fixed top-4 left-4 z-50 inline-flex items-center gap-2 p-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-full shadow-lg transition-all duration-200"
+          >
+            {/* Icon goes here with a slight size adjustment if needed */}
+            <MdEventAvailable className="text-xl" />
           </Link>
         ) : null}
         {!user ? (
@@ -304,7 +304,7 @@ export default function Home() {
 
               {!serviceAvailable && (
                 <span className="absolute inset-0 flex items-center justify-center text-xs font-bold bg-gray-300 text-gray-500 cursor-not-allowed opacity-70 bg-opacity-50 rounded-full pointer-events-none">
-                  Ordering not available now
+                  ⚠️closed
                 </span>
               )}
             </span>
@@ -404,9 +404,22 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="mt-12 text-gray-600 text-sm text-center">
-        © {new Date().getFullYear()} Fetan Delivery Service — Exclusively for
-        AASTU Students.
+
+      {/* Footer */}
+      <footer className="mt-12 text-gray-600 text-center flex flex-col items-center gap-2">
+        <div>
+          © {new Date().getFullYear()} Fetan Delivery Service — Exclusively for
+          AASTU Students.
+        </div>
+        <a
+          href="https://abdurazakmohammed.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full shadow-sm hover:bg-amber-100 hover:text-amber-700 transition transform hover:scale-105"
+        >
+          <FaLaptopCode className="animate-bounce-slow" size={16} />
+          Developed by Abdurazak
+        </a>
       </footer>
     </div>
   );

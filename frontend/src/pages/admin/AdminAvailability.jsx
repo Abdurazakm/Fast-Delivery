@@ -53,7 +53,6 @@ export default function AdminAvailability() {
 
   return (
     <div className="min-h-screen flex bg-gray-50">
-
       {/* ⬅ Sidebar (Mobile friendly) */}
       <aside
         className={`fixed inset-y-0 left-0 w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 
@@ -94,7 +93,6 @@ export default function AdminAvailability() {
 
       {/* 🔥 Content Area */}
       <div className="flex-1 flex flex-col">
-
         {/* 📌 Top Navbar */}
         <header className="bg-white shadow-md p-4 flex justify-between items-center lg:pl-72">
           <button
@@ -104,7 +102,9 @@ export default function AdminAvailability() {
             <HiMenu size={28} />
           </button>
 
-          <h2 className="text-xl font-bold text-gray-800">Manage Availability</h2>
+          <h2 className="text-xl font-bold text-gray-800">
+            Manage Availability
+          </h2>
 
           <Link
             to="/admin"
@@ -126,7 +126,6 @@ export default function AdminAvailability() {
         {/* 🟨 Main Card Container */}
         <main className="flex justify-center px-4 py-10 lg:pl-72">
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-lg p-8 border">
-
             <h3 className="text-2xl font-bold text-center text-gray-800 mb-8">
               Manage Service Availability
             </h3>
@@ -163,7 +162,10 @@ export default function AdminAvailability() {
                 type="time"
                 value={availability.cutoffTime}
                 onChange={(e) =>
-                  setAvailability((prev) => ({ ...prev, cutoffTime: e.target.value }))
+                  setAvailability((prev) => ({
+                    ...prev,
+                    cutoffTime: e.target.value,
+                  }))
                 }
                 className="px-4 py-2 border rounded-lg w-full bg-gray-50 
                           focus:ring-2 focus:ring-amber-500 shadow-sm"
@@ -212,7 +214,6 @@ export default function AdminAvailability() {
                 Save Changes
               </button>
             </div>
-
           </div>
         </main>
       </div>
