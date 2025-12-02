@@ -794,19 +794,23 @@ Normal - 110 Birr, Special - 135 Birr
                       order.source === "manual" ? "Hello" : `Hello ${name}`;
                     switch ((order.status || "").toLowerCase()) {
                       case "pending":
-                        return `${greeting}, your order (Code: ${code}) is confirmed. We have received your request and will notify you when it is being prepared. Track your order: ${baseLink}`;
+                        return `${greeting}! Your order (Code: ${code}) is confirmed. Thanks for your request — we’ll notify you once preparation begins. Track your order here: ${baseLink}`;
+
                       case "in_progress":
-                        return `${greeting}, your order (Code: ${code}) is being prepared and will be out for delivery shortly. Track its progress here: ${baseLink}`;
+                        return `${greeting}! Good news — your order (Code: ${code}) is now being prepared and will be on its way shortly. Track its progress here: ${baseLink}`;
+
                       case "arrived":
-                        return `${greeting}, your order (Code: ${code}) has arrived. Please pick it up near the location you provided: ${
+                        return `${greeting}! Your order (Code: ${code}) has arrived. Please pick it up from the location you shared around ${
                           order.location || "your specified address"
-                        }. Track: ${baseLink}`;
+                        }. Track it here: ${baseLink}`;
+
                       case "delivered":
-                        return `${greeting}, your order (Code: ${code}) has been delivered. Thank you for choosing Fetan Delivery! If you have feedback, reply to this message.`;
+                        return `${greeting}! Your order (Code: ${code}) has been delivered. Thank you for choosing Fetan Delivery! We’d be happy to serve you again — you can place next order during our service hours at https://fetandelivery.netlify.app/. If you have feedback, just reply to this message.`;
+
                       default:
-                        return `Hello ${name}, your order (Code: ${code}) status: ${
+                        return `${greeting}! Your order (Code: ${code}) is currently: ${
                           order.status || "unknown"
-                        }. Track: ${baseLink}`;
+                        }. Track it here: ${baseLink}`;
                     }
                   })();
 

@@ -71,16 +71,22 @@ export default function AdminAvailability() {
 
         <nav className="p-6 space-y-4">
           <Link
-            to="/admin"
-            className="block px-4 py-2 rounded-lg hover:bg-gray-100 font-medium text-gray-800"
-          >
-            Dashboard
-          </Link>
-          <Link
             to="/"
             className="block px-4 py-2 rounded-lg hover:bg-gray-100 font-medium text-gray-800"
           >
             Home
+          </Link>
+          <Link
+            to="/order"
+            className="block px-4 py-2 rounded-lg hover:bg-gray-100 font-medium text-gray-800"
+          >
+            Add order
+          </Link>
+          <Link
+            to="/admin"
+            className="block px-4 py-2 rounded-lg hover:bg-gray-100 font-medium text-gray-800"
+          >
+            Dashboard
           </Link>
           <Link
             to="/availability"

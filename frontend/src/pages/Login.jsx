@@ -31,7 +31,7 @@ const Login = () => {
 
       // Redirect based on role
       if (role?.toLowerCase() === "admin") {
-        navigate("/admin");
+        navigate("/availability");
       } else {
         navigate("/");
       }

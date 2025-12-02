@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
 import { FaPlus, FaLaptopCode } from "react-icons/fa";
-import { FiPhoneCall, FiArrowLeft } from "react-icons/fi";
+import { FiPhoneCall, FiInfo } from "react-icons/fi";
 import { ArrowRight } from "lucide-react";
 import { MdEventAvailable } from "react-icons/md";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
 import Toast from "./Toast"; // import your reusable Toast component
 import OrderingInfoCards from "./OrderingInfoCards";
+import { motion } from "framer-motion";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -22,6 +23,7 @@ export default function Home() {
   const [trackingError, setTrackingError] = useState("");
   const [latestOrder, setLatestOrder] = useState(null);
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
+  const [formattedCutoff, setFormattedCutoff] = useState(""); // <-- add this
 
   // Fetch user & latest order
   useEffect(() => {
@@ -97,6 +99,14 @@ export default function Home() {
       }
     }
   };
+  // Convert cutoff time to 12-hour format with AM/PM + EAT
+  const formatCutoffTime = (hour, minute) => {
+    const h12 = hour % 12 || 12; // convert to 12-hour (0 → 12)
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const paddedMin = minute.toString().padStart(2, "0");
+    return `${h12}:${paddedMin} ${ampm} EAT`;
+  };
+
   // Check service availability
   useEffect(() => {
     const fetchAvailability = async () => {
@@ -113,7 +123,7 @@ export default function Home() {
         const { weeklyDays, cutoffTime, isTemporarilyClosed, tempCloseReason } =
           availability;
 
-        // 🔥 USE SERVER TIME
+        // USE SERVER TIME
         const now = new Date(Date.now() + serverOffsetMs);
 
         const dayStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
@@ -127,6 +137,16 @@ export default function Home() {
           now.getHours() < cutHour ||
           (now.getHours() === cutHour && now.getMinutes() <= cutMinute);
 
+        const cutoffFormatted = formatCutoffTime(cutHour, cutMinute);
+
+        setFormattedCutoff(cutoffFormatted); // optional, for other parts of UI
+
+        // Sort weekly days in proper order
+        const weekOrder = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const sortedDays = [...weeklyDays].sort(
+          (a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b)
+        );
+
         if (isTemporarilyClosed) {
           setServiceAvailable(false);
           setMessage(
@@ -138,16 +158,22 @@ export default function Home() {
         } else if (!withinDays) {
           setServiceAvailable(false);
           setMessage(
-            <span>
-              ⚠️ Service unavailable today. Open on: {weeklyDays.join(", ")}
+            <span className="flex flex-col gap-1">
+              ⚠️ Our service is not available today. We operate on the following
+              days: <strong>{sortedDays.join(", ")}</strong>.
             </span>
           );
         } else if (!beforeCutoff) {
           setServiceAvailable(false);
+
+          const cutoffFormatted = formatCutoffTime(cutHour, cutMinute); // use local variable
+
           setMessage(
             <span className="flex flex-col gap-1">
-              ⏰ Ordering time is over. You can call us directly if we’re still
-              at the Ertib place.
+              ⏰ Ordering for today has ended. Please make sure to place your
+              order before {cutoffFormatted} on our service-available days. If
+              there’s a chance we might still be at the Ertib place, you may
+              contact us directly:
               <a
                 href="tel:+251954724664"
                 className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
@@ -169,9 +195,7 @@ export default function Home() {
     };
 
     fetchAvailability();
-    const interval = setInterval(fetchAvailability, 60000);
-    return () => clearInterval(interval);
-  }, [serverOffsetMs]);
+  }, []);
 
   const handleOrderClick = () => {
     if (!serviceAvailable && user?.role !== "admin") {
@@ -285,6 +309,27 @@ export default function Home() {
             </Link>
           ) : (
             <span className="relative group">
+              {serviceAvailable && formattedCutoff && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6 }}
+                  className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 text-blue-800 text-sm rounded-lg flex items-start gap-3 shadow-sm"
+                >
+                  <FiInfo className="text-blue-600 mt-1" size={20} />
+                  <div>
+                    <p className="font-semibold text-blue-800">
+                      🕒 Today's Ordering Cutoff:{" "}
+                      <strong>{formattedCutoff}</strong>
+                    </p>
+                    <p className="text-gray-700 mt-1">
+                      Kindly place your order before the cutoff to ensure timely
+                      delivery.
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
               <button
                 onClick={handleOrderClick}
                 className={`px-6 py-3 rounded-full transition transform shadow-lg ${

@@ -42,7 +42,9 @@ router.post("/register", async (req, res) => {
       where: { phone: normalized },
     });
     if (existing) {
-      return res.status(400).json({ message: "Phone number already registered." });
+      return res
+        .status(400)
+        .json({ message: "Phone number already registered." });
     }
 
     // Hash password
@@ -71,7 +73,9 @@ router.post("/register", async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Registration error:", err);
-    res.status(500).json({ message: "Internal server error during registration." });
+    res
+      .status(500)
+      .json({ message: "Internal server error during registration." });
   }
 });
 
@@ -81,7 +85,9 @@ router.post("/login", async (req, res) => {
     const { phone, password } = req.body;
 
     if (!phone || !password) {
-      return res.status(400).json({ message: "Please enter both phone and password." });
+      return res
+        .status(400)
+        .json({ message: "Please enter both phone and password." });
     }
 
     const normalized = normalizePhone(phone);
@@ -101,7 +107,7 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign(
       { id: user.id, role: user.role, name: user.name },
       process.env.JWT_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "720d" }
     );
 
     res.status(200).json({
@@ -153,6 +159,5 @@ router.get("/me", async (req, res) => {
     res.status(401).json({ message: "Invalid or expired token" });
   }
 });
-
 
 module.exports = router;

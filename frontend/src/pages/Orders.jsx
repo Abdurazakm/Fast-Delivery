@@ -225,11 +225,11 @@ export default function Order() {
     else desc += " without ketchup and spices";
 
     // Extra ketchup
-    if (item.extraKetchup) desc += "+ extra ketchup";
+    if (item.extraKetchup) desc += " + extra ketchup";
 
     // Felafil
-    if (item.doubleFelafil) desc += "+ double felafil";
-    else if (item.Felafil === false) desc += ", no felafil";
+    if (item.doubleFelafil) desc += " + double felafil";
+    else if (item.Felafil === false) desc += " + no felafil";
 
     return desc;
   };
@@ -539,6 +539,7 @@ export default function Order() {
                 className="w-full border p-2 rounded-lg"
                 required
               />
+
               <input
                 type="text"
                 name="phone"
@@ -548,7 +549,10 @@ export default function Order() {
                 className="w-full border p-2 rounded-lg"
                 required
               />
+
+              {/* Editable Location Input with Block 1–18 Options */}
               <input
+                list="blockOptions"
                 type="text"
                 name="location"
                 placeholder="Delivery Location (e.g. Block14)"
@@ -558,6 +562,11 @@ export default function Order() {
                 required
               />
 
+              <datalist id="blockOptions">
+                {Array.from({ length: 28 }, (_, i) => (
+                  <option key={i + 1} value={`Block ${i + 1}`} />
+                ))}
+              </datalist>
               <div className="border-t pt-4 space-y-4">
                 {items.map((item, index) => (
                   <div key={index} className="border p-4 rounded-lg">

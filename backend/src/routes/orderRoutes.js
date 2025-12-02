@@ -451,16 +451,16 @@ router.delete("/track/:code", checkServiceAvailability, async (req, res) => {
 router.get("/latest", authMiddleware, async (req, res) => {
   try {
     const now = new Date();
-    const eightHoursAgo = new Date(now.getTime() - 8 * 60 * 60 * 1000); // 8 hours ago
+    const twelvyHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000); // 12 hours ago
 
-    // Fetch latest order in the last 8 hours for the logged-in user
+    // Fetch latest order in the last 12 hours for the logged-in user
     const latestOrder = await prisma.order.findFirst({
       where: {
         userId: req.user.id,
-        // createdAt: {
-        //   gte: eightHoursAgo, // orders from 8 hours ago until now
-        //   lt: now
-        // },
+        createdAt: {
+          gte: twelvyHoursAgo, // orders from 12 hours ago until now
+          lt: now,
+        },
       },
       orderBy: {
         createdAt: "desc",

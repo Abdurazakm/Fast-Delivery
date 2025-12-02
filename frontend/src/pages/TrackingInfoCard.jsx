@@ -168,11 +168,11 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
     else desc += " without ketchup and spices";
 
     // Extra ketchup
-    if (item.extraKetchup) desc += "+ extra ketchup";
+    if (item.extraKetchup) desc += " + extra ketchup";
 
     // Felafil
-    if (item.doubleFelafil) desc += "+ double felafil";
-    else if (item.Felafil === false) desc += ", no felafil";
+    if (item.doubleFelafil) desc += " + double felafil";
+    else if (item.Felafil === false) desc += " + no felafil";
 
     return desc;
   };
