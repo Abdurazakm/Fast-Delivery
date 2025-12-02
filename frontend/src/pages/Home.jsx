@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
 import { FaPlus } from "react-icons/fa";
-import { FiPhoneCall } from "react-icons/fi";
+import { FiPhoneCall, FiArrowLeft } from "react-icons/fi";
 import { ArrowRight } from "lucide-react";
+import { MdEventAvailable } from "react-icons/md";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
 import Toast from "./Toast"; // import your reusable Toast component
@@ -96,55 +97,97 @@ export default function Home() {
       }
     }
   };
-
+  // Check service availability
   useEffect(() => {
-    const checkAvailability = () => {
-      const now = new Date();
-      const day = now.getDay();
-      const hour = now.getHours();
-      const minute = now.getMinutes();
+    const fetchAvailability = async () => {
+      try {
+        const res = await API.get("/availability");
+        const availability = res.data;
 
-      const withinDays = day >= 1 && day <= 4;
-      const beforeTime = hour < 18 || (hour === 18 && minute === 0); // before or at 6:00 PM
+        if (!availability) {
+          setServiceAvailable(true);
+          setMessage(null);
+          return;
+        }
 
-      if (!withinDays) {
-        setServiceAvailable(false);
-        setMessage(
-          <span>
-            ⚠️ Service unavailable. We’re open only Monday to Thursday.
-          </span>
-        );
-      } else if (!beforeTime) {
-        setServiceAvailable(false);
-        setMessage(
-          <span className="flex flex-col gap-1">
-            ⏰ Ordering time is over (after 12:00 LT). You can call us directly
-            if we’re still at the Ertib place:{" "}
-            <a
-              href="tel:+251954724664"
-              className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
-            >
-              <FiPhoneCall size={16} />
-              +251 95 472 4664
-            </a>
-          </span>
-        );
-      } else {
+        const { weeklyDays, cutoffTime, isTemporarilyClosed, tempCloseReason } =
+          availability;
+
+        // 🔥 USE SERVER TIME
+        const now = new Date(Date.now() + serverOffsetMs);
+
+        const dayStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
+          now.getDay()
+        ];
+
+        const withinDays = weeklyDays.includes(dayStr);
+        const [cutHour, cutMinute] = cutoffTime.split(":").map(Number);
+
+        const beforeCutoff =
+          now.getHours() < cutHour ||
+          (now.getHours() === cutHour && now.getMinutes() <= cutMinute);
+
+        if (isTemporarilyClosed) {
+          setServiceAvailable(false);
+          setMessage(
+            <span>
+              ⚠️ Service temporarily closed.{" "}
+              {tempCloseReason || "Please check back later."}
+            </span>
+          );
+        } else if (!withinDays) {
+          setServiceAvailable(false);
+          setMessage(
+            <span>
+              ⚠️ Service unavailable today. Open on: {weeklyDays.join(", ")}
+            </span>
+          );
+        } else if (!beforeCutoff) {
+          setServiceAvailable(false);
+          setMessage(
+            <span className="flex flex-col gap-1">
+              ⏰ Ordering time is over. You can call us directly if we’re still
+              at the Ertib place.
+              <a
+                href="tel:+251954724664"
+                className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
+              >
+                <FiPhoneCall size={16} />
+                +251 95 472 4664
+              </a>
+            </span>
+          );
+        } else {
+          setServiceAvailable(true);
+          setMessage(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch availability:", err);
         setServiceAvailable(true);
         setMessage(null);
       }
     };
 
-    checkAvailability();
-    const interval = setInterval(checkAvailability, 60000);
+    fetchAvailability();
+    const interval = setInterval(fetchAvailability, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [serverOffsetMs]);
 
   const handleOrderClick = () => {
     if (!serviceAvailable && user?.role !== "admin") {
+      let warningMessage = "";
+
+      if (message) {
+        // If we already have a message from availability check
+        warningMessage = message.props ? message.props.children : message;
+      } else {
+        // fallback
+        warningMessage =
+          "⚠️ Ordering is currently not available. Please check the availability schedule.";
+      }
+
       setToast({
-        message:
-          "⚠️ Sorry! Ordering is not available right now.\nWe’re open Monday to Thursday until 5:30 PM.",
+        message: warningMessage,
         type: "error",
       });
       return;
@@ -170,6 +213,15 @@ export default function Home() {
       )}
       {/* Top Right Auth Buttons */}
       <div className="w-full flex items-center justify-end max-w-6xl mb-6">
+        {user?.role === "admin" ? (
+<Link
+      to="/availability"
+      className="fixed top-4 left-4 z-50 inline-flex items-center gap-2 p-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-full shadow-lg transition-all duration-200"
+    >
+      {/* Icon goes here with a slight size adjustment if needed */}
+      <MdEventAvailable className="text-xl" /> 
+          </Link>
+        ) : null}
         {!user ? (
           <Link
             to="/login"

@@ -12,13 +12,10 @@ import {
 import API from "../api";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Simple Toast component
+// Toast component
 function Toast({ message, type = "success", onClose, duration = 3000 }) {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, duration);
-
+    const timer = setTimeout(onClose, duration);
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
@@ -26,7 +23,6 @@ function Toast({ message, type = "success", onClose, duration = 3000 }) {
     success: "bg-green-500 text-white",
     error: "bg-red-500 text-white",
   };
-
   return (
     <AnimatePresence>
       <motion.div
@@ -56,15 +52,14 @@ function CancelModal({ onConfirm, onCancel }) {
   const [shake, setShake] = useState(false);
 
   const handleConfirm = () => {
-    if (inputValue.trim() === "cancel") {
-      onConfirm();
-    } else {
+    if (inputValue.trim().toLowerCase() === "cancel") onConfirm();
+    else {
       setShake(true);
       setTimeout(() => setShake(false), 500);
     }
   };
 
-  const isReadyToConfirm = inputValue.trim() === "cancel";
+  const isReadyToConfirm = inputValue.trim().toLowerCase() === "cancel";
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
@@ -85,8 +80,6 @@ function CancelModal({ onConfirm, onCancel }) {
           confirm, type <span className="font-bold text-red-500">'cancel'</span>{" "}
           below.
         </p>
-
-        {/* Input with shake animation and checkmark */}
         <div className="relative w-full mb-4">
           <motion.input
             type="text"
@@ -95,7 +88,7 @@ function CancelModal({ onConfirm, onCancel }) {
             onChange={(e) => setInputValue(e.target.value)}
             animate={shake ? { x: [-5, 5, -5, 5, 0] } : { x: 0 }}
             transition={{ duration: 0.4 }}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-center placeholder:text-center"
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-center"
           />
           {isReadyToConfirm && (
             <motion.div
@@ -108,8 +101,6 @@ function CancelModal({ onConfirm, onCancel }) {
             </motion.div>
           )}
         </div>
-
-        {/* Buttons */}
         <div className="flex gap-2">
           <motion.button
             onClick={handleConfirm}
@@ -140,6 +131,9 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const [currentOrder, setCurrentOrder] = useState(order);
+  const [isTemporarilyClosed, setIsTemporarilyClosed] = useState(false);
+  const [serviceDays, setServiceDays] = useState([]);
+  const [cutoffHour, setCutoffHour] = useState(18); // default cutoff hour
 
   const statusSteps = ["pending", "in_progress", "arrived", "delivered"];
   const currentIndex = statusSteps.indexOf(currentOrder.status);
@@ -171,13 +165,13 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
     if (item.spices && item.ketchup) desc += " with both spices and ketchup";
     else if (item.spices && !item.ketchup) desc += " with only spices";
     else if (!item.spices && item.ketchup) desc += " with only ketchup";
-    else desc += " with no ketchup or spices";
+    else desc += " without ketchup and spices";
 
     // Extra ketchup
-    if (item.extraKetchup) desc += ", extra ketchup";
+    if (item.extraKetchup) desc += "+ extra ketchup";
 
     // Felafil
-    if (item.doubleFelafil) desc += ", double felafil";
+    if (item.doubleFelafil) desc += "+ double felafil";
     else if (item.Felafil === false) desc += ", no felafil";
 
     return desc;
@@ -192,37 +186,47 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
 
   // Server time offset
   useEffect(() => {
-    let mounted = true;
-    const fetchServerDate = async () => {
+    const fetchAvailability = async () => {
       try {
-        const res = await API.head("/");
-        const dateHeader = res?.headers?.date || res?.headers?.Date;
-        if (dateHeader && mounted) {
-          const serverDate = new Date(dateHeader).getTime();
-          const localNow = Date.now();
-          setServerOffsetMs(serverDate - localNow);
-        }
-      } catch (err) {}
+        const res = await API.get("/availability");
+        const data = res.data;
+        const dayMap = {
+          Sun: 0,
+          Mon: 1,
+          Tue: 2,
+          Wed: 3,
+          Thu: 4,
+          Fri: 5,
+          Sat: 6,
+        };
+        setServiceDays(data.weeklyDays.map((d) => dayMap[d]));
+        setCutoffHour(Number(data.cutoffTime.split(":")[0]));
+        setIsTemporarilyClosed(data.isTemporarilyClosed); // ⚡ important
+      } catch (err) {
+        console.error("Failed to fetch availability:", err);
+      }
     };
-    fetchServerDate();
-    return () => {
-      mounted = false;
-    };
+    fetchAvailability();
   }, []);
 
+  const now = new Date(Date.now() + serverOffsetMs);
+  const today = now.getDay();
+
   const isBeforeCutoff = () => {
-    const now = new Date(Date.now() + (serverOffsetMs || 0)); // already converts to Ethiopia time if offset used
+    if (isTemporarilyClosed) return false;
+    if (!serviceDays.includes(today)) return false;
+
     const hrs = now.getHours();
     const mins = now.getMinutes();
-
-    // 6:00 PM cutoff
-    return !(hrs > 18 || (hrs === 18 && mins > 0));
+    return !(hrs > cutoffHour || (hrs === cutoffHour && mins > 0));
   };
 
   const handleEdit = () => {
     if (!isBeforeCutoff()) {
       setToast({
-        message: "Editing is only allowed before 6:00 PM",
+        message: isTemporarilyClosed
+          ? "Service is temporarily closed"
+          : "Editing is only allowed before cutoff",
         type: "error",
       });
       return;
@@ -289,7 +293,7 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         )}
       </AnimatePresence>
 
-      {/* ... rest of your order display UI ... */}
+      {/* Order Info */}
       <div className="font-semibold mb-3 text-lg">📦 Order Details</div>
       {!isManual && !hideCustomerWhenManual && currentOrder.customerName && (
         <div className="mb-1">
@@ -408,47 +412,45 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         className="mt-2 p-2 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 text-xs rounded flex items-center gap-2"
       >
         <FiInfo className="text-yellow-600" />
-        You can edit or cancel your order before the cutoff time.
+        {isTemporarilyClosed
+          ? "Service is temporarily closed. You cannot edit or cancel orders."
+          : "You can edit or cancel your order before the cutoff time."}
       </motion.div>
 
       {/* Edit / Cancel Buttons */}
       <div className="mt-4 flex gap-2 flex-wrap">
-        {/* Edit Button */}
         <button
-          onClick={handleEdit} // always clickable
-          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1
-      ${
-        isBeforeCutoff()
-          ? "bg-yellow-400 hover:bg-yellow-500 text-black"
-          : "bg-gray-200 text-gray-500 border border-gray-400 cursor-pointer"
-      }`}
+          onClick={handleEdit}
+          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
+            isBeforeCutoff()
+              ? "bg-yellow-400 hover:bg-yellow-500 text-black"
+              : "bg-gray-200 text-gray-500 border border-gray-400 cursor-not-allowed"
+          }`}
         >
           <FiEdit className="text-sm" /> Edit
         </button>
-
-        {/* Cancel Button */}
         <button
           onClick={() => {
-            if (isBeforeCutoff()) {
-              setShowCancelModal(true);
-            } else {
-              // show toast if after cutoff
+            if (isBeforeCutoff()) setShowCancelModal(true);
+            else
               setToast({
-                message: "Cancelling is only allowed before 6:00 PM",
+                message: isTemporarilyClosed
+                  ? "Service is temporarily closed"
+                  : "Cancelling is only allowed before cutoff",
                 type: "error",
               });
-            }
           }}
-          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1
-      ${
-        isBeforeCutoff()
-          ? "bg-red-500 hover:bg-red-600 text-white"
-          : "bg-gray-200 text-gray-500 border border-gray-400 cursor-pointer"
-      }`}
+          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
+            isBeforeCutoff()
+              ? "bg-red-500 hover:bg-red-600 text-white"
+              : "bg-gray-200 text-gray-500 border border-gray-400 cursor-not-allowed"
+          }`}
         >
           <FiTrash2 className="text-sm" /> Cancel
         </button>
       </div>
+
+      {/* Rest of your order details UI remains as it was */}
     </motion.div>
   );
 }

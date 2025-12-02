@@ -9,6 +9,8 @@ const cors = require('cors');
 const authRoutes = require('./src/routes/authRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
+const availabilityRoutes = require('./src/routes/availability');
+
 
 const app = express();
 
@@ -21,6 +23,13 @@ app.use(morgan('dev'));
 app.use('/api/auth', authRoutes);     // Handles user & admin login/signup
 app.use('/api/orders', orderRoutes);  // Handles all order-related endpoints
 app.use('/api/admin', adminRoutes);   // Admin dashboard routes
+app.use("/api/availability", availabilityRoutes); // Availability routes
+
+
+// ✅ Add server time route
+app.get("/api/server-time", (req, res) => {
+  res.json({ serverTime: new Date().toISOString() });
+});
 
 // Base route
 app.get('/', (req, res) => {
@@ -37,6 +46,8 @@ app.use((err, req, res, next) => {
   console.error('❌ Error:', err.stack);
   res.status(500).json({ message: 'Server error', error: err.message });
 });
+
+
 
 // Start the server
 const PORT = process.env.PORT || 4000;

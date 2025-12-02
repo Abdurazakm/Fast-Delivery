@@ -397,24 +397,14 @@ router.get("/track/:code", async (req, res) => {
  * Update order by tracking code (guest or authenticated)
  * Only allowed before 15:00 server local time
  */
-router.put("/track/:code", async (req, res) => {
+// Update order
+router.put("/track/:code", checkServiceAvailability, async (req, res) => {
   try {
     const code = req.params.code;
     const order = await prisma.order.findUnique({
       where: { trackingCode: code },
     });
     if (!order) return res.status(404).json({ message: "Order not found" });
-
-    // Time restriction: only allow before 15:00 (6 PM)
-    const now = new Date();
-    const hrs = now.getHours();
-    const mins = now.getMinutes();
-
-    if (hrs > 15 || (hrs === 15 && mins > 0)) {
-      return res.status(400).json({
-        message: "You can only edit or cancel your order before 6:00 PM.",
-      });
-    }
 
     const { customerName, phone, location, items, total } = req.body;
 
@@ -431,8 +421,10 @@ router.put("/track/:code", async (req, res) => {
 
     res.json({ message: "Order updated", order: updated });
   } catch (err) {
-    console.error("❌ Error updating order by tracking code:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Error updating order:", err);
+    res
+      .status(500)
+      .json({ message: "Server error updating order", error: err.message });
   }
 });
 
@@ -440,24 +432,13 @@ router.put("/track/:code", async (req, res) => {
  * Delete order by tracking code (guest or authenticated)
  * Only allowed before 17:30 server local time
  */
-router.delete("/track/:code", async (req, res) => {
+router.delete("/track/:code", checkServiceAvailability, async (req, res) => {
   try {
     const code = req.params.code;
     const order = await prisma.order.findUnique({
       where: { trackingCode: code },
     });
     if (!order) return res.status(404).json({ message: "Order not found" });
-
-    // Time restriction: only allow before 18:00 (6 PM)
-    const now = new Date();
-    const hrs = now.getHours();
-    const mins = now.getMinutes();
-
-    if (hrs > 15 || (hrs === 15 && mins > 0)) {
-      return res.status(400).json({
-        message: "You can only edit or cancel your order before 6:00 PM.",
-      });
-    }
 
     await prisma.order.delete({ where: { id: order.id } });
     res.json({ message: "Order deleted successfully" });

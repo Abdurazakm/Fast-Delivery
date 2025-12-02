@@ -1,80 +1,129 @@
 import { useEffect, useState } from "react";
+import API from "../api";
 
 export default function OrderingInfoCards({ serverOffsetMs = 0 }) {
   const [timeLeft, setTimeLeft] = useState("");
   const [isClosed, setIsClosed] = useState(false);
   const [showCards, setShowCards] = useState(true);
-  const lastOrderingHour = 18; // 6:00 PM
+  const [isTemporarilyClosed, setIsTemporarilyClosed] = useState(false);
+  const [cutoffTime, setCutoffTime] = useState("18:00");
+  const [serviceDays, setServiceDays] = useState([1, 2, 3, 4]);
+  const [estimatedDelivery, setEstimatedDelivery] = useState("");
 
-  // Check service day
+  const formatTime = (date) => {
+    let hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${hours}:${minutes} ${ampm}`;
+  };
+
   useEffect(() => {
-    const checkServiceDay = () => {
-      const now = new Date(Date.now() + serverOffsetMs);
-      const day = now.getDay(); // 0=Sun ... 6=Sat
-      setShowCards(day >= 1 && day <= 4); // Mon–Thu only
+    const fetchAvailability = async () => {
+      try {
+        const res = await API.get("/availability");
+        const data = res.data;
+
+        setCutoffTime(data.cutoffTime);
+        setIsTemporarilyClosed(data.isTemporarilyClosed);
+
+        const dayMap = {
+          Sun: 0,
+          Mon: 1,
+          Tue: 2,
+          Wed: 3,
+          Thu: 4,
+          Fri: 5,
+          Sat: 6,
+        };
+
+        setServiceDays(data.weeklyDays.map((d) => dayMap[d]));
+      } catch (err) {
+        console.error("Failed to fetch availability:", err);
+      }
     };
 
-    checkServiceDay();
-    const dayInterval = setInterval(checkServiceDay, 60 * 1000);
-    return () => clearInterval(dayInterval);
-  }, [serverOffsetMs]);
+    fetchAvailability();
+  }, []);
 
-  // Countdown for last ordering time
+  useEffect(() => {
+    const checkServiceStatus = () => {
+      const now = new Date(Date.now() + serverOffsetMs);
+      const today = now.getDay();
+      setShowCards(serviceDays.includes(today) && !isTemporarilyClosed);
+    };
+
+    checkServiceStatus();
+    const interval = setInterval(checkServiceStatus, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [serverOffsetMs, serviceDays, isTemporarilyClosed]);
+
   useEffect(() => {
     const updateCountdown = () => {
       const now = new Date(Date.now() + serverOffsetMs);
+
+      if (isTemporarilyClosed) {
+        setTimeLeft("Service Temporarily Closed");
+        setIsClosed(true);
+        return;
+      }
+
+      const [cutHour, cutMinute] = cutoffTime.split(":").map(Number);
       const lastOrdering = new Date(now);
-      lastOrdering.setHours(lastOrderingHour, 0, 0, 0);
+      lastOrdering.setHours(cutHour, cutMinute, 0, 0);
 
       const diffMs = lastOrdering - now;
 
       if (diffMs <= 0) {
         setTimeLeft("Ordering closed for today");
         setIsClosed(true);
-        return;
+      } else {
+        setIsClosed(false);
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+        setTimeLeft(`${hours ? hours + "h " : ""}${minutes}m ${seconds}s`);
       }
 
-      setIsClosed(false);
+      const startDelivery = new Date(lastOrdering.getTime() + 30 * 60 * 1000);
+      const endDelivery = new Date(lastOrdering.getTime() + 90 * 60 * 1000);
 
-      const hours = Math.floor(diffMs / (1000 * 60 * 60));
-      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-
-      setTimeLeft(`⏰ ${hours ? hours + "h " : ""}${minutes}m ${seconds}s`);
+      setEstimatedDelivery(
+        `${formatTime(startDelivery)} – ${formatTime(endDelivery)}`
+      );
     };
 
     updateCountdown();
     const countdownInterval = setInterval(updateCountdown, 1000);
     return () => clearInterval(countdownInterval);
-  }, [serverOffsetMs]);
+  }, [serverOffsetMs, cutoffTime, isTemporarilyClosed]);
 
-  const estimatedDelivery = "12:30–1:30 LT";
-
-  if (!showCards) return null; // <-- Hide cards entirely if not Mon–Thu
+  if (!showCards) return null;
 
   const cardBase =
-    "relative w-68 h-22 flex flex-col items-center justify-center font-semibold text-center rounded-xl shadow-lg transform transition duration-300 hover:scale-105";
+    "flex flex-col items-center justify-center px-6 py-5 w-full rounded-2xl shadow-xl text-center transition-all transform hover:scale-[1.03]";
 
   return (
-    <div className="flex justify-center items-center gap-6 mt-6 w-full max-w-3xl mx-auto">
+    <div className="w-full max-w-3xl mx-auto mt-6 grid grid-cols-1 sm:grid-cols-2 gap-5 px-4">
+      
       {/* Order Cutoff */}
       <div
         className={`${cardBase} ${
           isClosed
-            ? "bg-red-500 bg-gradient-to-br from-red-500 to-red-600 text-white"
-            : "bg-gradient-to-br from-yellow-400 to-yellow-500 text-white"
+            ? "bg-red-500 text-white"
+            : "bg-amber-500 text-white"
         }`}
       >
-        <span className="text-sm font-bold">Order Cutoff</span>
-        <span className="text-base mt-1 text-center">{timeLeft}</span>
+        <span className="text-base font-bold tracking-wide">Order Cutoff</span>
+        <span className="mt-2 text-xl font-semibold">{timeLeft}</span>
       </div>
 
-      {/* Expected Delivery */}
-      <div
-        className={`${cardBase} bg-gradient-to-br from-green-400 to-green-500 text-white`}
-      >
-        <span className="text-sm font-bold">Expected Delivery</span>
-        <span className="text-base mt-1 text-center">{estimatedDelivery}</span>
+      {/* Estimated Delivery */}
+      <div className={`${cardBase} bg-green-500 text-white`}>
+        <span className="text-base font-bold tracking-wide">Estimated Delivery</span>
+        <span className="mt-2 text-xl font-semibold">{estimatedDelivery}</span>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
   FaCopy,
   FaExternalLinkAlt,
 } from "react-icons/fa";
+import { FiArrowLeft } from "react-icons/fi";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
 import { FiDownload } from "react-icons/fi";
@@ -478,6 +479,12 @@ Normal - 110 Birr, Special - 135 Birr
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      <Link
+        to="/"
+        className="fixed top-4 left-4 z-50 inline-flex items-center gap-2 p-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-full shadow-lg transition-all duration-200"
+      >
+        <FiArrowLeft className="text-lg" />
+      </Link>
       <div className="max-w-6xl mx-auto bg-white p-6 rounded-2xl shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-amber-700">📦My Dashboard</h1>

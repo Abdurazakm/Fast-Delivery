@@ -222,13 +222,13 @@ export default function Order() {
     if (item.spices && item.ketchup) desc += " with both spices and ketchup";
     else if (item.spices && !item.ketchup) desc += " with only spices";
     else if (!item.spices && item.ketchup) desc += " with only ketchup";
-    else desc += " with no ketchup or spices";
+    else desc += " without ketchup and spices";
 
     // Extra ketchup
-    if (item.extraKetchup) desc += ", extra ketchup";
+    if (item.extraKetchup) desc += "+ extra ketchup";
 
     // Felafil
-    if (item.doubleFelafil) desc += ", double felafil";
+    if (item.doubleFelafil) desc += "+ double felafil";
     else if (item.Felafil === false) desc += ", no felafil";
 
     return desc;
