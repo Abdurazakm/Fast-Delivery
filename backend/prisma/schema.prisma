@@ -1,20 +1,12 @@
-// Prisma schema for your Ertib Delivery backend
-
 generator client {
   provider = "prisma-client-js"
 }
 
-// prisma/schema.prisma
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  // directUrl = env("DATABASE_URL_UNPOOLED") // For Neon pooling
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-//
-// ======================
-// User Model
-// ======================
 model User {
   id        Int      @id @default(autoincrement())
   name      String
@@ -24,31 +16,34 @@ model User {
   role      String   @default("user")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  orders    Order[]  // Relation to orders
+  orders    Order[]
 }
 
-//
-// ======================
-// Order Model
-// ======================
 model Order {
-  id           Int      @id @default(autoincrement())
-  customerName String
-  phone        String
-  location     String
-  source       String   @default("online")
-  total        Float
-  trackingCode String   @unique
-  trackUrl     String
-  status       String   @default("pending") // pending | in_progress | arrived | delivered | canceled | no_show
-  statusHistory Json     @default("[]")     // [{status: "pending", at: "2025-11-21T..."}, ...]
-  smsHistory   Json     @default("[]")
-  items        Json
+  id            Int      @id @default(autoincrement())
+  customerName  String
+  phone         String
+  location      String
+  source        String   @default("online")
+  total         Float
+  status        String   @default("pending")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId        Int?
+  items         Json
+  smsHistory    Json
+  trackingCode  String
+  trackUrl      String?
+  statusHistory Json?    @default("[]") @db.Json
+  notes         String?
+  user          User?    @relation(fields: [userId], references: [id])
+}
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  userId       Int?
-  user         User?    @relation(fields: [userId], references: [id])
-  notes        String?
+model Availability {
+  id                  Int      @id @default(autoincrement())
+  weeklyDays          String
+  cutoffTime          String
+  isTemporarilyClosed Boolean  @default(false)
+  tempCloseReason     String?  @default("")
+  updatedAt           DateTime @db.Timestamp(6)
 }
