@@ -1,4 +1,4 @@
-// Normalize Ethiopian phone numbers
+// Normalize Ethiopian phone numbers 
 function normalizePhone(raw) {
   if (!raw) return null;
   let s = String(raw).trim();
@@ -6,13 +6,13 @@ function normalizePhone(raw) {
   // Remove spaces, dashes, parentheses
   s = s.replace(/[\s()-]/g, '');
 
-  // Local 10-digit numbers starting with 0
-  if (/^0[17]\d{8}$/.test(s)) {
-    s = '+251' + s.slice(1); // convert 09XXXXXXXX or 07XXXXXXXX to +2519XXXXXXX / +2517XXXXXXX
+  // Local 10-digit numbers starting with 09 or 07
+  if (/^0[79]\d{8}$/.test(s)) {
+    s = '+251' + s.slice(1);
   }
 
-  // Local 9-digit numbers without leading zero
-  if (/^[17]\d{8}$/.test(s)) {
+  // Local 9-digit numbers starting with 9 or 7
+  if (/^[79]\d{8}$/.test(s)) {
     s = '+251' + s;
   }
 
@@ -27,7 +27,7 @@ function isValidPhone(s) {
   if (!s) return false;
   const normalized = normalizePhone(s);
 
-  // Only allow +2519XXXXXXXX (EthioTel) or +2517XXXXXXXX (Safaricom)
+  // Allow only +2519XXXXXXXX or +2517XXXXXXXX
   return /^\+251[79]\d{8}$/.test(normalized);
 }
 

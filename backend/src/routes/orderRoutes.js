@@ -397,36 +397,42 @@ router.get("/track/:code", async (req, res) => {
  * Update order by tracking code (guest or authenticated)
  * Only allowed before 15:00 server local time
  */
-// Update order
 router.put("/track/:code", checkServiceAvailability, async (req, res) => {
   try {
     const code = req.params.code;
-    const order = await prisma.order.findUnique({
+    let { customerName, phone, location, items, total } = req.body;
+
+    // FIX: use findFirst instead of findUnique
+    const order = await prisma.order.findFirst({
       where: { trackingCode: code },
     });
+
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    const { customerName, phone, location, items, total } = req.body;
+    // Auto recalc total
+    const computedTotal =
+      items && Array.isArray(items)
+        ? items.reduce((sum, item) => sum + (item.lineTotal || 0), 0)
+        : order.total;
 
     const updated = await prisma.order.update({
-      where: { id: order.id },
+      where: { id: order.id }, // id is unique
       data: {
         customerName: customerName ?? order.customerName,
         phone: phone ?? order.phone,
         location: location ?? order.location,
         items: items ?? order.items,
-        total: total ?? order.total,
+        total: total ? Number(total) : computedTotal,
       },
     });
 
     res.json({ message: "Order updated", order: updated });
   } catch (err) {
     console.error("❌ Error updating order:", err);
-    res
-      .status(500)
-      .json({ message: "Server error updating order", error: err.message });
+    res.status(500).json({ message: "Server error updating order" });
   }
 });
+
 
 /**
  * Delete order by tracking code (guest or authenticated)
@@ -435,12 +441,17 @@ router.put("/track/:code", checkServiceAvailability, async (req, res) => {
 router.delete("/track/:code", checkServiceAvailability, async (req, res) => {
   try {
     const code = req.params.code;
-    const order = await prisma.order.findUnique({
+
+    const order = await prisma.order.findFirst({
       where: { trackingCode: code },
     });
+
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    await prisma.order.delete({ where: { id: order.id } });
+    await prisma.order.delete({
+      where: { id: order.id },
+    });
+
     res.json({ message: "Order deleted successfully" });
   } catch (err) {
     console.error("❌ Error deleting order by tracking code:", err);
