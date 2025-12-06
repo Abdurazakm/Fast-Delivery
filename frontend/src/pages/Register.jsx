@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import API from "../api";
-import Toast from "./Toast"; // import the Toast component
+import Toast from "./Toast";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -9,12 +10,16 @@ const Register = () => {
     phone: "",
     email: "",
     password: "",
+    confirmPassword: "",
     blockNumber: "",
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [toast, setToast] = useState(null); // toast state
+  const [toast, setToast] = useState(null);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -24,26 +29,34 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    // 🔐 Password matching
+    if (formData.password !== formData.confirmPassword) {
+      setToast({
+        message: "❌ Passwords do not match!",
+        type: "error",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await API.post("/auth/register", formData);
+
       if (res.status === 201 || res.status === 200) {
-        // Show success toast
         setToast({
           message: "🎉 Registration successful! You can now log in.",
           type: "success",
         });
 
-        // Redirect after a short delay
         setTimeout(() => navigate("/login"), 1500);
       }
     } catch (err) {
       console.error("Registration error:", err);
       const errorMessage =
         err.response?.data?.message || "Something went wrong. Try again!";
-      setError(errorMessage);
-      // Show error toast
+      // setError(errorMessage);
       setToast({ message: errorMessage, type: "error" });
     } finally {
       setLoading(false);
@@ -105,17 +118,54 @@ const Register = () => {
             />
           </div>
 
+          {/* PASSWORD */}
           <div>
             <label className="block font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              minLength={6}
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={6}
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
+              />
+              <span
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 cursor-pointer text-gray-600"
+              >
+                {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+              </span>
+            </div>
+          </div>
+
+          {/* CONFIRM PASSWORD */}
+          <div>
+            <label className="block font-medium text-gray-700">
+              Confirm Password
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                minLength={6}
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
+              />
+              <span
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-3 cursor-pointer text-gray-600"
+              >
+                {showConfirmPassword ? (
+                  <FaEyeSlash size={18} />
+                ) : (
+                  <FaEye size={18} />
+                )}
+              </span>
+            </div>
           </div>
 
           <button
@@ -138,7 +188,6 @@ const Register = () => {
         </p>
       </div>
 
-      {/* Toast Notification */}
       {toast && (
         <Toast
           message={toast.message}

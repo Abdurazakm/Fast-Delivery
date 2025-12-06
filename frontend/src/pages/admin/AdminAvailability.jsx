@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../../api";
 import { Link } from "react-router-dom";
-import { FiArrowLeft } from "react-icons/fi";
 import { HiMenu, HiX, HiChevronRight } from "react-icons/hi";
 import Toast from "../Toast";
 
@@ -53,54 +52,93 @@ export default function AdminAvailability() {
 
   return (
     <div className="min-h-screen flex bg-gray-50">
-      {/* ⬅ Sidebar (Mobile friendly) */}
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 
-        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-        lg:translate-x-0`}
+        className={`fixed inset-y-0 left-0 w-64 
+  bg-white/90 backdrop-blur-xl
+  border-r border-gray-200
+  shadow-[4px_0_20px_rgba(0,0,0,0.06)]
+  z-50 transform transition-transform duration-300 
+  ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+  lg:translate-x-0`}
       >
-        <div className="p-6 flex justify-between items-center border-b">
-          <h1 className="text-xl font-bold text-gray-800">Admin Panel</h1>
+        {/* Header */}
+        <div className="p-6 flex justify-between items-center border-b border-gray-200">
+          <h1 className="text-xl font-bold text-gray-900 tracking-wide">
+            Admin Panel
+          </h1>
+
           <button
-            className="lg:hidden text-gray-600"
+            className="lg:hidden text-gray-600 hover:text-gray-900 transition"
             onClick={() => setSidebarOpen(false)}
           >
             <HiX size={26} />
           </button>
         </div>
 
-        <nav className="p-6 space-y-4">
+        {/* Navigation */}
+        <nav className="p-4 mt-2 space-y-1">
+          {/* Reusable Link Style */}
           <Link
             to="/"
-            className="block px-4 py-2 rounded-lg hover:bg-gray-100 font-medium text-gray-800"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg
+      text-gray-700 hover:text-amber-600
+      hover:bg-amber-50 transition font-medium relative group"
           >
+            <span
+              className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 rounded-r-full 
+      opacity-0 group-hover:opacity-100 transition"
+            ></span>
             Home
           </Link>
+
           <Link
             to="/order"
-            className="block px-4 py-2 rounded-lg hover:bg-gray-100 font-medium text-gray-800"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg
+      text-gray-700 hover:text-amber-600 
+      hover:bg-amber-50 transition font-medium relative group"
           >
-            Add order
+            <span
+              className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 rounded-r-full 
+      opacity-0 group-hover:opacity-100 transition"
+            ></span>
+            Add Order
           </Link>
+
           <Link
             to="/admin"
-            className="block px-4 py-2 rounded-lg hover:bg-gray-100 font-medium text-gray-800"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg
+      text-gray-700 hover:text-amber-600 
+      hover:bg-amber-50 transition font-medium relative group"
           >
+            <span
+              className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 rounded-r-full 
+      opacity-0 group-hover:opacity-100 transition"
+            ></span>
             Dashboard
           </Link>
+
+          {/* Active Link */}
           <Link
             to="/availability"
-            className="block px-4 py-2 rounded-lg bg-amber-100 text-amber-700 font-medium"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg
+      bg-amber-100 text-amber-700 font-semibold shadow-sm
+      relative"
           >
+            {/* Active indicator */}
+            <span className="absolute left-0 top-0 bottom-0 w-1 bg-amber-600 rounded-r-full"></span>
             Service Availability
           </Link>
         </nav>
       </aside>
 
-      {/* 🔥 Content Area */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* 📌 Top Navbar */}
-        <header className="bg-white shadow-md p-4 flex justify-between items-center lg:pl-72">
+        {/* Top Navbar */}
+        <header
+          className="bg-white/80 backdrop-blur-md border-b border-gray-200 
+        shadow-sm p-4 flex justify-between items-center lg:pl-72 sticky top-0 z-40"
+        >
           <button
             className="lg:hidden text-gray-700"
             onClick={() => setSidebarOpen(true)}
@@ -114,13 +152,14 @@ export default function AdminAvailability() {
 
           <Link
             to="/admin"
-            className="p-2 rounded-full bg-amber-500 text-white shadow hover:bg-amber-600 transition"
+            className="p-2 rounded-full bg-amber-500 text-white shadow 
+            hover:bg-amber-600 transition"
           >
             <HiChevronRight size={22} />
           </Link>
         </header>
 
-        {/* 🎉 Success / Error Toast */}
+        {/* Toast */}
         {toastMessage && (
           <Toast
             message={toastMessage}
@@ -129,16 +168,21 @@ export default function AdminAvailability() {
           />
         )}
 
-        {/* 🟨 Main Card Container */}
+        {/* Card */}
         <main className="flex justify-center px-4 py-10 lg:pl-72">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-lg p-8 border">
-            <h3 className="text-2xl font-bold text-center text-gray-800 mb-8">
-              Manage Service Availability
-            </h3>
-
+          <div
+            className="bg-white/90 backdrop-blur-md w-full max-w-2xl 
+          rounded-3xl shadow-xl p-10 border border-amber-100 
+          hover:shadow-2xl transition-all"
+          >
             {/* Working Days */}
             <div className="mb-8">
-              <label className="font-semibold text-gray-700 block mb-3 text-lg">
+              <label
+                className="block mb-3 text-lg font-semibold text-gray-900 
+                tracking-wide px-4 py-2 rounded-xl 
+                bg-gradient-to-r from-amber-300/20 to-amber-100/10
+                border-l-4 border-amber-500 shadow-sm backdrop-blur-sm"
+              >
                 Working Days
               </label>
 
@@ -147,9 +191,10 @@ export default function AdminAvailability() {
                   <button
                     key={day}
                     onClick={() => handleToggleDay(day)}
-                    className={`px-4 py-2 rounded-full border shadow-sm text-sm font-medium transition ${
+                    className={`px-4 py-2 rounded-full border shadow-sm text-sm font-medium 
+                    transition-all duration-200 ${
                       availability.weeklyDays.includes(day)
-                        ? "bg-amber-500 text-white border-amber-500 shadow"
+                        ? "bg-amber-500 text-white border-amber-500 shadow-md scale-[1.05]"
                         : "bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
                     }`}
                   >
@@ -161,9 +206,15 @@ export default function AdminAvailability() {
 
             {/* Cutoff Time */}
             <div className="mb-8">
-              <label className="font-semibold text-gray-700 block mb-3 text-lg">
+              <label
+                className="block mb-3 text-lg font-semibold text-gray-900 
+                tracking-wide px-4 py-2 rounded-xl 
+                bg-gradient-to-r from-amber-300/20 to-amber-100/10
+                border-l-4 border-amber-500 shadow-sm backdrop-blur-sm"
+              >
                 Cutoff Time
               </label>
+
               <input
                 type="time"
                 value={availability.cutoffTime}
@@ -174,13 +225,18 @@ export default function AdminAvailability() {
                   }))
                 }
                 className="px-4 py-2 border rounded-lg w-full bg-gray-50 
-                          focus:ring-2 focus:ring-amber-500 shadow-sm"
+                focus:ring-2 focus:ring-amber-500 shadow-sm"
               />
             </div>
 
             {/* Temporary Closure */}
             <div className="mb-8">
-              <label className="flex items-center gap-3 font-semibold text-gray-700 text-lg">
+              <label
+                className="flex items-center gap-3 text-lg font-semibold text-gray-900 
+                tracking-wide px-4 py-2 rounded-xl
+                bg-gradient-to-r from-amber-300/20 to-amber-100/10
+                border-l-4 border-amber-500 shadow-sm backdrop-blur-sm"
+              >
                 <input
                   type="checkbox"
                   checked={availability.isTemporarilyClosed}
@@ -206,7 +262,7 @@ export default function AdminAvailability() {
                     }))
                   }
                   className="mt-4 px-4 py-3 border rounded-lg w-full h-28 bg-gray-50 
-                            focus:ring-2 focus:ring-amber-500 shadow-sm"
+                  focus:ring-2 focus:ring-amber-500 shadow-sm"
                 />
               )}
             </div>
@@ -215,7 +271,9 @@ export default function AdminAvailability() {
             <div className="text-center">
               <button
                 onClick={handleSave}
-                className="px-10 py-3 bg-amber-500 hover:bg-amber-600 transition text-white font-semibold rounded-xl shadow"
+                className="px-10 py-3 bg-amber-500 hover:bg-amber-600 
+                text-white font-semibold rounded-xl shadow-lg 
+                transition-all duration-200 hover:shadow-xl hover:scale-[1.03]"
               >
                 Save Changes
               </button>

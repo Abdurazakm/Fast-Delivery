@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import API from "../api"; // import your Axios instance
+import { FaEye, FaEyeSlash } from "react-icons/fa"; // 👈 React Icons
+import API from "../api";
 
 const Login = () => {
   const [formData, setFormData] = useState({ phone: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false); // 👈 state for toggle
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -19,7 +21,7 @@ const Login = () => {
 
     try {
       const res = await API.post("/auth/login", formData);
-      const { token, user } = res.data; // ✅ destructure correctly
+      const { token, user } = res.data;
       const { role, name } = user;
 
       // Save to localStorage
@@ -72,17 +74,28 @@ const Login = () => {
             />
           </div>
 
+          {/* PASSWORD FIELD WITH EYE ICON */}
           <div>
             <label className="block font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
-              placeholder="Your password"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"} // 👈 toggle visibility
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-amber-400"
+                placeholder="Your password"
+              />
+
+              {/* Eye Icon */}
+              <span
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-3 cursor-pointer text-gray-600"
+              >
+                {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
+              </span>
+            </div>
           </div>
 
           <button
