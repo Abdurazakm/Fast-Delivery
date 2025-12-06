@@ -387,7 +387,7 @@ export default function Order() {
         </div>
 
         <div className="flex items-center gap-3">
-          {!user ? (
+          {/* {!user ? (
             <Link
               to="/login"
               className="px-5 py-3 bg-white/20 backdrop-blur-md border border-white text-white rounded-full hover:bg-white/30 transition text-sm sm:text-base"
@@ -406,7 +406,7 @@ export default function Order() {
                 Logout
               </button>
             </>
-          )}
+          )} */}
         </div>
       </div>
 
@@ -525,7 +525,7 @@ export default function Order() {
           )}
 
           <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
-            🥙 Place Your Order
+            Place Your Order
           </h1>
 
           {!reviewMode ? (

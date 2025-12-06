@@ -249,22 +249,44 @@ export default function Home() {
         {!user ? (
           <Link
             to="/login"
-            className="px-5 py-2 bg-white/80 border border-white text-amber-800 font-semibold rounded-full hover:bg-white transition"
+            className="
+      relative inline-flex items-center justify-center px-6 py-2
+      font-semibold text-amber-800
+      bg-white/90 border border-white
+      rounded-full
+      shadow-md
+      transition-all duration-300
+      hover:bg-white
+      hover:shadow-lg
+      active:scale-95
+      focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1
+    "
           >
-            Login
+            <span className="relative z-10">Login</span>
+            <span className="absolute inset-0 rounded-full bg-amber-200 opacity-10 blur-md pointer-events-none"></span>
           </Link>
         ) : (
-          <>
-            <span className="text-amber-800 font-medium mr-3">
-              Hi, <span className="text-red-500">{user.name}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-amber-800 font-medium text-sm sm:text-base">
+              Hi👋,{" "}
+              <span className="text-red-500 font-semibold">{user.name}</span>
             </span>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition"
+              className="
+        relative inline-flex items-center justify-center px-4 py-2
+        bg-red-600 text-white font-semibold
+        rounded-full shadow-md
+        transition-all duration-300
+        hover:bg-red-700 hover:shadow-lg
+        active:scale-95
+        focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1
+      "
             >
               Logout
+              <span className="absolute inset-0 rounded-full bg-red-200 opacity-10 blur-md pointer-events-none"></span>
             </button>
-          </>
+          </div>
         )}
       </div>
 
@@ -287,7 +309,7 @@ export default function Home() {
       {/* Hero */}
       <div className="text-center max-w-2xl mt-6">
         <h1 className="text-3xl md:text-4xl font-bold mb-4 text-amber-700">
-          👋 Welcome To Fetan Delivery Service!
+          Welcome To Fetan Delivery Service!
         </h1>
         <p className="text-gray-700 mb-3 text-lg">
           We deliver{" "}
@@ -339,10 +361,10 @@ export default function Home() {
                 }`}
               >
                 {serviceAvailable ? (
-                  <>🥙 {user ? "Place Your Order" : "Order Directly"}</>
+                  <>{user ? "Place Your Order" : "Order Directly"}</>
                 ) : (
                   <span className="invisible">
-                    🥙 {user ? "Place Your Order" : "Order Directly"}
+                    {user ? "Place Your Order" : "Order Directly"}
                   </span>
                 )}
               </button>
@@ -422,19 +444,25 @@ export default function Home() {
       {/* Features */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">
         <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1 text-amber-700">Fetan Campus Delivery</h3>
+          <h3 className="font-semibold text-lg mb-1 text-amber-700">
+            Fetan Campus Delivery
+          </h3>
           <p className="text-gray-600 text-sm">
             We deliver your favorite Ertib quickly and fresh!
           </p>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1 text-amber-700">Exclusive for AASTU</h3>
+          <h3 className="font-semibold text-lg mb-1 text-amber-700">
+            Exclusive for AASTU
+          </h3>
           <p className="text-gray-600 text-sm">
             Only available for AASTU students.
           </p>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1 text-amber-700">Easy Contact</h3>
+          <h3 className="font-semibold text-lg mb-1 text-amber-700">
+            Easy Contact
+          </h3>
           <p className="text-gray-600 text-sm flex items-center gap-1">
             Call us anytime:{" "}
             <a

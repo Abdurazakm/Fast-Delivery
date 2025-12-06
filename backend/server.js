@@ -33,7 +33,7 @@ app.get("/api/server-time", (req, res) => {
 
 // Base route
 app.get('/', (req, res) => {
-  res.send('🥙 Ertib Delivery API is running successfully...');
+  res.send('Fetan Delivery API is running successfully...');
 });
 
 // Handle unknown routes
