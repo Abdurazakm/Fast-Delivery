@@ -381,7 +381,7 @@ export default function Home() {
               {latestOrder ? (
                 <TrackingInfoCard order={latestOrder} />
               ) : (
-                <div className="text-gray-500 text-sm text-center py-3">
+                <div className="text-amber-500 text-sm text-center py-3">
                   You have no orders today.
                 </div>
               )}
@@ -422,19 +422,19 @@ export default function Home() {
       {/* Features */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">
         <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1">Fetan Campus Delivery</h3>
+          <h3 className="font-semibold text-lg mb-1 text-amber-700">Fetan Campus Delivery</h3>
           <p className="text-gray-600 text-sm">
             We deliver your favorite Ertib quickly and fresh!
           </p>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1">Exclusive for AASTU</h3>
+          <h3 className="font-semibold text-lg mb-1 text-amber-700">Exclusive for AASTU</h3>
           <p className="text-gray-600 text-sm">
             Only available for AASTU students.
           </p>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1">Easy Contact</h3>
+          <h3 className="font-semibold text-lg mb-1 text-amber-700">Easy Contact</h3>
           <p className="text-gray-600 text-sm flex items-center gap-1">
             Call us anytime:{" "}
             <a

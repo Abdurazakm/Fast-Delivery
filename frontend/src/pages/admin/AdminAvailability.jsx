@@ -64,12 +64,12 @@ export default function AdminAvailability() {
       >
         {/* Header */}
         <div className="p-6 flex justify-between items-center border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900 tracking-wide">
+          <h1 className="text-xl font-bold text-amber-700 tracking-wide">
             Admin Panel
           </h1>
 
           <button
-            className="lg:hidden text-gray-600 hover:text-gray-900 transition"
+            className="lg:hidden text-red-600 hover:text-gray-900 transition"
             onClick={() => setSidebarOpen(false)}
           >
             <HiX size={26} />
@@ -140,13 +140,13 @@ export default function AdminAvailability() {
         shadow-sm p-4 flex justify-between items-center lg:pl-72 sticky top-0 z-40"
         >
           <button
-            className="lg:hidden text-gray-700"
+            className="lg:hidden text-amber-700"
             onClick={() => setSidebarOpen(true)}
           >
             <HiMenu size={28} />
           </button>
 
-          <h2 className="text-xl font-bold text-gray-800">
+          <h2 className="text-xl font-bold text-amber-700">
             Manage Availability
           </h2>
 
@@ -172,7 +172,7 @@ export default function AdminAvailability() {
         <main className="flex justify-center px-4 py-10 lg:pl-72">
           <div
             className="bg-white/90 backdrop-blur-md w-full max-w-2xl 
-          rounded-3xl shadow-xl p-10 border border-amber-100 
+          rounded-3xl shadow-xl p-10 border border-amber-700 
           hover:shadow-2xl transition-all"
           >
             {/* Working Days */}
