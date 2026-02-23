@@ -48,3 +48,19 @@ model Availability {
   tempCloseReason     String?  @default("")
   updatedAt           DateTime @db.Timestamp(6)
 }
+
+model Pricing {
+  id                 Int      @id @default(autoincrement())
+  sambusaPrice       Float    @default(30)
+  ertibNormalPrice   Float    @default(115)
+  ertibSpecialPrice  Float    @default(140)
+  extraKetchupPrice  Float    @default(10)
+  doubleFelafilPrice Float    @default(15)
+  sambusaCost        Float    @default(20)
+  ertibNormalCost    Float    @default(100)
+  ertibSpecialCost   Float    @default(125)
+  extraKetchupCost   Float    @default(0)
+  doubleFelafilCost  Float    @default(0)
+  updatedAt          DateTime @updatedAt
+  createdAt          DateTime @default(now())
+}

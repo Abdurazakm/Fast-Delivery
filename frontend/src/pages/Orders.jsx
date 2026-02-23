@@ -6,6 +6,14 @@ import { FaPaperPlane } from "react-icons/fa";
 import Toast from "./Toast";
 import API from "../api";
 
+const DEFAULT_PRICING = {
+  sambusaPrice: 30,
+  ertibNormalPrice: 115,
+  ertibSpecialPrice: 140,
+  extraKetchupPrice: 10,
+  doubleFelafilPrice: 15,
+};
+
 export default function Order() {
   const [customer, setCustomer] = useState({
     customerName: "",
@@ -29,6 +37,7 @@ export default function Order() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [pricing, setPricing] = useState(DEFAULT_PRICING);
   const [reviewMode, setReviewMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editCode, setEditCode] = useState(null);
@@ -56,6 +65,21 @@ export default function Order() {
       }
     };
     fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const res = await API.get("/orders/pricing");
+        if (res.data) {
+          setPricing((prev) => ({ ...prev, ...res.data }));
+        }
+      } catch (err) {
+        console.error("❌ Failed to load pricing:", err);
+      }
+    };
+
+    fetchPricing();
   }, []);
 
   // Prefill when editing
@@ -124,10 +148,13 @@ export default function Order() {
 
   // Pricing logic
   const getUnitPrice = (item) => {
-    if (item.foodType === "sambusa") return 30; // confirmed price
-    let base = item.ertibType === "normal" ? 110 : 135;
-    if (item.extraKetchup) base += 10;
-    if (item.doubleFelafil) base += 15;
+    if (item.foodType === "sambusa") return Number(pricing.sambusaPrice) || 0;
+    let base =
+      item.ertibType === "special"
+        ? Number(pricing.ertibSpecialPrice) || 0
+        : Number(pricing.ertibNormalPrice) || 0;
+    if (item.extraKetchup) base += Number(pricing.extraKetchupPrice) || 0;
+    if (item.doubleFelafil) base += Number(pricing.doubleFelafilPrice) || 0;
     return base;
   };
 

@@ -4,6 +4,19 @@ import { Link } from "react-router-dom";
 import { HiMenu, HiX, HiChevronRight } from "react-icons/hi";
 import Toast from "../Toast";
 
+const DEFAULT_PRICING = {
+  sambusaPrice: 30,
+  ertibNormalPrice: 115,
+  ertibSpecialPrice: 140,
+  extraKetchupPrice: 10,
+  doubleFelafilPrice: 15,
+  sambusaCost: 20,
+  ertibNormalCost: 100,
+  ertibSpecialCost: 125,
+  extraKetchupCost: 0,
+  doubleFelafilCost: 0,
+};
+
 export default function AdminAvailability() {
   const [availability, setAvailability] = useState({
     weeklyDays: ["Mon", "Tue", "Wed", "Thu"],
@@ -15,16 +28,28 @@ export default function AdminAvailability() {
   const [toastMessage, setToastMessage] = useState(null);
   const [toastType, setToastType] = useState("success");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pricing, setPricing] = useState(DEFAULT_PRICING);
+  const [savingPrices, setSavingPrices] = useState(false);
 
   const daysOptions = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
   useEffect(() => {
-    API.get("/availability")
-      .then((res) => {
-        if (res.data) setAvailability(res.data);
+    Promise.all([API.get("/availability"), API.get("/admin/pricing")])
+      .then(([availabilityRes, pricingRes]) => {
+        if (availabilityRes.data) setAvailability(availabilityRes.data);
+        if (pricingRes.data) {
+          setPricing((prev) => ({ ...prev, ...pricingRes.data }));
+        }
       })
       .catch((err) => console.error("Error fetching availability:", err));
   }, []);
+
+  const handlePriceChange = (field, value) => {
+    setPricing((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   const handleToggleDay = (day) => {
     setAvailability((prev) => {
@@ -47,6 +72,35 @@ export default function AdminAvailability() {
       console.error("Error updating availability:", err);
       setToastMessage("Failed to update availability.");
       setToastType("error");
+    }
+  };
+
+  const handleSavePricing = async () => {
+    try {
+      setSavingPrices(true);
+      const payload = {
+        sambusaPrice: Number(pricing.sambusaPrice) || 0,
+        ertibNormalPrice: Number(pricing.ertibNormalPrice) || 0,
+        ertibSpecialPrice: Number(pricing.ertibSpecialPrice) || 0,
+        extraKetchupPrice: Number(pricing.extraKetchupPrice) || 0,
+        doubleFelafilPrice: Number(pricing.doubleFelafilPrice) || 0,
+        sambusaCost: Number(pricing.sambusaCost) || 0,
+        ertibNormalCost: Number(pricing.ertibNormalCost) || 0,
+        ertibSpecialCost: Number(pricing.ertibSpecialCost) || 0,
+        extraKetchupCost: Number(pricing.extraKetchupCost) || 0,
+        doubleFelafilCost: Number(pricing.doubleFelafilCost) || 0,
+      };
+
+      const res = await API.put("/admin/pricing", payload);
+      setPricing((prev) => ({ ...prev, ...(res.data || payload) }));
+      setToastMessage("Prices updated successfully!");
+      setToastType("success");
+    } catch (err) {
+      console.error("Error updating prices:", err);
+      setToastMessage("Failed to update prices.");
+      setToastType("error");
+    } finally {
+      setSavingPrices(false);
     }
   };
 
@@ -277,6 +331,62 @@ export default function AdminAvailability() {
               >
                 Save Changes
               </button>
+            </div>
+
+            {/* Pricing Settings */}
+            <div className="mt-10 pt-8 border-t border-gray-200">
+              <label
+                className="block mb-4 text-lg font-semibold text-gray-900 
+                tracking-wide px-4 py-2 rounded-xl 
+                bg-gradient-to-r from-amber-300/20 to-amber-100/10
+                border-l-4 border-amber-500 shadow-sm backdrop-blur-sm"
+              >
+                Dynamic Pricing
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  { key: "sambusaPrice", label: "Sambusa Price" },
+                  { key: "ertibNormalPrice", label: "Ertib Normal Price" },
+                  { key: "ertibSpecialPrice", label: "Ertib Special Price" },
+                  { key: "extraKetchupPrice", label: "Extra Ketchup Price" },
+                  { key: "doubleFelafilPrice", label: "Double Felafil Price" },
+                  { key: "sambusaCost", label: "Sambusa Cost" },
+                  { key: "ertibNormalCost", label: "Ertib Normal Cost" },
+                  { key: "ertibSpecialCost", label: "Ertib Special Cost" },
+                  { key: "extraKetchupCost", label: "Extra Ketchup Cost" },
+                  { key: "doubleFelafilCost", label: "Double Felafil Cost" },
+                ].map((field) => (
+                  <div key={field.key} className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-1">
+                      {field.label} (Birr)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={pricing[field.key]}
+                      onChange={(e) =>
+                        handlePriceChange(field.key, e.target.value)
+                      }
+                      className="px-4 py-2 border rounded-lg w-full bg-gray-50 
+                      focus:ring-2 focus:ring-amber-500 shadow-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="text-center mt-6">
+                <button
+                  onClick={handleSavePricing}
+                  disabled={savingPrices}
+                  className="px-10 py-3 bg-amber-700 hover:bg-amber-800 disabled:opacity-60
+                  text-white font-semibold rounded-xl shadow-lg 
+                  transition-all duration-200 hover:shadow-xl hover:scale-[1.03]"
+                >
+                  {savingPrices ? "Saving..." : "Save Prices"}
+                </button>
+              </div>
             </div>
           </div>
         </main>

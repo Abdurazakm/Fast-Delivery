@@ -13,24 +13,11 @@ const {
 const {
   getUserIdMiddleware,
 } = require("../middlewares/getUserIdMiddleware.js");
+const { calcUnitPrice, getActivePricing } = require("../config/pricing");
 
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
 // process.env.TRACK_BASE_URL || "http://localhost:5173/track";
-
-// Helper: calculate price for an item
-function calcUnitPrice(item) {
-  // Sambusa Pricing
-  if (item.foodType === "sambusa") {
-    return 30; // fixed sambusa price
-  }
-
-  // Ertib Pricing
-  let base = item.ertibType === "special" ? 135 : 110;
-  if (item.extraKetchup) base += 10;
-  if (item.doubleFelafil) base += 15;
-  return base;
-}
 
 // Helper: generate unique tracking code
 function generateTrackingCode() {
@@ -63,6 +50,16 @@ async function isDuplicate(phone, items) {
 
   return recentOrders.some((o) => formatItems(o.items) === formatItems(items));
 }
+
+router.get("/pricing", async (req, res) => {
+  try {
+    const pricing = await getActivePricing(prisma);
+    res.json(pricing);
+  } catch (err) {
+    console.error("❌ Error loading pricing:", err);
+    res.status(500).json({ message: "Failed to load pricing" });
+  }
+});
 
 /**
  * ------------------------
@@ -112,6 +109,7 @@ router.post(
   async (req, res) => {
     try {
       const { customerName, phone, location, items } = req.body;
+      const pricing = await getActivePricing(prisma);
 
       if (
         !customerName ||
@@ -130,7 +128,7 @@ router.post(
 
       let total = 0;
       const builtItems = items.map((it) => {
-        const unitPrice = calcUnitPrice(it);
+        const unitPrice = calcUnitPrice(it, pricing);
         const quantity = parseInt(it.quantity) || 1;
         total += unitPrice * quantity;
         return { ...it, quantity, unitPrice, lineTotal: unitPrice * quantity };
@@ -202,6 +200,7 @@ router.post(
 router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { customerName, phone, location, items, notes } = req.body;
+    const pricing = await getActivePricing(prisma);
 
     if (!customerName || !phone || !location || !items?.length) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -214,7 +213,7 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
 
     let total = 0;
     const builtItems = items.map((it) => {
-      const unitPrice = calcUnitPrice(it);
+      const unitPrice = calcUnitPrice(it, pricing);
       const quantity = parseInt(it.quantity) || 1;
       const lineTotal = unitPrice * quantity;
       total += lineTotal;
@@ -400,7 +399,8 @@ router.get("/track/:code", async (req, res) => {
 router.put("/track/:code", checkServiceAvailability, async (req, res) => {
   try {
     const code = req.params.code;
-    let { customerName, phone, location, items, total } = req.body;
+    let { customerName, phone, location, items } = req.body;
+    const pricing = await getActivePricing(prisma);
 
     // FIX: use findFirst instead of findUnique
     const order = await prisma.order.findFirst({
@@ -409,11 +409,19 @@ router.put("/track/:code", checkServiceAvailability, async (req, res) => {
 
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // Auto recalc total
-    const computedTotal =
-      items && Array.isArray(items)
-        ? items.reduce((sum, item) => sum + (item.lineTotal || 0), 0)
-        : order.total;
+    let computedTotal = order.total;
+    let builtItems = order.items;
+
+    if (items && Array.isArray(items)) {
+      computedTotal = 0;
+      builtItems = items.map((it) => {
+        const unitPrice = calcUnitPrice(it, pricing);
+        const quantity = parseInt(it.quantity) || 1;
+        const lineTotal = unitPrice * quantity;
+        computedTotal += lineTotal;
+        return { ...it, quantity, unitPrice, lineTotal };
+      });
+    }
 
     const updated = await prisma.order.update({
       where: { id: order.id }, // id is unique
@@ -421,8 +429,8 @@ router.put("/track/:code", checkServiceAvailability, async (req, res) => {
         customerName: customerName ?? order.customerName,
         phone: phone ?? order.phone,
         location: location ?? order.location,
-        items: items ?? order.items,
-        total: total ? Number(total) : computedTotal,
+        items: builtItems,
+        total: computedTotal,
       },
     });
 

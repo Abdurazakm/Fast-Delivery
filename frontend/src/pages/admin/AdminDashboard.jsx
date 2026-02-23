@@ -16,6 +16,19 @@ import html2canvas from "html2canvas";
 import { FiDownload } from "react-icons/fi";
 import API from "../../api";
 
+const DEFAULT_PRICING = {
+  sambusaPrice: 30,
+  ertibNormalPrice: 115,
+  ertibSpecialPrice: 140,
+  extraKetchupPrice: 10,
+  doubleFelafilPrice: 15,
+  sambusaCost: 20,
+  ertibNormalCost: 100,
+  ertibSpecialCost: 125,
+  extraKetchupCost: 0,
+  doubleFelafilCost: 0,
+};
+
 export default function AdminDashboard() {
   const [orders, setOrders] = useState([]);
   const navigate = useNavigate();
@@ -26,6 +39,7 @@ export default function AdminDashboard() {
   const [checkedItems, setCheckedItems] = useState({});
   const [trackingSearch, setTrackingSearch] = useState("");
   const [prevStatuses, setPrevStatuses] = useState({});
+  const [pricing, setPricing] = useState(DEFAULT_PRICING);
 
   // Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -147,6 +161,21 @@ export default function AdminDashboard() {
     fetchOrders(selectedDate);
   }, [selectedDate]);
 
+  useEffect(() => {
+    const fetchPricing = async () => {
+      try {
+        const res = await API.get("/orders/pricing");
+        if (res.data) {
+          setPricing((prev) => ({ ...prev, ...res.data }));
+        }
+      } catch (err) {
+        console.error("Failed to load pricing:", err);
+      }
+    };
+
+    fetchPricing();
+  }, []);
+
   const updateStatus = async (id, newStatus) => {
     try {
       const token = localStorage.getItem("token");
@@ -226,14 +255,36 @@ export default function AdminDashboard() {
   // Helper to determine unit price for an item when backend doesn't provide it
   const getUnitPrice = (item) => {
     if (item.foodType === "sambusa") {
-      return 30; // fixed price for Sambusa
+      return Number(pricing.sambusaPrice) || 0;
     }
 
     // Ertib
     const type = (item?.ertibType || "").toLowerCase();
-    let base = type === "special" ? 135 : 110;
-    if (item?.extraKetchup) base += 10;
-    if (item?.doubleFelafil) base += 15;
+    let base =
+      type === "special"
+        ? Number(pricing.ertibSpecialPrice) || 0
+        : Number(pricing.ertibNormalPrice) || 0;
+    if (item?.extraKetchup) base += Number(pricing.extraKetchupPrice) || 0;
+    if (item?.doubleFelafil) base += Number(pricing.doubleFelafilPrice) || 0;
+    return base;
+  };
+
+  const getUnitEstimatedCost = (item) => {
+    if (item.foodType === "sambusa") {
+      return Number(pricing.sambusaCost) || 0;
+    }
+
+    const type = (item?.ertibType || "").toLowerCase();
+    let base =
+      type === "special"
+        ? Number(pricing.ertibSpecialCost) || 0
+        : Number(pricing.ertibNormalCost) || 0;
+
+    if (item?.extraKetchup) base += Number(pricing.extraKetchupCost) || 0;
+    if (item?.doubleFelafil || item?.extraFelafil) {
+      base += Number(pricing.doubleFelafilCost) || 0;
+    }
+
     return base;
   };
 
@@ -241,6 +292,8 @@ export default function AdminDashboard() {
   const summary = {};
   let totalPrice = 0;
   let profit = 0;
+  let sambusaProfit = 0;
+  let ertibProfit = 0;
 
   const filteredOrders =
     selectedLocation === "All"
@@ -254,11 +307,12 @@ export default function AdminDashboard() {
       let key;
       const unitPrice = Number(item.unitPrice ?? getUnitPrice(item)) || 0;
       const qty = Number(item.quantity) || 0;
+      const estimatedUnitCost = getUnitEstimatedCost(item);
+      const lineProfit = (unitPrice - estimatedUnitCost) * qty;
 
       if (item.foodType === "sambusa") {
         key = "Sambusa";
-
-        profit += qty * 10; // profit per Sambusa
+        sambusaProfit += lineProfit;
       } else {
         // Ertib logic
         let base = item.ertibType;
@@ -281,9 +335,10 @@ export default function AdminDashboard() {
         if (item.extraKetchup) key += " + Extra Ketchup";
         if (item.doubleFelafil) key += " + Double Felafil";
 
-        profit += qty * 15; // profit per Ertib
+        ertibProfit += lineProfit;
       }
 
+      profit += lineProfit;
       summary[key] = (summary[key] || 0) + qty;
       totalPrice += item.lineTotal || qty * unitPrice;
     });
@@ -351,9 +406,8 @@ export default function AdminDashboard() {
 
       const unitPrice = Number(item?.unitPrice ?? getUnitPrice(item)) || 0;
       const lineTotal = Number(item?.lineTotal ?? qty * unitPrice) || 0;
-
-      // Profit: Sambusa usually has 10, Ertib 15
-      const itemProfit = item.foodType === "sambusa" ? qty * 10 : qty * 15;
+      const itemProfit =
+        (unitPrice - Number(getUnitEstimatedCost(item) || 0)) * qty;
       totalPriceWithoutProfit += lineTotal - itemProfit;
     });
   });
@@ -750,6 +804,8 @@ Normal - 110 Birr, Special - 135 Birr
             <div className="mt-2 text-sm font-medium">
               <p>Total Leyla's price: {totalertibPrice}</p>
               <p>Total Delivered Price: {totalPrice} Birr</p>
+              <p>Estimated Sambusa Profit: {Math.round(sambusaProfit)} Birr</p>
+              <p>Estimated Ertib Profit: {Math.round(ertibProfit)} Birr</p>
               <p>Estimated Profit: {profit} Birr</p>
             </div>
           </div>
