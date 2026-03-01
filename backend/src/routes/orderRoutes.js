@@ -361,7 +361,7 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
     emitGlobalNotification({
       type: "status",
       title: "Order Status Updated",
-      message: `Orderis now ${status.replace(
+      message: `Order is now ${status.replace(
         "_",
         " ",
       )}.`,
