@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { PrismaClient } = require("@prisma/client");
+const jwt = require("jsonwebtoken");
 const prisma = new PrismaClient();
 const { normalizePhone, isValidPhone } = require("../utils/phone");
 const checkServiceAvailability = require("../middlewares/serviceAvailability");
@@ -18,6 +19,34 @@ const { calcUnitPrice, getActivePricing } = require("../config/pricing");
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
 // process.env.TRACK_BASE_URL || "http://localhost:5173/track";
+
+function optionalAuthMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : null;
+
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (err) {
+    req.user = null;
+  }
+
+  return next();
+}
+
+function checkServiceAvailabilityForNonAdmin(req, res, next) {
+  if (req.user?.role === "admin") {
+    return next();
+  }
+
+  return checkServiceAvailability(req, res, next);
+}
 
 // Helper: generate unique tracking code
 function generateTrackingCode() {
@@ -395,9 +424,13 @@ router.get("/track/:code", async (req, res) => {
 
 /**
  * Update order by tracking code (guest or authenticated)
- * Only allowed before 15:00 server local time
+ * Admin can edit any time, guests follow service availability rules
  */
-router.put("/track/:code", checkServiceAvailability, async (req, res) => {
+router.put(
+  "/track/:code",
+  optionalAuthMiddleware,
+  checkServiceAvailabilityForNonAdmin,
+  async (req, res) => {
   try {
     const code = req.params.code;
     let { customerName, phone, location, items } = req.body;
@@ -440,13 +473,18 @@ router.put("/track/:code", checkServiceAvailability, async (req, res) => {
     console.error("❌ Error updating order:", err);
     res.status(500).json({ message: "Server error updating order" });
   }
-});
+}
+);
 
 /**
  * Delete order by tracking code (guest or authenticated)
- * Only allowed before 17:30 server local time
+ * Admin can cancel any time, guests follow service availability rules
  */
-router.delete("/track/:code", checkServiceAvailability, async (req, res) => {
+router.delete(
+  "/track/:code",
+  optionalAuthMiddleware,
+  checkServiceAvailabilityForNonAdmin,
+  async (req, res) => {
   try {
     const code = req.params.code;
 
@@ -465,7 +503,8 @@ router.delete("/track/:code", checkServiceAvailability, async (req, res) => {
     console.error("❌ Error deleting order by tracking code:", err);
     res.status(500).json({ message: "Server error while deleting order" });
   }
-});
+}
+);
 
 router.get("/latest", authMiddleware, async (req, res) => {
   try {

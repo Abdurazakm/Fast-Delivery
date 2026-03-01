@@ -301,7 +301,11 @@ export default function Order() {
 
     try {
       if (editMode && editCode) {
-        const res = await API.put(`/orders/track/${editCode}`, payload);
+        const token = localStorage.getItem("token");
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await API.put(`/orders/track/${editCode}`, payload, {
+          headers,
+        });
         const updated = res.data.order || res.data;
         setMessage("Order updated successfully!");
 

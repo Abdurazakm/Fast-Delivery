@@ -134,6 +134,7 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
   const [isTemporarilyClosed, setIsTemporarilyClosed] = useState(false);
   const [serviceDays, setServiceDays] = useState([]);
   const [cutoffHour, setCutoffHour] = useState(18); // default cutoff hour
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const statusSteps = ["pending", "in_progress", "arrived", "delivered"];
   const currentIndex = statusSteps.indexOf(currentOrder.status);
@@ -213,6 +214,27 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
     fetchAvailability();
   }, []);
 
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setIsAdmin(false);
+        return;
+      }
+
+      try {
+        const res = await API.get("/auth/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setIsAdmin(res.data?.role === "admin");
+      } catch (err) {
+        setIsAdmin(false);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
+
   const now = new Date(Date.now() + serverOffsetMs);
   const today = now.getDay();
 
@@ -225,8 +247,11 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
     return !(hrs > cutoffHour || (hrs === cutoffHour && mins > 0));
   };
 
+  const canEdit = isAdmin || isBeforeCutoff();
+  const canCancel = isAdmin || isBeforeCutoff();
+
   const handleEdit = () => {
-    if (!isBeforeCutoff()) {
+    if (!canEdit) {
       setToast({
         message: isTemporarilyClosed
           ? "Service is temporarily closed"
@@ -416,7 +441,9 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         className="mt-2 p-2 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 text-xs rounded flex items-center gap-2"
       >
         <FiInfo className="text-yellow-600" />
-        {isTemporarilyClosed
+        {isAdmin
+          ? "As admin, you can edit this order any time."
+          : isTemporarilyClosed
           ? "Service is temporarily closed. You cannot edit or cancel orders."
           : "You can edit or cancel your order before the cutoff time."}
       </motion.div>
@@ -426,7 +453,7 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         <button
           onClick={handleEdit}
           className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
-            isBeforeCutoff()
+            canEdit
               ? "bg-yellow-400 hover:bg-yellow-500 text-black"
               : "bg-gray-200 text-gray-500 border border-gray-400 cursor-not-allowed"
           }`}
@@ -435,7 +462,7 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         </button>
         <button
           onClick={() => {
-            if (isBeforeCutoff()) setShowCancelModal(true);
+            if (canCancel) setShowCancelModal(true);
             else
               setToast({
                 message: isTemporarilyClosed
@@ -445,7 +472,7 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
               });
           }}
           className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
-            isBeforeCutoff()
+            canCancel
               ? "bg-red-500 hover:bg-red-600 text-white"
               : "bg-gray-200 text-gray-500 border border-gray-400 cursor-not-allowed"
           }`}
