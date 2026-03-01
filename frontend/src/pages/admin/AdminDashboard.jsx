@@ -247,7 +247,7 @@ export default function AdminDashboard() {
   const updateAllStatus = (newStatus) => {
     if (!newStatus) return;
 
-    filteredOrders.forEach((order) => {
+    searchableOrders.forEach((order) => {
       const orderId = order._id || order.id;
       if (orderId) updateStatus(orderId, newStatus);
     });
@@ -346,7 +346,26 @@ export default function AdminDashboard() {
       ? orders
       : orders.filter((order) => order.location === selectedLocation);
 
-  filteredOrders.forEach((order) => {
+  const normalizedSearch = trackingSearch.trim().toLowerCase();
+  const searchableOrders = normalizedSearch
+    ? filteredOrders.filter((order) => {
+        const customerName = String(order.customerName || "").toLowerCase();
+        const phone = String(order.phone || "").toLowerCase();
+        const location = String(order.location || "").toLowerCase();
+        const trackingCode = String(order.trackingCode || "").toLowerCase();
+        const status = String(order.status || "").toLowerCase();
+
+        return (
+          customerName.includes(normalizedSearch) ||
+          phone.includes(normalizedSearch) ||
+          location.includes(normalizedSearch) ||
+          trackingCode.includes(normalizedSearch) ||
+          status.includes(normalizedSearch)
+        );
+      })
+    : filteredOrders;
+
+  searchableOrders.forEach((order) => {
     if (!order.items || order.items.length === 0) return;
 
     order.items.forEach((item) => {
@@ -623,7 +642,7 @@ Normal - 110 Birr, Special - 135 Birr
           {/* Right side: Download + Plus button */}
           <div className="flex items-center space-x-2">
             {/* Download Summary Report Button */}
-            {filteredOrders.length > 0 && (
+            {searchableOrders.length > 0 && (
               <button
                 onClick={downloadSummaryReport}
                 className="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 flex items-center justify-center"
@@ -642,8 +661,17 @@ Normal - 110 Birr, Special - 135 Birr
             </Link>
           </div>
         </div>
-        {filteredOrders.length > 0 && (
+        {orders.length > 0 && (
           <div className="flex flex-wrap justify-end items-center gap-2 mb-4">
+            {/* Search */}
+            <input
+              type="text"
+              value={trackingSearch}
+              onChange={(e) => setTrackingSearch(e.target.value)}
+              placeholder="Search by tracking, name, phone, location, status"
+              className="border rounded-md px-3 py-2 h-10 bg-white shadow-sm w-full sm:w-[320px]"
+            />
+
             {/* Location Filter */}
             <select
               value={selectedLocation}
@@ -809,7 +837,7 @@ Normal - 110 Birr, Special - 135 Birr
         </div>
 
         {/* Summary card */}
-        {filteredOrders.length > 0 && (
+        {searchableOrders.length > 0 && (
           <div className="bg-amber-100 p-4 rounded-lg mb-4 shadow relative">
             {/* TOP RIGHT SEND SMS BUTTON */}
             <button
@@ -876,8 +904,12 @@ Normal - 110 Birr, Special - 135 Birr
 
         {loading ? (
           <p className="text-center text-gray-500">Loading orders...</p>
-        ) : filteredOrders.length === 0 ? (
-          <p className="text-center text-gray-500">{message}</p>
+        ) : searchableOrders.length === 0 ? (
+          <p className="text-center text-gray-500">
+            {normalizedSearch
+              ? "🔎 No orders matched your search."
+              : message}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm border">
@@ -895,7 +927,7 @@ Normal - 110 Birr, Special - 135 Birr
               </thead>
 
               <tbody>
-                {(filteredOrders || []).map((order, idx) => {
+                {(searchableOrders || []).map((order, idx) => {
                   const orderId = order._id || order.id;
                   // Use a stable unique key for React list rendering. We keep `orderId`
                   // for actions (update/delete) but use `orderKey` as the element key
