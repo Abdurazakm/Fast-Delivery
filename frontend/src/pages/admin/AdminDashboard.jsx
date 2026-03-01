@@ -18,11 +18,13 @@ import API from "../../api";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
+  boiledEggPrice: 30,
   ertibNormalPrice: 115,
   ertibSpecialPrice: 140,
   extraKetchupPrice: 10,
   doubleFelafilPrice: 15,
   sambusaCost: 20,
+  boiledEggCost: 20,
   ertibNormalCost: 100,
   ertibSpecialCost: 125,
   extraKetchupCost: 0,
@@ -258,6 +260,10 @@ export default function AdminDashboard() {
       return Number(pricing.sambusaPrice) || 0;
     }
 
+    if (item.foodType === "boiled_egg") {
+      return Number(pricing.boiledEggPrice) || Number(pricing.sambusaPrice) || 0;
+    }
+
     // Ertib
     const type = (item?.ertibType || "").toLowerCase();
     let base =
@@ -272,6 +278,10 @@ export default function AdminDashboard() {
   const getUnitEstimatedCost = (item) => {
     if (item.foodType === "sambusa") {
       return Number(pricing.sambusaCost) || 0;
+    }
+
+    if (item.foodType === "boiled_egg") {
+      return Number(pricing.boiledEggCost) || Number(pricing.sambusaCost) || 0;
     }
 
     const type = (item?.ertibType || "").toLowerCase();
@@ -293,6 +303,7 @@ export default function AdminDashboard() {
   let totalPrice = 0;
   let profit = 0;
   let sambusaProfit = 0;
+  let boiledEggProfit = 0;
   let ertibProfit = 0;
 
   const filteredOrders =
@@ -313,6 +324,9 @@ export default function AdminDashboard() {
       if (item.foodType === "sambusa") {
         key = "Sambusa";
         sambusaProfit += lineProfit;
+      } else if (item.foodType === "boiled_egg") {
+        key = "Boiled Egg";
+        boiledEggProfit += lineProfit;
       } else {
         // Ertib logic
         let base = item.ertibType;
@@ -384,6 +398,7 @@ export default function AdminDashboard() {
   let extraKetchupCount = 0;
   let doubleFelafilCount = 0;
   let sambusaCount = 0; // New
+  let boiledEggCount = 0;
   let totalPriceWithoutProfit = 0;
 
   filteredOrders.forEach((order) => {
@@ -395,6 +410,8 @@ export default function AdminDashboard() {
       // Count by type
       if (item.foodType === "sambusa") {
         sambusaCount += qty; // count sambusa
+      } else if (item.foodType === "boiled_egg") {
+        boiledEggCount += qty;
       } else {
         const type = (item?.ertibType || "").toLowerCase();
         if (type === "normal") normalCount += qty;
@@ -724,6 +741,14 @@ Normal - 110 Birr, Special - 135 Birr
                   {sambusaCount}
                 </td>
               </tr>
+              <tr>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Boiled Egg
+                </td>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  {boiledEggCount}
+                </td>
+              </tr>
             </tbody>
           </table>
 
@@ -802,10 +827,13 @@ Normal - 110 Birr, Special - 135 Birr
             </div>
 
             <div className="mt-2 text-sm font-medium">
-              <p>Total Leyla's price: {totalertibPrice}</p>
+              <p>Total costs price: {totalertibPrice} Birr</p>
               <p>Total Delivered Price: {totalPrice} Birr</p>
-              <p>Estimated Sambusa Profit: {Math.round(sambusaProfit)} Birr</p>
-              <p>Estimated Ertib Profit: {Math.round(ertibProfit)} Birr</p>
+              {/* <p>Estimated Sambusa Profit: {Math.round(sambusaProfit)} Birr</p>
+              <p>
+                Estimated Boiled Egg Profit: {Math.round(boiledEggProfit)} Birr
+              </p>
+              <p>Estimated Ertib Profit: {Math.round(ertibProfit)} Birr</p> */}
               <p>Estimated Profit: {profit} Birr</p>
             </div>
           </div>
@@ -914,6 +942,8 @@ Normal - 110 Birr, Special - 135 Birr
 
                           if (item.foodType === "sambusa") {
                             foodDesc = `${item.quantity} × Sambusa`;
+                          } else if (item.foodType === "boiled_egg") {
+                            foodDesc = `${item.quantity} × Boiled Egg`;
                           } else {
                             // Ertib base
                             foodDesc = `${item.quantity} × ${item.ertibType}`;

@@ -85,11 +85,13 @@ router.put("/pricing", authMiddleware, adminMiddleware, async (req, res) => {
 
     const data = {
       sambusaPrice: parsed.sambusaPrice,
+      boiledEggPrice: parsed.boiledEggPrice,
       ertibNormalPrice: parsed.ertibNormalPrice,
       ertibSpecialPrice: parsed.ertibSpecialPrice,
       extraKetchupPrice: parsed.extraKetchupPrice,
       doubleFelafilPrice: parsed.doubleFelafilPrice,
       sambusaCost: parsed.sambusaCost,
+      boiledEggCost: parsed.boiledEggCost,
       ertibNormalCost: parsed.ertibNormalCost,
       ertibSpecialCost: parsed.ertibSpecialCost,
       extraKetchupCost: parsed.extraKetchupCost,

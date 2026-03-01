@@ -52,11 +52,13 @@ model Availability {
 model Pricing {
   id                 Int      @id @default(autoincrement())
   sambusaPrice       Float    @default(30)
+  boiledEggPrice     Float    @default(30)
   ertibNormalPrice   Float    @default(115)
   ertibSpecialPrice  Float    @default(140)
   extraKetchupPrice  Float    @default(10)
   doubleFelafilPrice Float    @default(15)
   sambusaCost        Float    @default(20)
+  boiledEggCost      Float    @default(20)
   ertibNormalCost    Float    @default(100)
   ertibSpecialCost   Float    @default(125)
   extraKetchupCost   Float    @default(0)

@@ -1,10 +1,12 @@
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
+  boiledEggPrice: 30,
   ertibNormalPrice: 115,
   ertibSpecialPrice: 140,
   extraKetchupPrice: 10,
   doubleFelafilPrice: 15,
   sambusaCost: 20,
+  boiledEggCost: 20,
   ertibNormalCost: 100,
   ertibSpecialCost: 125,
   extraKetchupCost: 0,
@@ -23,6 +25,10 @@ function normalizePricing(value = {}) {
       value.sambusaPrice,
       DEFAULT_PRICING.sambusaPrice
     ),
+    boiledEggPrice: toNonNegativeNumber(
+      value.boiledEggPrice ?? value.sambusaPrice,
+      DEFAULT_PRICING.boiledEggPrice
+    ),
     ertibNormalPrice: toNonNegativeNumber(
       value.ertibNormalPrice,
       DEFAULT_PRICING.ertibNormalPrice
@@ -39,7 +45,14 @@ function normalizePricing(value = {}) {
       value.doubleFelafilPrice,
       DEFAULT_PRICING.doubleFelafilPrice
     ),
-    sambusaCost: toNonNegativeNumber(value.sambusaCost, DEFAULT_PRICING.sambusaCost),
+    sambusaCost: toNonNegativeNumber(
+      value.sambusaCost,
+      DEFAULT_PRICING.sambusaCost
+    ),
+    boiledEggCost: toNonNegativeNumber(
+      value.boiledEggCost ?? value.sambusaCost,
+      DEFAULT_PRICING.boiledEggCost
+    ),
     ertibNormalCost: toNonNegativeNumber(
       value.ertibNormalCost,
       DEFAULT_PRICING.ertibNormalCost
@@ -66,6 +79,10 @@ function calcUnitPrice(item, pricing = DEFAULT_PRICING) {
     return safePricing.sambusaPrice;
   }
 
+  if (item?.foodType === "boiled_egg") {
+    return safePricing.boiledEggPrice;
+  }
+
   let base =
     item?.ertibType === "special"
       ? safePricing.ertibSpecialPrice
@@ -82,6 +99,10 @@ function calcUnitEstimatedCost(item, pricing = DEFAULT_PRICING) {
 
   if (item?.foodType === "sambusa") {
     return safePricing.sambusaCost;
+  }
+
+  if (item?.foodType === "boiled_egg") {
+    return safePricing.boiledEggCost;
   }
 
   let base =

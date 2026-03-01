@@ -16,8 +16,8 @@ const {
 const { calcUnitPrice, getActivePricing } = require("../config/pricing");
 
 const TRACK_BASE_URL =
-  process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
-// process.env.TRACK_BASE_URL || "http://localhost:5173/track";
+  // process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
+process.env.TRACK_BASE_URL || "http://localhost:5173/track";
 
 // Helper: generate unique tracking code
 function generateTrackingCode() {
@@ -38,6 +38,7 @@ async function isDuplicate(phone, items) {
   const formatItems = (arr) =>
     JSON.stringify(
       arr.map((i) => ({
+        foodType: i.foodType || "ertib",
         ertibType: i.ertibType,
         Felafil: !!i.Felafil,
         ketchup: !!i.ketchup,
@@ -45,7 +46,7 @@ async function isDuplicate(phone, items) {
         extraKetchup: !!i.extraKetchup,
         doubleFelafil: !!i.doubleFelafil,
         quantity: i.quantity || 1,
-      }))
+      })),
     );
 
   return recentOrders.some((o) => formatItems(o.items) === formatItems(items));
@@ -175,7 +176,7 @@ router.post(
                 },
               ],
             },
-          })
+          }),
         )
         .catch((err) => console.error("❌ SMS failed:", err));
 
@@ -189,7 +190,7 @@ router.post(
       console.error("❌ Error creating order:", err);
       return res.status(500).json({ message: "Server error" });
     }
-  }
+  },
 );
 
 /**
@@ -259,7 +260,7 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
               },
             ],
           },
-        })
+        }),
       )
       .catch((err) => console.error("❌ SMS failed:", err));
 
@@ -324,8 +325,8 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
               },
             })
             .catch((err) =>
-              console.error("❌ Failed to update SMS history:", err)
-            )
+              console.error("❌ Failed to update SMS history:", err),
+            ),
         )
         .catch((err) => console.error("❌ SMS send error:", err));
     }
@@ -441,7 +442,6 @@ router.put("/track/:code", checkServiceAvailability, async (req, res) => {
   }
 });
 
-
 /**
  * Delete order by tracking code (guest or authenticated)
  * Only allowed before 17:30 server local time
@@ -533,7 +533,7 @@ router.get(
       console.error("Error fetching manual orders:", error);
       res.status(500).json({ message: "Failed to load manual orders." });
     }
-  }
+  },
 );
 
 /**
@@ -581,8 +581,8 @@ router.post(
               },
             })
             .catch((err) =>
-              console.error("❌ Failed to update SMS history:", err)
-            )
+              console.error("❌ Failed to update SMS history:", err),
+            ),
         )
         .catch((err) => console.error("❌ SMS send error:", err));
 
@@ -591,7 +591,7 @@ router.post(
       console.error("❌ Error resending SMS:", err);
       res.status(500).json({ message: "Server error" });
     }
-  }
+  },
 );
 
 /**
@@ -664,7 +664,7 @@ router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
 
     // 3. Parallel sending (fast)
     const firstResults = await Promise.all(
-      uniqueNumbers.map((phone) => sendWithRetry(phone, message))
+      uniqueNumbers.map((phone) => sendWithRetry(phone, message)),
     );
 
     const failedNumbers = firstResults
@@ -674,43 +674,46 @@ router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
     console.log("⏳ Scheduled retry for:", failedNumbers.length, "numbers");
 
     // 4. Auto Retry After 10 Minutes
-    setTimeout(async () => {
-      console.log("🔁 Retrying failed numbers after 10 minutes...");
+    setTimeout(
+      async () => {
+        console.log("🔁 Retrying failed numbers after 10 minutes...");
 
-      const retry2 = async (phone) => {
-        let attempts = 0;
-        while (attempts < 2) {
-          try {
-            attempts++;
-            const res = await sendSMS(phone, message);
-            return {
-              phone,
-              status: "sent",
-              retryCycle: "10-minute",
-              attempts,
-              info: res.info,
-            };
-          } catch (err) {
-            if (attempts >= 2) {
+        const retry2 = async (phone) => {
+          let attempts = 0;
+          while (attempts < 2) {
+            try {
+              attempts++;
+              const res = await sendSMS(phone, message);
               return {
                 phone,
-                status: "failed",
+                status: "sent",
                 retryCycle: "10-minute",
                 attempts,
-                error: err.message,
+                info: res.info,
               };
+            } catch (err) {
+              if (attempts >= 2) {
+                return {
+                  phone,
+                  status: "failed",
+                  retryCycle: "10-minute",
+                  attempts,
+                  error: err.message,
+                };
+              }
             }
           }
-        }
-      };
+        };
 
-      if (failedNumbers.length > 0) {
-        const secondResults = await Promise.all(
-          failedNumbers.map((phone) => retry2(phone))
-        );
-        console.log("🔁 Retry Results:", secondResults);
-      }
-    }, 10 * 60 * 1000);
+        if (failedNumbers.length > 0) {
+          const secondResults = await Promise.all(
+            failedNumbers.map((phone) => retry2(phone)),
+          );
+          console.log("🔁 Retry Results:", secondResults);
+        }
+      },
+      10 * 60 * 1000,
+    );
 
     // 5. Response to frontend immediately
     const sent = firstResults.filter((r) => r.status === "sent").length;

@@ -6,11 +6,13 @@ import Toast from "../Toast";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
+  boiledEggPrice: 30,
   ertibNormalPrice: 115,
   ertibSpecialPrice: 140,
   extraKetchupPrice: 10,
   doubleFelafilPrice: 15,
   sambusaCost: 20,
+  boiledEggCost: 20,
   ertibNormalCost: 100,
   ertibSpecialCost: 125,
   extraKetchupCost: 0,
@@ -80,11 +82,13 @@ export default function AdminAvailability() {
       setSavingPrices(true);
       const payload = {
         sambusaPrice: Number(pricing.sambusaPrice) || 0,
+        boiledEggPrice: Number(pricing.boiledEggPrice) || 0,
         ertibNormalPrice: Number(pricing.ertibNormalPrice) || 0,
         ertibSpecialPrice: Number(pricing.ertibSpecialPrice) || 0,
         extraKetchupPrice: Number(pricing.extraKetchupPrice) || 0,
         doubleFelafilPrice: Number(pricing.doubleFelafilPrice) || 0,
         sambusaCost: Number(pricing.sambusaCost) || 0,
+        boiledEggCost: Number(pricing.boiledEggCost) || 0,
         ertibNormalCost: Number(pricing.ertibNormalCost) || 0,
         ertibSpecialCost: Number(pricing.ertibSpecialCost) || 0,
         extraKetchupCost: Number(pricing.extraKetchupCost) || 0,
@@ -347,11 +351,13 @@ export default function AdminAvailability() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   { key: "sambusaPrice", label: "Sambusa Price" },
+                  { key: "boiledEggPrice", label: "Boiled Egg Price" },
                   { key: "ertibNormalPrice", label: "Ertib Normal Price" },
                   { key: "ertibSpecialPrice", label: "Ertib Special Price" },
                   { key: "extraKetchupPrice", label: "Extra Ketchup Price" },
                   { key: "doubleFelafilPrice", label: "Double Felafil Price" },
                   { key: "sambusaCost", label: "Sambusa Cost" },
+                  { key: "boiledEggCost", label: "Boiled Egg Cost" },
                   { key: "ertibNormalCost", label: "Ertib Normal Cost" },
                   { key: "ertibSpecialCost", label: "Ertib Special Cost" },
                   { key: "extraKetchupCost", label: "Extra Ketchup Cost" },

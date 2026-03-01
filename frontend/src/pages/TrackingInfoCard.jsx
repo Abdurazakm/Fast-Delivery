@@ -159,6 +159,10 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
       return `${item.quantity} × Sambusa`;
     }
 
+    if (item.foodType === "boiled_egg") {
+      return `${item.quantity} × Boiled Egg`;
+    }
+
     let desc = `${item.quantity} × ${item.ertibType} Ertib`;
 
     // Spices and ketchup

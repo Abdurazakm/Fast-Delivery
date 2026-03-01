@@ -8,6 +8,7 @@ import API from "../api";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
+  boiledEggPrice: 30,
   ertibNormalPrice: 115,
   ertibSpecialPrice: 140,
   extraKetchupPrice: 10,
@@ -149,6 +150,11 @@ export default function Order() {
   // Pricing logic
   const getUnitPrice = (item) => {
     if (item.foodType === "sambusa") return Number(pricing.sambusaPrice) || 0;
+    if (item.foodType === "boiled_egg") {
+      return (
+        Number(pricing.boiledEggPrice) || Number(pricing.sambusaPrice) || 0
+      );
+    }
     let base =
       item.ertibType === "special"
         ? Number(pricing.ertibSpecialPrice) || 0
@@ -172,12 +178,12 @@ export default function Order() {
       prev.map((item, i) => {
         if (i !== index) return item;
 
-        // If changing the food type, reset ertib-specific fields when switching to sambusa
+        // If changing the food type, reset ertib-specific fields when switching away from ertib
         if (name === "foodType") {
-          if (value === "sambusa") {
+          if (value !== "ertib") {
             return {
               ...item,
-              foodType: "sambusa",
+              foodType: value,
               // Clear ertib-specific options (keeps quantity)
               ertibType: "normal",
               Felafil: false,
@@ -241,6 +247,10 @@ export default function Order() {
   const describeItem = (item) => {
     if (item.foodType === "sambusa") {
       return `${item.quantity} × Sambusa`;
+    }
+
+    if (item.foodType === "boiled_egg") {
+      return `${item.quantity} × Boiled Egg`;
     }
 
     let desc = `${item.quantity} × ${item.ertibType} Ertib`;
@@ -621,6 +631,7 @@ export default function Order() {
                     >
                       <option value="ertib">Ertib</option>
                       <option value="sambusa">Sambusa</option>
+                      <option value="boiled_egg">Boiled Egg</option>
                     </select>
 
                     {/* Ertib options — only show when foodType === 'ertib' */}
