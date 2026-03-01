@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
 import { FiArrowLeft } from "react-icons/fi";
+import { getSocket } from "../socket";
 
 export default function TrackOrder() {
   const { code } = useParams();
@@ -27,6 +28,30 @@ export default function TrackOrder() {
       }
     };
     fetchTrack();
+  }, [code]);
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handleOrderUpdated = (payload) => {
+      if (!payload || payload.trackingCode !== code) return;
+      setOrder((prev) => ({ ...prev, ...payload }));
+    };
+
+    const handleOrderDeleted = (payload) => {
+      if (!payload || payload.trackingCode !== code) return;
+      setError("This order was cancelled.");
+    };
+
+    socket.emit("join-order", code);
+    socket.on("order:updated", handleOrderUpdated);
+    socket.on("order:deleted", handleOrderDeleted);
+
+    return () => {
+      socket.off("order:updated", handleOrderUpdated);
+      socket.off("order:deleted", handleOrderDeleted);
+      socket.emit("leave-order", code);
+    };
   }, [code]);
 
   if (loading)

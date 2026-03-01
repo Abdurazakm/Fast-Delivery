@@ -10,6 +10,7 @@ import TrackingInfoCard from "./TrackingInfoCard";
 import Toast from "./Toast"; // import your reusable Toast component
 import OrderingInfoCards from "./OrderingInfoCards";
 import { motion } from "framer-motion";
+import { getSocket } from "../socket";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -107,86 +108,81 @@ export default function Home() {
     return `${h12}:${paddedMin} ${ampm} EAT`;
   };
 
+  const applyAvailabilityState = (availability) => {
+    if (!availability) {
+      setServiceAvailable(true);
+      setMessage(null);
+      return;
+    }
+
+    const { weeklyDays, cutoffTime, isTemporarilyClosed, tempCloseReason } =
+      availability;
+
+    const now = new Date(Date.now() + serverOffsetMs);
+
+    const dayStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
+      now.getDay()
+    ];
+
+    const withinDays = weeklyDays.includes(dayStr);
+    const [cutHour, cutMinute] = cutoffTime.split(":").map(Number);
+
+    const beforeCutoff =
+      now.getHours() < cutHour ||
+      (now.getHours() === cutHour && now.getMinutes() <= cutMinute);
+
+    const cutoffFormatted = formatCutoffTime(cutHour, cutMinute);
+    setFormattedCutoff(cutoffFormatted);
+
+    const weekOrder = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const sortedDays = [...weeklyDays].sort(
+      (a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b)
+    );
+
+    if (isTemporarilyClosed) {
+      setServiceAvailable(false);
+      setMessage(
+        <span>
+          ⚠️ Service temporarily closed. {tempCloseReason || "Please check back later."}
+        </span>
+      );
+    } else if (!withinDays) {
+      setServiceAvailable(false);
+      setMessage(
+        <span className="flex flex-col gap-1">
+          ⚠️ Our service is not available today. We operate on the following
+          days: <strong>{sortedDays.join(", ")}</strong>.
+        </span>
+      );
+    } else if (!beforeCutoff) {
+      setServiceAvailable(false);
+      setMessage(
+        <span className="flex flex-col gap-1">
+          ⏰ Ordering for today has ended. Please make sure to place your order
+          before {cutoffFormatted} on our service-available days. If there’s a
+          chance we might still be at the Ertib place, you may contact us
+          directly:
+          <a
+            href="tel:+251954724664"
+            className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
+          >
+            <FiPhoneCall size={16} />
+            +251 95 472 4664
+          </a>
+        </span>
+      );
+    } else {
+      setServiceAvailable(true);
+      setMessage(null);
+    }
+  };
+
   // Check service availability
   useEffect(() => {
     const fetchAvailability = async () => {
       try {
         const res = await API.get("/availability");
-        const availability = res.data;
-
-        if (!availability) {
-          setServiceAvailable(true);
-          setMessage(null);
-          return;
-        }
-
-        const { weeklyDays, cutoffTime, isTemporarilyClosed, tempCloseReason } =
-          availability;
-
-        // USE SERVER TIME
-        const now = new Date(Date.now() + serverOffsetMs);
-
-        const dayStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
-          now.getDay()
-        ];
-
-        const withinDays = weeklyDays.includes(dayStr);
-        const [cutHour, cutMinute] = cutoffTime.split(":").map(Number);
-
-        const beforeCutoff =
-          now.getHours() < cutHour ||
-          (now.getHours() === cutHour && now.getMinutes() <= cutMinute);
-
-        const cutoffFormatted = formatCutoffTime(cutHour, cutMinute);
-
-        setFormattedCutoff(cutoffFormatted); // optional, for other parts of UI
-
-        // Sort weekly days in proper order
-        const weekOrder = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        const sortedDays = [...weeklyDays].sort(
-          (a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b)
-        );
-
-        if (isTemporarilyClosed) {
-          setServiceAvailable(false);
-          setMessage(
-            <span>
-              ⚠️ Service temporarily closed.{" "}
-              {tempCloseReason || "Please check back later."}
-            </span>
-          );
-        } else if (!withinDays) {
-          setServiceAvailable(false);
-          setMessage(
-            <span className="flex flex-col gap-1">
-              ⚠️ Our service is not available today. We operate on the following
-              days: <strong>{sortedDays.join(", ")}</strong>.
-            </span>
-          );
-        } else if (!beforeCutoff) {
-          setServiceAvailable(false);
-
-          const cutoffFormatted = formatCutoffTime(cutHour, cutMinute); // use local variable
-
-          setMessage(
-            <span className="flex flex-col gap-1">
-              ⏰ Ordering for today has ended. Please make sure to place your
-              order before {cutoffFormatted} on our service-available days. If
-              there’s a chance we might still be at the Ertib place, you may
-              contact us directly:
-              <a
-                href="tel:+251954724664"
-                className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
-              >
-                <FiPhoneCall size={16} />
-                +251 95 472 4664
-              </a>
-            </span>
-          );
-        } else {
-          setServiceAvailable(true);
-          setMessage(null);
-        }
+        applyAvailabilityState(res.data);
       } catch (err) {
         console.error("Failed to fetch availability:", err);
         setServiceAvailable(true);
@@ -195,7 +191,23 @@ export default function Home() {
     };
 
     fetchAvailability();
-  }, []);
+
+    const socket = getSocket();
+    const handleAvailabilityUpdated = (payload) => {
+      if (payload) {
+        applyAvailabilityState(payload);
+        return;
+      }
+
+      fetchAvailability();
+    };
+
+    socket.on("availability:updated", handleAvailabilityUpdated);
+
+    return () => {
+      socket.off("availability:updated", handleAvailabilityUpdated);
+    };
+  }, [serverOffsetMs]);
 
   const handleOrderClick = () => {
     if (!serviceAvailable && user?.role !== "admin") {

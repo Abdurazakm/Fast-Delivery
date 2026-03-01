@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 const { authMiddleware, adminMiddleware } = require("../middlewares/authMiddleware");
 const { normalizePhone } = require("../utils/phone");
 const { normalizePricing, getActivePricing } = require("../config/pricing");
+const { emitPricingUpdated } = require("../socket");
 
 router.post("/create-admin", authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -102,7 +103,10 @@ router.put("/pricing", authMiddleware, adminMiddleware, async (req, res) => {
       ? await prisma.pricing.update({ where: { id: existing.id }, data })
       : await prisma.pricing.create({ data });
 
-    res.json(normalizePricing(updated));
+    const normalized = normalizePricing(updated);
+    emitPricingUpdated(normalized);
+
+    res.json(normalized);
   } catch (err) {
     console.error("❌ Error updating pricing:", err);
     res.status(500).json({ message: "Failed to update pricing" });

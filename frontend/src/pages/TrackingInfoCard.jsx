@@ -189,6 +189,10 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
       0
     );
 
+  useEffect(() => {
+    setCurrentOrder(order);
+  }, [order]);
+
   // Server time offset
   useEffect(() => {
     const fetchAvailability = async () => {
@@ -279,20 +283,6 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
       });
     }
   };
-
-  // ✅ Auto-refresh every 1 minute
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await API.get(`/orders/track/${currentOrder.trackingCode}`);
-        setCurrentOrder(res.data);
-      } catch (err) {
-        console.error("❌ Failed to refresh order:", err);
-      }
-    }, 60000); // 60,000ms = 1 minute
-
-    return () => clearInterval(interval);
-  }, [currentOrder.trackingCode]);
 
   return (
     <motion.div

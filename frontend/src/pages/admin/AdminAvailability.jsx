@@ -3,6 +3,7 @@ import API from "../../api";
 import { Link } from "react-router-dom";
 import { HiMenu, HiX, HiChevronRight } from "react-icons/hi";
 import Toast from "../Toast";
+import { getSocket } from "../../socket";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -44,6 +45,44 @@ export default function AdminAvailability() {
         }
       })
       .catch((err) => console.error("Error fetching availability:", err));
+  }, []);
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handleAvailabilityUpdated = (payload) => {
+      if (payload) {
+        setAvailability(payload);
+        return;
+      }
+
+      API.get("/availability")
+        .then((res) => {
+          if (res.data) setAvailability(res.data);
+        })
+        .catch((err) => console.error("Error refreshing availability:", err));
+    };
+
+    const handlePricingUpdated = (payload) => {
+      if (payload && typeof payload === "object") {
+        setPricing((prev) => ({ ...prev, ...payload }));
+        return;
+      }
+
+      API.get("/admin/pricing")
+        .then((res) => {
+          if (res.data) setPricing((prev) => ({ ...prev, ...res.data }));
+        })
+        .catch((err) => console.error("Error refreshing pricing:", err));
+    };
+
+    socket.on("availability:updated", handleAvailabilityUpdated);
+    socket.on("pricing:updated", handlePricingUpdated);
+
+    return () => {
+      socket.off("availability:updated", handleAvailabilityUpdated);
+      socket.off("pricing:updated", handlePricingUpdated);
+    };
   }, []);
 
   const handlePriceChange = (field, value) => {

@@ -5,6 +5,7 @@ import { FiCopy, FiArrowLeft } from "react-icons/fi";
 import { FaPaperPlane } from "react-icons/fa";
 import Toast from "./Toast";
 import API from "../api";
+import { getSocket } from "../socket";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -81,6 +82,32 @@ export default function Order() {
     };
 
     fetchPricing();
+  }, []);
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handlePricingUpdated = async (payload) => {
+      if (payload && typeof payload === "object") {
+        setPricing((prev) => ({ ...prev, ...payload }));
+        return;
+      }
+
+      try {
+        const res = await API.get("/orders/pricing");
+        if (res.data) {
+          setPricing((prev) => ({ ...prev, ...res.data }));
+        }
+      } catch (err) {
+        console.error("❌ Failed to refresh pricing:", err);
+      }
+    };
+
+    socket.on("pricing:updated", handlePricingUpdated);
+
+    return () => {
+      socket.off("pricing:updated", handlePricingUpdated);
+    };
   }, []);
 
   // Prefill when editing

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API from "../api";
+import { getSocket } from "../socket";
 
 export default function OrderingInfoCards({ serverOffsetMs = 0 }) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -45,6 +46,35 @@ export default function OrderingInfoCards({ serverOffsetMs = 0 }) {
     };
 
     fetchAvailability();
+
+    const socket = getSocket();
+    const handleAvailabilityUpdated = (data) => {
+      if (!data) {
+        fetchAvailability();
+        return;
+      }
+
+      setCutoffTime(data.cutoffTime);
+      setIsTemporarilyClosed(data.isTemporarilyClosed);
+
+      const dayMap = {
+        Sun: 0,
+        Mon: 1,
+        Tue: 2,
+        Wed: 3,
+        Thu: 4,
+        Fri: 5,
+        Sat: 6,
+      };
+
+      setServiceDays((data.weeklyDays || []).map((d) => dayMap[d]));
+    };
+
+    socket.on("availability:updated", handleAvailabilityUpdated);
+
+    return () => {
+      socket.off("availability:updated", handleAvailabilityUpdated);
+    };
   }, []);
 
   useEffect(() => {

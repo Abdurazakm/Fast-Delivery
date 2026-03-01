@@ -15,6 +15,7 @@ const {
   getUserIdMiddleware,
 } = require("../middlewares/getUserIdMiddleware.js");
 const { calcUnitPrice, getActivePricing } = require("../config/pricing");
+const { emitOrderUpdated, emitOrderDeleted } = require("../socket");
 
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
@@ -187,6 +188,7 @@ router.post(
       };
 
       const order = await prisma.order.create({ data: orderData });
+      emitOrderUpdated(order, "created");
 
       // Send SMS (non-blocking)
       const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
@@ -270,6 +272,7 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
         userId: req.user?.id || null, // optional
       },
     });
+    emitOrderUpdated(order, "created");
 
     // Optional SMS
     const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
@@ -360,13 +363,15 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
         .catch((err) => console.error("❌ SMS send error:", err));
     }
 
-    await prisma.order.update({
+    const updatedOrder = await prisma.order.update({
       where: { id: parseInt(id) },
       data: {
         status,
         statusHistory: updatedHistory,
       },
     });
+
+    emitOrderUpdated(updatedOrder, "status");
 
     res.json({ message: "Status updated", orderId: order.id });
   } catch (err) {
@@ -468,6 +473,8 @@ router.put(
       },
     });
 
+    emitOrderUpdated(updated, "updated");
+
     res.json({ message: "Order updated", order: updated });
   } catch (err) {
     console.error("❌ Error updating order:", err);
@@ -497,6 +504,8 @@ router.delete(
     await prisma.order.delete({
       where: { id: order.id },
     });
+
+    emitOrderDeleted(order);
 
     res.json({ message: "Order deleted successfully" });
   } catch (err) {
@@ -647,6 +656,7 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     await prisma.order.delete({ where: { id: parseInt(id) } });
+    emitOrderDeleted(order);
     res.json({ message: "Order deleted successfully" });
   } catch (err) {
     console.error("❌ Error deleting order:", err);

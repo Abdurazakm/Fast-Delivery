@@ -2,8 +2,10 @@
 require('dotenv').config();
 
 const express = require('express');
+const http = require('http');
 const morgan = require('morgan');
 const cors = require('cors');
+const { initSocket } = require('./src/socket');
 
 // Import routes
 const authRoutes = require('./src/routes/authRoutes');
@@ -13,6 +15,7 @@ const availabilityRoutes = require('./src/routes/availability');
 
 
 const app = express();
+const server = http.createServer(app);
 
 // Middleware
 app.use(cors());
@@ -51,4 +54,5 @@ app.use((err, req, res, next) => {
 
 // Start the server
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+initSocket(server);
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

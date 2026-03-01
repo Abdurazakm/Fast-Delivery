@@ -15,6 +15,7 @@ import dayjs from "dayjs";
 import html2canvas from "html2canvas";
 import { FiDownload } from "react-icons/fi";
 import API from "../../api";
+import { getSocket } from "../../socket";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -177,6 +178,38 @@ export default function AdminDashboard() {
 
     fetchPricing();
   }, []);
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handlePricingUpdated = (payload) => {
+      if (payload && typeof payload === "object") {
+        setPricing((prev) => ({ ...prev, ...payload }));
+      }
+    };
+
+    socket.on("pricing:updated", handlePricingUpdated);
+
+    return () => {
+      socket.off("pricing:updated", handlePricingUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    const handleOrderChanged = () => {
+      fetchOrders(selectedDate);
+    };
+
+    socket.emit("join-admin");
+    socket.on("admin:orders-changed", handleOrderChanged);
+
+    return () => {
+      socket.off("admin:orders-changed", handleOrderChanged);
+      socket.emit("leave-admin");
+    };
+  }, [selectedDate]);
 
   const updateStatus = async (id, newStatus) => {
     try {

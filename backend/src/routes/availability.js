@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
+const { emitAvailabilityUpdated } = require("../socket");
 
 // GET current availability
 router.get("/", async (req, res) => {
@@ -43,6 +44,7 @@ router.post("/", async (req, res) => {
       });
       // Convert back to array before sending response
       updated.weeklyDays = updated.weeklyDays.split(",");
+      emitAvailabilityUpdated(updated);
       res.json(updated);
     } else {
       // create
@@ -55,6 +57,7 @@ router.post("/", async (req, res) => {
         },
       });
       created.weeklyDays = created.weeklyDays.split(",");
+      emitAvailabilityUpdated(created);
       res.json(created);
     }
   } catch (err) {
