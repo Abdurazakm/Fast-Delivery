@@ -78,12 +78,31 @@ function App() {
   /* ---------------- Dynamic Availability ---------------- */
   const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
-  const checkAvailability = (availability, now = new Date()) => {
+  const getEATNowParts = (referenceDate = new Date()) => {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Africa/Addis_Ababa",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+    });
+
+    const parts = formatter.formatToParts(referenceDate);
+    const dayStr = parts.find((p) => p.type === "weekday")?.value;
+
+    return {
+      day: dayMap[dayStr],
+      hour: Number(parts.find((p) => p.type === "hour")?.value ?? 0),
+      minute: Number(parts.find((p) => p.type === "minute")?.value ?? 0),
+    };
+  };
+
+  const checkAvailability = (availability) => {
     if (!availability) return true; // default: available
 
-    const day = now.getDay();
-    const hour = now.getHours();
-    const minute = now.getMinutes();
+    const now = new Date(Date.now() + serverOffsetMs);
+    const { day, hour, minute } = getEATNowParts(now);
 
     const workingDay = availability.weeklyDays?.some((d) => dayMap[d] === day);
 
@@ -108,8 +127,8 @@ function App() {
     const serviceAvailable = checkAvailability(availability);
 
     if (!serviceAvailable) {
-      const now = new Date();
-      const day = now.getDay();
+      const now = new Date(Date.now() + serverOffsetMs);
+      const { day } = getEATNowParts(now);
       const workingDay = availability?.weeklyDays?.some(
         (d) => dayMap[d] === day,
       );

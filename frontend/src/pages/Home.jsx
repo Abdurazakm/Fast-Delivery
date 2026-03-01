@@ -115,6 +115,25 @@ export default function Home() {
     return `${h12}:${paddedMin} ${ampm} EAT`;
   };
 
+  const getEATNowParts = (referenceDate = new Date()) => {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Africa/Addis_Ababa",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      hourCycle: "h23",
+    });
+
+    const parts = formatter.formatToParts(referenceDate);
+
+    return {
+      dayStr: parts.find((p) => p.type === "weekday")?.value,
+      hour: Number(parts.find((p) => p.type === "hour")?.value ?? 0),
+      minute: Number(parts.find((p) => p.type === "minute")?.value ?? 0),
+    };
+  };
+
   const applyAvailabilityState = (availability) => {
     if (!availability) {
       setServiceAvailable(true);
@@ -126,17 +145,15 @@ export default function Home() {
       availability;
 
     const now = new Date(Date.now() + serverOffsetMs);
-
-    const dayStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][
-      now.getDay()
-    ];
+    const nowEAT = getEATNowParts(now);
+    const dayStr = nowEAT.dayStr;
 
     const withinDays = weeklyDays.includes(dayStr);
     const [cutHour, cutMinute] = cutoffTime.split(":").map(Number);
 
     const beforeCutoff =
-      now.getHours() < cutHour ||
-      (now.getHours() === cutHour && now.getMinutes() <= cutMinute);
+      nowEAT.hour < cutHour ||
+      (nowEAT.hour === cutHour && nowEAT.minute <= cutMinute);
 
     const cutoffFormatted = formatCutoffTime(cutHour, cutMinute);
     setFormattedCutoff(cutoffFormatted);
