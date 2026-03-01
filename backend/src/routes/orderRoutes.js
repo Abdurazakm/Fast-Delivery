@@ -15,7 +15,13 @@ const {
   getUserIdMiddleware,
 } = require("../middlewares/getUserIdMiddleware.js");
 const { calcUnitPrice, getActivePricing } = require("../config/pricing");
-const { emitOrderUpdated, emitOrderDeleted } = require("../socket");
+const {
+  emitOrderUpdated,
+  emitOrderDeleted,
+  emitGlobalNotification,
+  emitAdminNotification,
+  getSocket,
+} = require("../socket");
 
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
@@ -189,6 +195,13 @@ router.post(
 
       const order = await prisma.order.create({ data: orderData });
       emitOrderUpdated(order, "created");
+      emitAdminNotification({
+        type: "new-order",
+        title: "New Order Received",
+        message: `${order.customerName} placed order ${order.trackingCode}.`,
+        trackingCode: order.trackingCode,
+        url: `/track/${order.trackingCode}`,
+      });
 
       // Send SMS (non-blocking)
       const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
@@ -336,33 +349,6 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
     const newStatusEntry = { status, at: new Date().toISOString() };
     const updatedHistory = [...(order.statusHistory || []), newStatusEntry];
 
-    // optional: send arrival SMS
-    if (status === "arrived") {
-      const text = `📍 Hi ${order.customerName}, your Ertib has arrived. Please come and take it. Track: ${order.trackUrl}`;
-      sendSMS(order.phone, text)
-        .then((smsResp) =>
-          prisma.order
-            .update({
-              where: { id: parseInt(id) },
-              data: {
-                smsHistory: [
-                  ...(order.smsHistory || []),
-                  {
-                    type: "arrival",
-                    providerResponse: smsResp.info,
-                    status: smsResp.status,
-                    at: new Date().toISOString(),
-                  },
-                ],
-              },
-            })
-            .catch((err) =>
-              console.error("❌ Failed to update SMS history:", err),
-            ),
-        )
-        .catch((err) => console.error("❌ SMS send error:", err));
-    }
-
     const updatedOrder = await prisma.order.update({
       where: { id: parseInt(id) },
       data: {
@@ -372,6 +358,17 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
     });
 
     emitOrderUpdated(updatedOrder, "status");
+    emitGlobalNotification({
+      type: "status",
+      title: "Order Status Updated",
+      message: `Order ${updatedOrder.trackingCode} is now ${status.replace(
+        "_",
+        " ",
+      )}.`,
+      trackingCode: updatedOrder.trackingCode,
+      url: `/track/${updatedOrder.trackingCode}`,
+      status,
+    });
 
     res.json({ message: "Status updated", orderId: order.id });
   } catch (err) {
@@ -675,106 +672,20 @@ router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
     if (!message)
       return res.status(400).json({ message: "Message text is required" });
 
-    const orderPhones = await prisma.order.findMany({
-      select: { phone: true },
+    const io = getSocket();
+    const connectedUsers = io?.engine?.clientsCount || 0;
+
+    emitGlobalNotification({
+      type: "announcement",
+      title: "New Announcement",
+      message,
     });
-    const userPhones = await prisma.user.findMany({ select: { phone: true } });
-
-    let allNumbers = [
-      ...orderPhones.map((o) => o.phone),
-      ...userPhones.map((u) => u.phone),
-    ];
-
-    let uniqueNumbers = [...new Set(allNumbers)];
-
-    // Exclude your number — not part of promo
-    uniqueNumbers = uniqueNumbers.filter((n) => n !== "0954724664");
-
-    if (!uniqueNumbers.length)
-      return res.status(404).json({ message: "No phone numbers available" });
-
-    console.log("📤 Sending bulk SMS to:", uniqueNumbers.length);
-
-    // 2. Retry function (3 attempts)
-    const sendWithRetry = async (phone, message) => {
-      let attempts = 0;
-      while (attempts < 3) {
-        try {
-          attempts++;
-          const res = await sendSMS(phone, message);
-          return { phone, status: "sent", attempts, info: res.info };
-        } catch (err) {
-          if (attempts >= 3) {
-            return { phone, status: "failed", attempts, error: err.message };
-          }
-        }
-      }
-    };
-
-    // 3. Parallel sending (fast)
-    const firstResults = await Promise.all(
-      uniqueNumbers.map((phone) => sendWithRetry(phone, message)),
-    );
-
-    const failedNumbers = firstResults
-      .filter((r) => r.status === "failed")
-      .map((r) => r.phone);
-
-    console.log("⏳ Scheduled retry for:", failedNumbers.length, "numbers");
-
-    // 4. Auto Retry After 10 Minutes
-    setTimeout(
-      async () => {
-        console.log("🔁 Retrying failed numbers after 10 minutes...");
-
-        const retry2 = async (phone) => {
-          let attempts = 0;
-          while (attempts < 2) {
-            try {
-              attempts++;
-              const res = await sendSMS(phone, message);
-              return {
-                phone,
-                status: "sent",
-                retryCycle: "10-minute",
-                attempts,
-                info: res.info,
-              };
-            } catch (err) {
-              if (attempts >= 2) {
-                return {
-                  phone,
-                  status: "failed",
-                  retryCycle: "10-minute",
-                  attempts,
-                  error: err.message,
-                };
-              }
-            }
-          }
-        };
-
-        if (failedNumbers.length > 0) {
-          const secondResults = await Promise.all(
-            failedNumbers.map((phone) => retry2(phone)),
-          );
-          console.log("🔁 Retry Results:", secondResults);
-        }
-      },
-      10 * 60 * 1000,
-    );
-
-    // 5. Response to frontend immediately
-    const sent = firstResults.filter((r) => r.status === "sent").length;
-    const failed = firstResults.filter((r) => r.status === "failed").length;
 
     res.json({
       success: true,
-      totalNumbers: uniqueNumbers.length,
-      sentFirstRound: sent,
-      failedFirstRound: failed,
-      autoRetryScheduled: true,
-      retryAfterMinutes: 10,
+      channel: "socket-notification",
+      deliveredToConnectedClients: connectedUsers,
+      message: "Announcement broadcasted to connected users.",
     });
   } catch (err) {
     console.error("❌ Bulk SMS error:", err);

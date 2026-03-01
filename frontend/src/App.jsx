@@ -15,12 +15,16 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import TrackOrder from "./pages/TrackOrder";
 import API from "./api"; // Axios instance
 import AdminAvailability from "./pages/admin/AdminAvailability";
+import Toast from "./pages/Toast";
+import { getSocket } from "./socket";
+import { initPushNotifications } from "./pushNotifications";
 /* ---------------- Main App ---------------- */
 function App() {
   const [user, setUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [availability, setAvailability] = useState(null);
   const [serverOffsetMs, setServerOffsetMs] = useState(0); // difference between server and client time
+  const [notificationToast, setNotificationToast] = useState(null);
 
   // Fetch current user
   useEffect(() => {
@@ -186,8 +190,96 @@ function App() {
     fetchAvailabilityAndServerTime();
   }, []);
 
+  useEffect(() => {
+    const socket = getSocket();
+
+    const showNativeNotification = async (payload) => {
+      if (!("Notification" in window)) return false;
+      if (Notification.permission !== "granted") return false;
+
+      const title = payload.title || "Notification";
+      const body = payload.message || "You have a new update.";
+      const url = payload.url || (payload.trackingCode ? `/track/${payload.trackingCode}` : "/");
+
+      try {
+        if ("serviceWorker" in navigator) {
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (registration) {
+            await registration.showNotification(title, {
+              body,
+              icon: "/favicon.ico",
+              badge: "/favicon.ico",
+              tag: payload.type || "notification",
+              renotify: true,
+              requireInteraction: true,
+              data: { url },
+            });
+            return true;
+          }
+        }
+
+        new Notification(title, {
+          body,
+          icon: "/favicon.ico",
+          tag: payload.type || "notification",
+          renotify: true,
+          requireInteraction: true,
+          data: { url },
+        });
+        return true;
+      } catch (err) {
+        return false;
+      }
+    };
+
+    const handleNotification = async (payload) => {
+      if (!payload?.message) return;
+
+      const shownAsPopup = await showNativeNotification(payload);
+      if (shownAsPopup) return;
+
+      const title = payload.title ? `${payload.title}: ` : "";
+      setNotificationToast({
+        type: payload.type === "status" ? "success" : "info",
+        message: `${title}${payload.message}`,
+      });
+    };
+
+    socket.on("notification:broadcast", handleNotification);
+
+    return () => {
+      socket.off("notification:broadcast", handleNotification);
+    };
+  }, []);
+
+  useEffect(() => {
+    const socket = getSocket();
+
+    if (user?.role === "admin") {
+      socket.emit("join-admin");
+      return () => {
+        socket.emit("leave-admin");
+      };
+    }
+
+    socket.emit("leave-admin");
+    return undefined;
+  }, [user?.role]);
+
+  useEffect(() => {
+    initPushNotifications().catch(() => {});
+  }, []);
+
   return (
     <Router>
+      {notificationToast && (
+        <Toast
+          message={notificationToast.message}
+          type={notificationToast.type}
+          onClose={() => setNotificationToast(null)}
+          duration={5000}
+        />
+      )}
       <Routes>
         <Route
           path="/"

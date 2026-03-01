@@ -11,6 +11,10 @@ import Toast from "./Toast"; // import your reusable Toast component
 import OrderingInfoCards from "./OrderingInfoCards";
 import { motion } from "framer-motion";
 import { getSocket } from "../socket";
+import {
+  getPushNotificationStatus,
+  enablePushNotificationsNow,
+} from "../pushNotifications";
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -25,6 +29,9 @@ export default function Home() {
   const [latestOrder, setLatestOrder] = useState(null);
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const [formattedCutoff, setFormattedCutoff] = useState(""); // <-- add this
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushSupported, setPushSupported] = useState(true);
 
   // Fetch user & latest order
   useEffect(() => {
@@ -237,6 +244,46 @@ export default function Home() {
     setToast({ message: "Logged out successfully!", type: "success" });
   };
 
+  const refreshPushStatus = async () => {
+    const status = await getPushNotificationStatus();
+    setPushSupported(status.supported);
+    setPushEnabled(status.permission === "granted" && status.subscribed);
+  };
+
+  useEffect(() => {
+    refreshPushStatus().catch(() => {
+      setPushSupported(false);
+      setPushEnabled(false);
+    });
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    setPushLoading(true);
+    try {
+      const result = await enablePushNotificationsNow();
+      await refreshPushStatus();
+
+      if (result?.enabled) {
+        setToast({
+          message: "✅ Notifications enabled. You will receive popup alerts.",
+          type: "success",
+        });
+      } else {
+        setToast({
+          message:
+            result?.reason === "permission-denied"
+              ? "⚠️ Notification permission denied. Enable it from browser settings."
+              : "⚠️ Failed to enable notifications.",
+          type: "error",
+        });
+      }
+    } catch (err) {
+      setToast({ message: "⚠️ Failed to enable notifications.", type: "error" });
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-orange-100 p-6">
       {/* Toast Notification */}
@@ -300,6 +347,33 @@ export default function Home() {
             </button>
           </div>
         )}
+      </div>
+
+      <div className="mt-4 flex justify-center">
+        <button
+          onClick={handleEnableNotifications}
+          disabled={!pushSupported || pushLoading || pushEnabled}
+          className={`px-5 py-2 rounded-full font-medium shadow-md transition-all duration-200 ${
+            pushEnabled
+              ? "bg-green-600 text-white cursor-default"
+              : !pushSupported
+              ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+              : pushLoading
+              ? "bg-amber-300 text-white cursor-wait"
+              : "bg-amber-500 hover:bg-amber-600 text-white"
+          }`}
+          title={
+            pushEnabled
+              ? "Notifications are already enabled"
+              : "Enable browser popup notifications"
+          }
+        >
+          {pushEnabled
+            ? "🔔 Notifications Enabled"
+            : pushLoading
+            ? "Enabling..."
+            : "🔔 Enable Notifications"}
+        </button>
       </div>
 
       {user?.role !== "admin" && !serviceAvailable && message && (
@@ -402,6 +476,21 @@ export default function Home() {
       </div>
       {/* // Inside return(), below Hero section */}
       <OrderingInfoCards serverOffsetMs={serverOffsetMs} />
+
+      <div className="mt-4">
+        <span
+          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
+            pushEnabled
+              ? "bg-green-100 text-green-700 border-green-300"
+              : "bg-red-100 text-red-700 border-red-300"
+          }`}
+        >
+          {pushEnabled
+            ? "🔔 Notification status: Enabled"
+            : "🔕 Notification status: Disabled"}
+        </span>
+      </div>
+
       {/* Track Your Order */}
       {user?.role !== "admin" && (
         <div className="mt-10 max-w-md w-full mx-auto bg-white p-6 rounded-2xl shadow text-center">

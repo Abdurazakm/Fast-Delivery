@@ -1,4 +1,5 @@
 const { Server } = require("socket.io");
+const { sendPushNotificationToAll } = require("./services/pushNotificationService");
 
 let io = null;
 
@@ -98,6 +99,34 @@ function emitAvailabilityUpdated(availability) {
   io.emit("availability:updated", availability || null);
 }
 
+function emitGlobalNotification(notification) {
+  if (!io || !notification) return;
+
+  const payload = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    at: new Date().toISOString(),
+    ...notification,
+  };
+
+  io.emit("notification:broadcast", payload);
+
+  sendPushNotificationToAll(payload).catch((err) => {
+    console.error("❌ Push notification broadcast failed:", err?.message || err);
+  });
+}
+
+function emitAdminNotification(notification) {
+  if (!io || !notification) return;
+
+  const payload = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    at: new Date().toISOString(),
+    ...notification,
+  };
+
+  io.to("admin").emit("notification:broadcast", payload);
+}
+
 module.exports = {
   initSocket,
   getSocket,
@@ -105,4 +134,6 @@ module.exports = {
   emitOrderDeleted,
   emitPricingUpdated,
   emitAvailabilityUpdated,
+  emitGlobalNotification,
+  emitAdminNotification,
 };

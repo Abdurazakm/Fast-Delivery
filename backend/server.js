@@ -12,6 +12,7 @@ const authRoutes = require('./src/routes/authRoutes');
 const orderRoutes = require('./src/routes/orderRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const availabilityRoutes = require('./src/routes/availability');
+const notificationsRoutes = require('./src/routes/notificationsRoutes');
 
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/auth', authRoutes);     // Handles user & admin login/signup
 app.use('/api/orders', orderRoutes);  // Handles all order-related endpoints
 app.use('/api/admin', adminRoutes);   // Admin dashboard routes
 app.use("/api/availability", availabilityRoutes); // Availability routes
+app.use('/api/notifications', notificationsRoutes); // Push notification routes
 
 
 // ✅ Add server time route

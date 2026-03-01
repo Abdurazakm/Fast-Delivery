@@ -14,6 +14,7 @@ function Toast({ message, type = "success", onClose, duration = 3000 }) {
   const colors = {
     success: "bg-green-500 text-white",
     error: "bg-red-500 text-white",
+    info: "bg-blue-500 text-white",
   };
 
   return (

@@ -18,6 +18,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
+  pushSubscriptions PushSubscription[]
 }
 
 model Order {
@@ -65,4 +66,15 @@ model Pricing {
   doubleFelafilCost  Float    @default(0)
   updatedAt          DateTime @updatedAt
   createdAt          DateTime @default(now())
+}
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

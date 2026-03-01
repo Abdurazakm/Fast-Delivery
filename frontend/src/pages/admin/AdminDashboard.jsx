@@ -573,11 +573,11 @@ Normal - 110 Birr, Special - 135 Birr
         { message: smsMessage, day: smsDay },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      showToast("✅ SMS sent successfully!");
+      showToast("✅ Notification sent to connected users!");
       closeSmsModal();
     } catch (err) {
-      console.error("Failed to send bulk SMS:", err);
-      showToast("❌ Failed to send SMS");
+      console.error("Failed to send broadcast notification:", err);
+      showToast("❌ Failed to send notification");
     }
   };
 
@@ -1171,7 +1171,7 @@ Normal - 110 Birr, Special - 135 Birr
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl w-96 shadow-lg relative">
             <h2 className="text-lg font-bold mb-4 text-amber-700">
-              📣 Send Bulk SMS
+              📣 Send Broadcast Notification
             </h2>
 
             <label className="block mb-2 font-medium">Select Day</label>
