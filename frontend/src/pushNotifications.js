@@ -32,7 +32,8 @@ export async function initPushNotifications() {
       return { enabled: false, reason: "permission-denied" };
     }
 
-    const existingSubscription = await registration.pushManager.getSubscription();
+    const existingSubscription =
+      await registration.pushManager.getSubscription();
     const subscription =
       existingSubscription ||
       (await registration.pushManager.subscribe({
@@ -59,7 +60,8 @@ export async function getPushNotificationStatus() {
   try {
     const registration = await navigator.serviceWorker.getRegistration();
     if (registration) {
-      const existingSubscription = await registration.pushManager.getSubscription();
+      const existingSubscription =
+        await registration.pushManager.getSubscription();
       subscribed = !!existingSubscription;
     }
   } catch (err) {

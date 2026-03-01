@@ -121,7 +121,7 @@ export default function OrderingInfoCards({ serverOffsetMs = 0 }) {
       const endDelivery = new Date(lastOrdering.getTime() + 90 * 60 * 1000);
 
       setEstimatedDelivery(
-        `${formatTime(startDelivery)} – ${formatTime(endDelivery)}`
+        `${formatTime(startDelivery)} – ${formatTime(endDelivery)}`,
       );
     };
 

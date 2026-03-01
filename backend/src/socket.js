@@ -1,5 +1,7 @@
 const { Server } = require("socket.io");
-const { sendPushNotificationToAll } = require("./services/pushNotificationService");
+const {
+  sendPushNotificationToAll,
+} = require("./services/pushNotificationService");
 
 let io = null;
 
@@ -111,7 +113,10 @@ function emitGlobalNotification(notification) {
   io.emit("notification:broadcast", payload);
 
   sendPushNotificationToAll(payload).catch((err) => {
-    console.error("❌ Push notification broadcast failed:", err?.message || err);
+    console.error(
+      "❌ Push notification broadcast failed:",
+      err?.message || err,
+    );
   });
 }
 

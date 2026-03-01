@@ -21,7 +21,7 @@ export default function TrackOrder() {
       } catch (err) {
         console.error("Tracking fetch error:", err);
         setError(
-          err.response?.data?.message || "Failed to fetch tracking info."
+          err.response?.data?.message || "Failed to fetch tracking info.",
         );
       } finally {
         setLoading(false);

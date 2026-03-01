@@ -186,7 +186,7 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
     currentOrder.total ??
     currentOrder.items.reduce(
       (sum, item) => sum + getUnitPrice(item) * (item.quantity || 1),
-      0
+      0,
     );
 
   useEffect(() => {
@@ -376,8 +376,8 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
                       completed
                         ? "bg-green-500"
                         : current
-                        ? "bg-green-500 animate-pulse"
-                        : "bg-gray-300"
+                          ? "bg-green-500 animate-pulse"
+                          : "bg-gray-300"
                     }`}
                 >
                   {idx + 1}
@@ -434,8 +434,8 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         {isAdmin
           ? "As admin, you can edit this order any time."
           : isTemporarilyClosed
-          ? "Service is temporarily closed. You cannot edit or cancel orders."
-          : "You can edit or cancel your order before the cutoff time."}
+            ? "Service is temporarily closed. You cannot edit or cancel orders."
+            : "You can edit or cancel your order before the cutoff time."}
       </motion.div>
 
       {/* Edit / Cancel Buttons */}

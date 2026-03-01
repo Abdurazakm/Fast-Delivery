@@ -111,7 +111,7 @@ function App() {
       const now = new Date();
       const day = now.getDay();
       const workingDay = availability?.weeklyDays?.some(
-        (d) => dayMap[d] === day
+        (d) => dayMap[d] === day,
       );
 
       if (availability?.isTemporarilyClosed) {
@@ -199,7 +199,9 @@ function App() {
 
       const title = payload.title || "Notification";
       const body = payload.message || "You have a new update.";
-      const url = payload.url || (payload.trackingCode ? `/track/${payload.trackingCode}` : "/");
+      const url =
+        payload.url ||
+        (payload.trackingCode ? `/track/${payload.trackingCode}` : "/");
 
       try {
         if ("serviceWorker" in navigator) {

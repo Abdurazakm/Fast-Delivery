@@ -361,7 +361,7 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
     emitGlobalNotification({
       type: "status",
       title: "Order Status Updated",
-      message: `Order ${updatedOrder.trackingCode} is now ${status.replace(
+      message: `Orderis now ${status.replace(
         "_",
         " ",
       )}.`,
@@ -433,51 +433,51 @@ router.put(
   optionalAuthMiddleware,
   checkServiceAvailabilityForNonAdmin,
   async (req, res) => {
-  try {
-    const code = req.params.code;
-    let { customerName, phone, location, items } = req.body;
-    const pricing = await getActivePricing(prisma);
+    try {
+      const code = req.params.code;
+      let { customerName, phone, location, items } = req.body;
+      const pricing = await getActivePricing(prisma);
 
-    // FIX: use findFirst instead of findUnique
-    const order = await prisma.order.findFirst({
-      where: { trackingCode: code },
-    });
-
-    if (!order) return res.status(404).json({ message: "Order not found" });
-
-    let computedTotal = order.total;
-    let builtItems = order.items;
-
-    if (items && Array.isArray(items)) {
-      computedTotal = 0;
-      builtItems = items.map((it) => {
-        const unitPrice = calcUnitPrice(it, pricing);
-        const quantity = parseInt(it.quantity) || 1;
-        const lineTotal = unitPrice * quantity;
-        computedTotal += lineTotal;
-        return { ...it, quantity, unitPrice, lineTotal };
+      // FIX: use findFirst instead of findUnique
+      const order = await prisma.order.findFirst({
+        where: { trackingCode: code },
       });
+
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      let computedTotal = order.total;
+      let builtItems = order.items;
+
+      if (items && Array.isArray(items)) {
+        computedTotal = 0;
+        builtItems = items.map((it) => {
+          const unitPrice = calcUnitPrice(it, pricing);
+          const quantity = parseInt(it.quantity) || 1;
+          const lineTotal = unitPrice * quantity;
+          computedTotal += lineTotal;
+          return { ...it, quantity, unitPrice, lineTotal };
+        });
+      }
+
+      const updated = await prisma.order.update({
+        where: { id: order.id }, // id is unique
+        data: {
+          customerName: customerName ?? order.customerName,
+          phone: phone ?? order.phone,
+          location: location ?? order.location,
+          items: builtItems,
+          total: computedTotal,
+        },
+      });
+
+      emitOrderUpdated(updated, "updated");
+
+      res.json({ message: "Order updated", order: updated });
+    } catch (err) {
+      console.error("❌ Error updating order:", err);
+      res.status(500).json({ message: "Server error updating order" });
     }
-
-    const updated = await prisma.order.update({
-      where: { id: order.id }, // id is unique
-      data: {
-        customerName: customerName ?? order.customerName,
-        phone: phone ?? order.phone,
-        location: location ?? order.location,
-        items: builtItems,
-        total: computedTotal,
-      },
-    });
-
-    emitOrderUpdated(updated, "updated");
-
-    res.json({ message: "Order updated", order: updated });
-  } catch (err) {
-    console.error("❌ Error updating order:", err);
-    res.status(500).json({ message: "Server error updating order" });
-  }
-}
+  },
 );
 
 /**
@@ -489,27 +489,27 @@ router.delete(
   optionalAuthMiddleware,
   checkServiceAvailabilityForNonAdmin,
   async (req, res) => {
-  try {
-    const code = req.params.code;
+    try {
+      const code = req.params.code;
 
-    const order = await prisma.order.findFirst({
-      where: { trackingCode: code },
-    });
+      const order = await prisma.order.findFirst({
+        where: { trackingCode: code },
+      });
 
-    if (!order) return res.status(404).json({ message: "Order not found" });
+      if (!order) return res.status(404).json({ message: "Order not found" });
 
-    await prisma.order.delete({
-      where: { id: order.id },
-    });
+      await prisma.order.delete({
+        where: { id: order.id },
+      });
 
-    emitOrderDeleted(order);
+      emitOrderDeleted(order);
 
-    res.json({ message: "Order deleted successfully" });
-  } catch (err) {
-    console.error("❌ Error deleting order by tracking code:", err);
-    res.status(500).json({ message: "Server error while deleting order" });
-  }
-}
+      res.json({ message: "Order deleted successfully" });
+    } catch (err) {
+      console.error("❌ Error deleting order by tracking code:", err);
+      res.status(500).json({ message: "Server error while deleting order" });
+    }
+  },
 );
 
 router.get("/latest", authMiddleware, async (req, res) => {

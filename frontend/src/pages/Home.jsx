@@ -58,7 +58,7 @@ export default function Home() {
           setLatestOrder(
             resOrder.data && Object.keys(resOrder.data).length > 0
               ? resOrder.data
-              : null
+              : null,
           );
         } catch (err) {
           console.error("Failed to fetch latest order:", err);
@@ -143,15 +143,16 @@ export default function Home() {
 
     const weekOrder = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const sortedDays = [...weeklyDays].sort(
-      (a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b)
+      (a, b) => weekOrder.indexOf(a) - weekOrder.indexOf(b),
     );
 
     if (isTemporarilyClosed) {
       setServiceAvailable(false);
       setMessage(
         <span>
-          ⚠️ Service temporarily closed. {tempCloseReason || "Please check back later."}
-        </span>
+          ⚠️ Service temporarily closed.{" "}
+          {tempCloseReason || "Please check back later."}
+        </span>,
       );
     } else if (!withinDays) {
       setServiceAvailable(false);
@@ -159,7 +160,7 @@ export default function Home() {
         <span className="flex flex-col gap-1">
           ⚠️ Our service is not available today. We operate on the following
           days: <strong>{sortedDays.join(", ")}</strong>.
-        </span>
+        </span>,
       );
     } else if (!beforeCutoff) {
       setServiceAvailable(false);
@@ -176,7 +177,7 @@ export default function Home() {
             <FiPhoneCall size={16} />
             +251 95 472 4664
           </a>
-        </span>
+        </span>,
       );
     } else {
       setServiceAvailable(true);
@@ -278,7 +279,10 @@ export default function Home() {
         });
       }
     } catch (err) {
-      setToast({ message: "⚠️ Failed to enable notifications.", type: "error" });
+      setToast({
+        message: "⚠️ Failed to enable notifications.",
+        type: "error",
+      });
     } finally {
       setPushLoading(false);
     }
@@ -357,10 +361,10 @@ export default function Home() {
             pushEnabled
               ? "bg-green-600 text-white cursor-default"
               : !pushSupported
-              ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-              : pushLoading
-              ? "bg-amber-300 text-white cursor-wait"
-              : "bg-amber-500 hover:bg-amber-600 text-white"
+                ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                : pushLoading
+                  ? "bg-amber-300 text-white cursor-wait"
+                  : "bg-amber-500 hover:bg-amber-600 text-white"
           }`}
           title={
             pushEnabled
@@ -371,8 +375,8 @@ export default function Home() {
           {pushEnabled
             ? "🔔 Notifications Enabled"
             : pushLoading
-            ? "Enabling..."
-            : "🔔 Enable Notifications"}
+              ? "Enabling..."
+              : "🔔 Enable Notifications"}
         </button>
       </div>
 

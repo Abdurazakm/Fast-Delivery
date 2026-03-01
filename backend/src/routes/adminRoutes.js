@@ -3,52 +3,64 @@ const bcrypt = require("bcryptjs");
 const { PrismaClient } = require("@prisma/client");
 const router = express.Router();
 const prisma = new PrismaClient();
-const { authMiddleware, adminMiddleware } = require("../middlewares/authMiddleware");
+const {
+  authMiddleware,
+  adminMiddleware,
+} = require("../middlewares/authMiddleware");
 const { normalizePhone } = require("../utils/phone");
 const { normalizePricing, getActivePricing } = require("../config/pricing");
 const { emitPricingUpdated } = require("../socket");
 
-router.post("/create-admin", authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    const { name, phone, password } = req.body;
+router.post(
+  "/create-admin",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const { name, phone, password } = req.body;
 
-    if (!name || !phone || !password) {
-      return res.status(400).json({ message: "Missing fields" });
+      if (!name || !phone || !password) {
+        return res.status(400).json({ message: "Missing fields" });
+      }
+
+      const normalizedPhone = normalizePhone(phone);
+
+      const existing = await prisma.user.findUnique({
+        where: { phone: normalizedPhone },
+      });
+
+      if (existing) {
+        return res.status(400).json({ message: "Phone already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      await prisma.user.create({
+        data: {
+          name,
+          phone: normalizedPhone,
+          password: hashedPassword,
+          role: "admin",
+          block: "",
+        },
+      });
+
+      res.json({ message: "Admin created" });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Server error" });
     }
-
-    const normalizedPhone = normalizePhone(phone);
-
-    const existing = await prisma.user.findUnique({
-      where: { phone: normalizedPhone },
-    });
-
-    if (existing) {
-      return res.status(400).json({ message: "Phone already exists" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await prisma.user.create({
-      data: {
-        name,
-        phone: normalizedPhone,
-        password: hashedPassword,
-        role: "admin",
-        block: "",
-      },
-    });
-
-    res.json({ message: "Admin created" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+  },
+);
 
 router.get("/stats", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const today = new Date();
-    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const start = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
 
     const [ordersToday, incomeTodayAgg] = await Promise.all([
       prisma.order.count({ where: { createdAt: { gte: start } } }),

@@ -222,19 +222,19 @@ export default function AdminDashboard() {
       await API.put(
         `/orders/${id}/status`,
         { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setOrders((prevOrders) =>
         (prevOrders || []).map((order) =>
-          order.id === id ? { ...order, status: newStatus } : order
-        )
+          order.id === id ? { ...order, status: newStatus } : order,
+        ),
       );
 
       // highlight for 3s
       setTimeout(
         () => setPrevStatuses((prev) => ({ ...prev, [id]: undefined })),
-        3000
+        3000,
       );
 
       setMessage("✅ Status updated successfully");
@@ -283,7 +283,7 @@ export default function AdminDashboard() {
   const nextDay = () => {
     const today = dayjs();
     setSelectedDate((prev) =>
-      prev.isSame(today, "day") ? prev : prev.add(1, "day")
+      prev.isSame(today, "day") ? prev : prev.add(1, "day"),
     );
   };
 
@@ -294,7 +294,9 @@ export default function AdminDashboard() {
     }
 
     if (item.foodType === "boiled_egg") {
-      return Number(pricing.boiledEggPrice) || Number(pricing.sambusaPrice) || 0;
+      return (
+        Number(pricing.boiledEggPrice) || Number(pricing.sambusaPrice) || 0
+      );
     }
 
     // Ertib
@@ -571,7 +573,7 @@ Normal - 110 Birr, Special - 135 Birr
       await API.post(
         "/orders/bulk-sms",
         { message: smsMessage, day: smsDay },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       showToast("✅ Notification sent to connected users!");
       closeSmsModal();
@@ -817,7 +819,7 @@ Normal - 110 Birr, Special - 135 Birr
                 console.log("Sending SMS message:\n", message);
 
                 const smsUrl = `sms:+251974149999?body=${encodeURIComponent(
-                  message
+                  message,
                 )}`;
                 window.location.href = smsUrl;
               }}
@@ -1078,8 +1080,8 @@ Normal - 110 Birr, Special - 135 Birr
                           onClick={() =>
                             navigate(
                               `/order?edit=${encodeURIComponent(
-                                order.trackingCode || orderId
-                              )}`
+                                order.trackingCode || orderId,
+                              )}`,
                             )
                           }
                           className="text-amber-600 hover:text-amber-800 p-2 rounded-md bg-amber-100 hover:bg-amber-200 transition"

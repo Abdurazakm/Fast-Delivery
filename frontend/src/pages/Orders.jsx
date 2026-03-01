@@ -159,7 +159,7 @@ export default function Order() {
       } catch (err) {
         console.error("Failed to load order for edit:", err);
         setMessage(
-          err.response?.data?.message || "Failed to load order for edit."
+          err.response?.data?.message || "Failed to load order for edit.",
         );
       }
     };
@@ -247,7 +247,7 @@ export default function Order() {
 
         // Normal text/select values
         return { ...item, [name]: value };
-      })
+      }),
     );
   };
 
@@ -392,7 +392,7 @@ export default function Order() {
       setMessage(
         err.response?.data?.message ||
           err.message ||
-          "Failed to place order. Try again."
+          "Failed to place order. Try again.",
       );
     } finally {
       setLoading(false);
@@ -741,7 +741,7 @@ export default function Order() {
                 {items.reduce(
                   (sum, item) =>
                     sum + getUnitPrice(item) * Number(item.quantity || 0),
-                  0
+                  0,
                 )}{" "}
                 Birr
               </div>
@@ -773,7 +773,7 @@ export default function Order() {
                 {items.reduce(
                   (sum, item) =>
                     sum + getUnitPrice(item) * Number(item.quantity || 0),
-                  0
+                  0,
                 )}{" "}
                 Birr
               </div>
@@ -793,8 +793,8 @@ export default function Order() {
                   {loading
                     ? "Placing..."
                     : editMode
-                    ? "Update Order"
-                    : "Confirm Order"}
+                      ? "Update Order"
+                      : "Confirm Order"}
                 </button>
               </div>
             </div>
