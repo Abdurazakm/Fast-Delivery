@@ -3,6 +3,10 @@ const router = express.Router();
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 const { emitAvailabilityUpdated } = require("../socket");
+const {
+  authMiddleware,
+  adminMiddleware,
+} = require("../middlewares/authMiddleware");
 
 // GET current availability
 router.get("/", async (req, res) => {
@@ -20,7 +24,7 @@ router.get("/", async (req, res) => {
 });
 
 // POST or PUT — create/update availability
-router.post("/", async (req, res) => {
+router.post("/", authMiddleware, adminMiddleware, async (req, res) => {
   const { weeklyDays, cutoffTime, isTemporarilyClosed, tempCloseReason } =
     req.body;
 

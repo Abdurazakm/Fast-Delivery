@@ -32,7 +32,7 @@ const DEFAULT_PRICING = {
   doubleFelafilCost: 0,
 };
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ user }) {
   const [orders, setOrders] = useState([]);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -51,6 +51,11 @@ export default function AdminDashboard() {
   const [smsMessage, setSmsMessage] = useState("");
   const [smsDay, setSmsDay] = useState(""); // Mon, Tue, etc.
   const [toast, setToast] = useState(null);
+
+  const roleLower = (user?.role || "").toLowerCase();
+  const isEmploy = roleLower === "employ" || roleLower === "employee";
+  const isAdmin = roleLower === "admin";
+  const canManageStatus = isAdmin || isEmploy;
 
   const token = localStorage.getItem("token");
 
@@ -212,6 +217,10 @@ export default function AdminDashboard() {
   }, [selectedDate]);
 
   const updateStatus = async (id, newStatus) => {
+    if (!canManageStatus) {
+      setMessage("⛔ You do not have permission to update status.");
+      return;
+    }
     try {
       const token = localStorage.getItem("token");
 
@@ -245,6 +254,10 @@ export default function AdminDashboard() {
   };
 
   const updatePaymentStatus = async (id, newPaymentStatus) => {
+    if (!isAdmin) {
+      setMessage("⛔ Employ accounts have read-only access.");
+      return;
+    }
     try {
       const token = localStorage.getItem("token");
 
@@ -676,7 +689,7 @@ Normal - 110 Birr, Special - 135 Birr
           {/* Right side: Download + Plus button */}
           <div className="flex items-center space-x-2">
             {/* Download Summary Report Button */}
-            {searchableOrders.length > 0 && (
+            {!isEmploy && searchableOrders.length > 0 && (
               <button
                 onClick={downloadSummaryReport}
                 className="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 flex items-center justify-center"
@@ -687,12 +700,14 @@ Normal - 110 Birr, Special - 135 Birr
             )}
 
             {/* Plus button */}
-            <Link
-              to="/order"
-              className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
-            >
-              <FaPlus />
-            </Link>
+            {isAdmin && (
+              <Link
+                to="/order"
+                className="bg-amber-500 text-white p-2 rounded-full hover:bg-amber-600"
+              >
+                <FaPlus />
+              </Link>
+            )}
           </div>
         </div>
         {orders.length > 0 && (
@@ -720,27 +735,29 @@ Normal - 110 Birr, Special - 135 Birr
             </select>
 
             {/* Update All Status */}
-            <select
-              onChange={(e) => updateAllStatus(e.target.value)}
-              className="border rounded-md px-3 py-2 h-10 w-full sm:w-[220px] whitespace-normal break-words"
-              defaultValue=""
-            >
-              <option value="" disabled>
-                Select status
-              </option>
-              {[
-                "pending",
-                "in_progress",
-                "arrived",
-                "delivered",
-                "canceled",
-                "no_show",
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {s}
+            {canManageStatus && (
+              <select
+                onChange={(e) => updateAllStatus(e.target.value)}
+                className="border rounded-md px-3 py-2 h-10 w-full sm:w-[220px] whitespace-normal break-words"
+                defaultValue=""
+              >
+                <option value="" disabled>
+                  Select status
                 </option>
-              ))}
-            </select>
+                {[
+                  "pending",
+                  "in_progress",
+                  "arrived",
+                  "delivered",
+                  "canceled",
+                  "no_show",
+                ].map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         )}
 
@@ -874,21 +891,23 @@ Normal - 110 Birr, Special - 135 Birr
         {searchableOrders.length > 0 && (
           <div className="bg-amber-100 p-4 rounded-lg mb-4 shadow relative">
             {/* TOP RIGHT SEND SMS BUTTON */}
-            <button
-              title="Send summary SMS"
-              onClick={() => {
-                const message = buildSummaryMessage();
-                console.log("Sending SMS message:\n", message);
+            {isAdmin && (
+              <button
+                title="Send summary SMS"
+                onClick={() => {
+                  const message = buildSummaryMessage();
+                  console.log("Sending SMS message:\n", message);
 
-                const smsUrl = `sms:+251974149999?body=${encodeURIComponent(
-                  message,
-                )}`;
-                window.location.href = smsUrl;
-              }}
-              className="absolute top-3 right-3 text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
-            >
-              <FaPaperPlane className="text-md" />
-            </button>
+                  const smsUrl = `sms:+251974149999?body=${encodeURIComponent(
+                    message,
+                  )}`;
+                  window.location.href = smsUrl;
+                }}
+                className="absolute top-3 right-3 text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
+              >
+                <FaPaperPlane className="text-md" />
+              </button>
+            )}
 
             <h2 className="font-semibold text-lg mb-2 pr-10">
               📊 Order Summary ({selectedLocation})
@@ -923,16 +942,18 @@ Normal - 110 Birr, Special - 135 Birr
               ))}
             </div>
 
-            <div className="mt-2 text-sm font-medium">
-              <p>Total costs price: {totalertibPrice} Birr</p>
-              <p>Total Delivered Price: {totalPrice} Birr</p>
-              {/* <p>Estimated Sambusa Profit: {Math.round(sambusaProfit)} Birr</p>
-              <p>
-                Estimated Boiled Egg Profit: {Math.round(boiledEggProfit)} Birr
-              </p>
-              <p>Estimated Ertib Profit: {Math.round(ertibProfit)} Birr</p> */}
-              <p>Estimated Profit: {profit} Birr</p>
-            </div>
+            {!isEmploy && (
+              <div className="mt-2 text-sm font-medium">
+                <p>Total costs price: {totalertibPrice} Birr</p>
+                <p>Total Delivered Price: {totalPrice} Birr</p>
+                {/* <p>Estimated Sambusa Profit: {Math.round(sambusaProfit)} Birr</p>
+                <p>
+                  Estimated Boiled Egg Profit: {Math.round(boiledEggProfit)} Birr
+                </p>
+                <p>Estimated Ertib Profit: {Math.round(ertibProfit)} Birr</p> */}
+                <p>Estimated Profit: {profit} Birr</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -955,7 +976,7 @@ Normal - 110 Birr, Special - 135 Birr
                   <th className="p-3 text-left">Tracking</th>
                   <th className="p-3 text-left">Status</th>
                   <th className="p-3 text-left">Payment</th>
-                  <th className="p-3 text-left">Actions</th>
+                  {isAdmin && <th className="p-3 text-left">Actions</th>}
                 </tr>
               </thead>
 
@@ -1130,79 +1151,101 @@ Normal - 110 Birr, Special - 135 Birr
 
                       {/* Status */}
                       <td className="p-3">
-                        <select
-                          value={order.status}
-                          onChange={(e) =>
-                            updateStatus(orderId, e.target.value)
-                          }
-                          className={`border p-1 rounded-md font-medium ${
-                            statusColors[order.status]
-                          }`}
-                        >
-                          {[
-                            "pending",
-                            "in_progress",
-                            "arrived",
-                            "delivered",
-                            "canceled",
-                            "no_show",
-                          ].map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-
-                      {/* Payment */}
-                      <td className="p-3">
-                        <div className="flex items-center gap-2">
+                        {canManageStatus ? (
                           <select
-                            value={order.paymentStatus || "unpaid"}
+                            value={order.status}
                             onChange={(e) =>
-                              updatePaymentStatus(orderId, e.target.value)
+                              updateStatus(orderId, e.target.value)
                             }
                             className={`border p-1 rounded-md font-medium ${
-                              paymentStatusColors[
-                                order.paymentStatus || "unpaid"
-                              ] || paymentStatusColors.unpaid
+                              statusColors[order.status]
                             }`}
                           >
-                            {["unpaid", "paid"].map((s) => (
+                            {[
+                              "pending",
+                              "in_progress",
+                              "arrived",
+                              "delivered",
+                              "canceled",
+                              "no_show",
+                            ].map((s) => (
                               <option key={s} value={s}>
                                 {s}
                               </option>
                             ))}
                           </select>
-
-                          <button
-                            title="Send payment SMS"
-                            onClick={() => {
-                              const smsUrl = `sms:${
-                                order.phone
-                              }?body=${encodeURIComponent(paymentMessage)}`;
-                              window.location.href = smsUrl;
-                            }}
-                            className="text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
+                        ) : (
+                          <span
+                            className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${
+                              statusColors[order.status] ||
+                              "bg-gray-100 text-gray-700 border-gray-300"
+                            }`}
                           >
-                            <FaPaperPlane className="text-md" />
-                          </button>
+                            {order.status}
+                          </span>
+                        )}
+                      </td>
 
-                          <button
-                            title="Copy payment message"
-                            onClick={() => {
-                              navigator.clipboard.writeText(paymentMessage);
-                              showToast("Payment message copied!");
-                            }}
-                            className="text-gray-700 hover:text-gray-900 p-2 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm transition flex items-center justify-center"
+                      {/* Payment */}
+                      <td className="p-3">
+                        {isAdmin ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={order.paymentStatus || "unpaid"}
+                              onChange={(e) =>
+                                updatePaymentStatus(orderId, e.target.value)
+                              }
+                              className={`border p-1 rounded-md font-medium ${
+                                paymentStatusColors[
+                                  order.paymentStatus || "unpaid"
+                                ] || paymentStatusColors.unpaid
+                              }`}
+                            >
+                              {["unpaid", "paid"].map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+
+                            <button
+                              title="Send payment SMS"
+                              onClick={() => {
+                                const smsUrl = `sms:${
+                                  order.phone
+                                }?body=${encodeURIComponent(paymentMessage)}`;
+                                window.location.href = smsUrl;
+                              }}
+                              className="text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
+                            >
+                              <FaPaperPlane className="text-md" />
+                            </button>
+
+                            <button
+                              title="Copy payment message"
+                              onClick={() => {
+                                navigator.clipboard.writeText(paymentMessage);
+                                showToast("Payment message copied!");
+                              }}
+                              className="text-gray-700 hover:text-gray-900 p-2 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm transition flex items-center justify-center"
+                            >
+                              <FaCopy className="text-sm" />
+                            </button>
+                          </div>
+                        ) : (
+                          <span
+                            className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${
+                              paymentStatusColors[order.paymentStatus || "unpaid"] ||
+                              paymentStatusColors.unpaid
+                            }`}
                           >
-                            <FaCopy className="text-sm" />
-                          </button>
-                        </div>
+                            {order.paymentStatus || "unpaid"}
+                          </span>
+                        )}
                       </td>
 
                       {/* Actions */}
-                      <td className="p-3 flex items-center gap-3">
+                      {isAdmin && <td className="p-3 flex items-center gap-3">
                         {/* Edit */}
                         <button
                           title="Edit order"
@@ -1240,7 +1283,7 @@ Normal - 110 Birr, Special - 135 Birr
                         >
                           <FaPaperPlane className="text-md" />
                         </button>
-                      </td>
+                      </td>}
                     </tr>
                   );
                 })}
@@ -1289,16 +1332,18 @@ Normal - 110 Birr, Special - 135 Birr
           </div>
         </div>
       )}
-      <button
-        onClick={openSmsModal}
-        className="fixed bottom-6 right-6 bg-amber-500 hover:bg-amber-600 text-white p-4 rounded-full shadow-lg z-50 flex items-center justify-center"
-        title="Send Promotional SMS"
-      >
-        <FaRegEnvelope className="text-sm" />
-      </button>
+      {isAdmin && (
+        <button
+          onClick={openSmsModal}
+          className="fixed bottom-6 right-6 bg-amber-500 hover:bg-amber-600 text-white p-4 rounded-full shadow-lg z-50 flex items-center justify-center"
+          title="Send Promotional SMS"
+        >
+          <FaRegEnvelope className="text-sm" />
+        </button>
+      )}
 
       {/* SMS Modal */}
-      {smsModalOpen && (
+      {isAdmin && smsModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white p-6 rounded-xl w-96 shadow-lg relative">
             <h2 className="text-lg font-bold mb-4 text-amber-700">

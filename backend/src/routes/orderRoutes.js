@@ -9,6 +9,7 @@ const { sendSMS } = require("../services/smsService");
 const {
   authMiddleware,
   adminMiddleware,
+  adminOrEmployMiddleware,
 } = require("../middlewares/authMiddleware");
 
 const {
@@ -103,7 +104,7 @@ router.get("/pricing", async (req, res) => {
  *  List Orders (Admin) with Date Filter
  * ------------------------
  */
-router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
+router.get("/", authMiddleware, adminOrEmployMiddleware, async (req, res) => {
   try {
     const page = parseInt(req.query.page || "1");
     const limit = parseInt(req.query.limit || "100");
@@ -324,7 +325,7 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
  *  Update Order Status
  * ------------------------
  */
-router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
+router.put("/:id/status", authMiddleware, adminOrEmployMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -573,7 +574,7 @@ router.get("/latest", authMiddleware, async (req, res) => {
 router.get(
   "/manual-orders",
   authMiddleware,
-  adminMiddleware,
+  adminOrEmployMiddleware,
   async (req, res) => {
     try {
       const date = req.query.date;

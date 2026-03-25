@@ -169,12 +169,32 @@ function App() {
 
     return children;
   }
-  /* ---------------- Admin Protected Route ---------------- */
-  function AdminRoute({ children, user, loadingUser }) {
+  /* ---------------- Staff Protected Route ---------------- */
+  function AdminOrEmployRoute({ children, user, loadingUser }) {
     const navigate = useNavigate();
+    const role = (user?.role || "").toLowerCase();
+    const isStaff = role === "employ" || role === "employee";
 
     if (loadingUser) return null;
-    if (!user || user.role !== "admin") {
+    if (!user || (role !== "admin" && !isStaff)) {
+      return (
+        <Modal
+          title="⛔ Access Denied"
+          message="Only admin or employ accounts can access this page."
+          onClose={() => navigate("/")}
+        />
+      );
+    }
+
+    return children;
+  }
+
+  function AdminRoute({ children, user, loadingUser }) {
+    const navigate = useNavigate();
+    const role = (user?.role || "").toLowerCase();
+
+    if (loadingUser) return null;
+    if (!user || role !== "admin") {
       return (
         <Modal
           title="⛔ Access Denied"
@@ -329,9 +349,9 @@ function App() {
         <Route
           path="/admin"
           element={
-            <AdminRoute user={user} loadingUser={loadingUser}>
+            <AdminOrEmployRoute user={user} loadingUser={loadingUser}>
               <AdminDashboard user={user} />
-            </AdminRoute>
+            </AdminOrEmployRoute>
           }
         />
         <Route

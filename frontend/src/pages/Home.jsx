@@ -32,6 +32,7 @@ export default function Home() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushSupported, setPushSupported] = useState(true);
+  const roleLower = (user?.role || "").toLowerCase();
 
   // Fetch user & latest order
   useEffect(() => {
@@ -484,7 +485,9 @@ export default function Home() {
             </span>
           )}
 
-          {user?.role === "admin" && (
+          {(roleLower === "admin" ||
+            roleLower === "employ" ||
+            roleLower === "employee") && (
             <Link
               to="/admin"
               title="Admin Dashboard"

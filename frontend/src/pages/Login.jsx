@@ -25,13 +25,16 @@ const Login = () => {
       const res = await API.post("/auth/login", formData);
       const { token, user } = res.data;
       const { role, name } = user;
+      const roleLower = (role || "").toLowerCase();
 
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
       localStorage.setItem("name", name);
 
-      if (role?.toLowerCase() === "admin") {
+      if (roleLower === "admin") {
         navigate("/availability");
+      } else if (roleLower === "employ" || roleLower === "employee") {
+        navigate("/admin");
       } else {
         navigate("/");
       }

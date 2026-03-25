@@ -22,4 +22,13 @@ function adminMiddleware(req, res, next) {
   next();
 }
 
-module.exports = { authMiddleware, adminMiddleware };
+function adminOrEmployMiddleware(req, res, next) {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  const role = String(req.user.role || '').toLowerCase();
+  if (role !== 'admin' && role !== 'employ' && role !== 'employee') {
+    return res.status(403).json({ message: 'Admin or employ required' });
+  }
+  next();
+}
+
+module.exports = { authMiddleware, adminMiddleware, adminOrEmployMiddleware };
