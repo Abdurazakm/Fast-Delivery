@@ -11,6 +11,7 @@ import {
 } from "react-icons/fi";
 import API from "../api";
 import { motion, AnimatePresence } from "framer-motion";
+import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
 
 // Toast component
 function Toast({ message, type = "success", onClose, duration = 3000 }) {
@@ -355,7 +356,9 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
                 : "bg-red-100 text-red-700 border-red-300"
             }`}
           >
-            Payment: {paymentStatus}
+            {paymentStatus === "paid"
+              ? "Payment: paid"
+              : "Payment: unpaid (not confirmed yet)"}
           </span>
         </div>
         {order.trackUrl && (
@@ -369,6 +372,15 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
           </a>
         )}
       </div>
+
+      {paymentStatus === "unpaid" && (
+        <PaymentInstructionsCard
+          amount={totalPrice}
+          onCopy={(copyMessage) =>
+            setToast({ message: copyMessage, type: "success" })
+          }
+        />
+      )}
 
       {/* Horizontal Scrollable Progress Bar */}
       <div className="mt-4 overflow-x-auto py-2">

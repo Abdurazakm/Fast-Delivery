@@ -1010,6 +1010,23 @@ Normal - 110 Birr, Special - 135 Birr
                       return sum + lt;
                     }, 0);
 
+                  const paymentMessage = (() => {
+                    const name = order.customerName || "Customer";
+                    const code = order.trackingCode || orderId || "--";
+                    const greeting =
+                      order.source === "manual" ? "Hello" : `Hello ${name}`;
+                    const totalBirr = Number(displayedTotal || 0).toFixed(2);
+                    const payment = String(
+                      order.paymentStatus || "unpaid",
+                    ).toLowerCase();
+
+                    if (payment === "paid") {
+                      return `${greeting}! ✅ We have received your payment for order (Code: ${code}). Your order is now confirmed and being processed. Track your order here: ${baseLink}`;
+                    }
+
+                    return `${greeting}! 💳 Payment is still required for your order (Code: ${code}).\n\nAmount to pay: ${totalBirr} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\n🏦 CBE\n1000528463243 (Abdurazak Mohammed)\n\n📱 Telebirr\n0954724664 (Nur Muhammed)\n\n🏦 CBEBirr\n0954724664 (Abdurazak Mohammed)\n\n📸 After payment, send screenshot via Telegram:\nhttps://t.me/ABDURAZACQ\n\nTrack your order: ${baseLink}`;
+                  })();
+
                   return (
                     <tr
                       key={orderKey}
@@ -1139,23 +1156,49 @@ Normal - 110 Birr, Special - 135 Birr
 
                       {/* Payment */}
                       <td className="p-3">
-                        <select
-                          value={order.paymentStatus || "unpaid"}
-                          onChange={(e) =>
-                            updatePaymentStatus(orderId, e.target.value)
-                          }
-                          className={`border p-1 rounded-md font-medium ${
-                            paymentStatusColors[
-                              order.paymentStatus || "unpaid"
-                            ] || paymentStatusColors.unpaid
-                          }`}
-                        >
-                          {["unpaid", "paid"].map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={order.paymentStatus || "unpaid"}
+                            onChange={(e) =>
+                              updatePaymentStatus(orderId, e.target.value)
+                            }
+                            className={`border p-1 rounded-md font-medium ${
+                              paymentStatusColors[
+                                order.paymentStatus || "unpaid"
+                              ] || paymentStatusColors.unpaid
+                            }`}
+                          >
+                            {["unpaid", "paid"].map((s) => (
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            title="Send payment SMS"
+                            onClick={() => {
+                              const smsUrl = `sms:${
+                                order.phone
+                              }?body=${encodeURIComponent(paymentMessage)}`;
+                              window.location.href = smsUrl;
+                            }}
+                            className="text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
+                          >
+                            <FaPaperPlane className="text-md" />
+                          </button>
+
+                          <button
+                            title="Copy payment message"
+                            onClick={() => {
+                              navigator.clipboard.writeText(paymentMessage);
+                              showToast("Payment message copied!");
+                            }}
+                            className="text-gray-700 hover:text-gray-900 p-2 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm transition flex items-center justify-center"
+                          >
+                            <FaCopy className="text-sm" />
+                          </button>
+                        </div>
                       </td>
 
                       {/* Actions */}

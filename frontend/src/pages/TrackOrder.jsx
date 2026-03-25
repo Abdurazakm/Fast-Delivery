@@ -5,6 +5,7 @@ import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
 import { FiArrowLeft } from "react-icons/fi";
 import { getSocket } from "../socket";
+import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
 
 export default function TrackOrder() {
   const { code } = useParams();
@@ -120,9 +121,15 @@ export default function TrackOrder() {
             <span
               className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${paymentBadgeClass}`}
             >
-              Payment: {paymentStatus}
+              {paymentStatus === "paid"
+                ? "Payment: paid"
+                : "Payment: unpaid (not confirmed yet)"}
             </span>
           </div>
+
+          {paymentStatus === "unpaid" && (
+            <PaymentInstructionsCard amount={order?.total} />
+          )}
         </div>
       </div>
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0 mt-4 sm:mt-6">

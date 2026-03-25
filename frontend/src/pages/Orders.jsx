@@ -6,6 +6,7 @@ import { FaPaperPlane } from "react-icons/fa";
 import Toast from "./Toast";
 import API from "../api";
 import { getSocket } from "../socket";
+import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -341,6 +342,8 @@ export default function Order() {
           trackingLink: updated.trackUrl,
           createdByAdmin: updated.userRole === "admin",
           customerPhone: updated.phone,
+          paymentStatus: updated.paymentStatus || "unpaid",
+          total: updated.total ?? total,
         });
 
         setEditMode(false);
@@ -369,6 +372,8 @@ export default function Order() {
           trackingLink: orderData.trackUrl,
           createdByAdmin: user?.role === "admin",
           customerPhone: orderData.phone || customer.phone,
+          paymentStatus: orderData.paymentStatus || "unpaid",
+          total: orderData.total ?? total,
         });
       }
 
@@ -400,6 +405,21 @@ export default function Order() {
   };
 
   const handleBack = () => setReviewMode(false);
+
+  const buildManualOrderSmsMessage = () => {
+    if (!tracking) return "";
+
+    const code = tracking.trackingCode || "--";
+    const trackLink = tracking.trackingLink || "";
+    const paymentStatus = String(tracking.paymentStatus || "unpaid").toLowerCase();
+    const amount = Number(tracking.total || 0).toFixed(2);
+
+    if (paymentStatus === "paid") {
+      return `Hello, we received your payment for order (Code: ${code}). Your order is confirmed and being prepared. Track: ${trackLink}`;
+    }
+
+    return `Hello, your order (Code: ${code}) has been created, but payment is still required.\n\nAmount to pay: ${amount} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\nCBE: 1000528463243 (Abdurazak Mohammed)\nTelebirr: 0954724664 (Nur Muhammed)\nCBEBirr: 0954724664 (Abdurazak Mohammed)\n\nAfter payment, send screenshot via Telegram: https://t.me/ABDURAZACQ\n\nTrack: ${trackLink}`;
+  };
 
   const getMessageMeta = (msg) => {
     if (!msg) return { container: "", icon: "" };
@@ -522,7 +542,7 @@ export default function Order() {
                   <button
                     title="Send order SMS"
                     onClick={() => {
-                      const messageToSend = `Hello, your order (Code: ${tracking.trackingCode}) is confirmed. Track: ${tracking.trackingLink}`;
+                      const messageToSend = buildManualOrderSmsMessage();
                       const smsUrl = `sms:${
                         tracking.customerPhone
                       }?body=${encodeURIComponent(messageToSend)}`;
@@ -586,6 +606,16 @@ export default function Order() {
                         <FiCopy />
                       </button>
                     </div>
+
+                    {(tracking.paymentStatus || "unpaid").toLowerCase() ===
+                      "unpaid" && (
+                      <PaymentInstructionsCard
+                        amount={tracking.total}
+                        onCopy={(copyMessage) =>
+                          setToast({ message: copyMessage, type: "success" })
+                        }
+                      />
+                    )}
                   </>
                 )}
               </div>
