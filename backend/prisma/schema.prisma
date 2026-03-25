@@ -29,6 +29,7 @@ model Order {
   source        String   @default("online")
   total         Float
   status        String   @default("pending")
+  paymentStatus String   @default("unpaid")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   userId        Int?

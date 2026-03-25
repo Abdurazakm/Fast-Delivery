@@ -1,0 +1,2 @@
+ALTER TABLE "Order"
+ADD COLUMN IF NOT EXISTS "paymentStatus" TEXT NOT NULL DEFAULT 'unpaid';

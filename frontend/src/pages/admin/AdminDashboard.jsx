@@ -244,6 +244,31 @@ export default function AdminDashboard() {
     }
   };
 
+  const updatePaymentStatus = async (id, newPaymentStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      await API.put(
+        `/orders/${id}/payment-status`,
+        { paymentStatus: newPaymentStatus },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+
+      setOrders((prevOrders) =>
+        (prevOrders || []).map((order) =>
+          order.id === id
+            ? { ...order, paymentStatus: newPaymentStatus }
+            : order,
+        ),
+      );
+
+      setMessage("✅ Payment status updated successfully");
+    } catch (err) {
+      console.error("Failed to update payment status:", err);
+      setMessage("❌ Failed to update payment status");
+    }
+  };
+
   const updateAllStatus = (newStatus) => {
     if (!newStatus) return;
 
@@ -354,13 +379,17 @@ export default function AdminDashboard() {
         const location = String(order.location || "").toLowerCase();
         const trackingCode = String(order.trackingCode || "").toLowerCase();
         const status = String(order.status || "").toLowerCase();
+        const paymentStatus = String(
+          order.paymentStatus || "unpaid",
+        ).toLowerCase();
 
         return (
           customerName.includes(normalizedSearch) ||
           phone.includes(normalizedSearch) ||
           location.includes(normalizedSearch) ||
           trackingCode.includes(normalizedSearch) ||
-          status.includes(normalizedSearch)
+          status.includes(normalizedSearch) ||
+          paymentStatus.includes(normalizedSearch)
         );
       })
     : filteredOrders;
@@ -435,6 +464,11 @@ export default function AdminDashboard() {
     delivered: "bg-green-100 text-green-700 border-green-400",
     canceled: "bg-red-100 text-red-700 border-red-400",
     no_show: "bg-gray-200 text-gray-700 border-gray-400",
+  };
+
+  const paymentStatusColors = {
+    paid: "bg-green-100 text-green-700 border-green-400",
+    unpaid: "bg-red-100 text-red-700 border-red-400",
   };
 
   const toggleCheckbox = (key) => {
@@ -906,9 +940,7 @@ Normal - 110 Birr, Special - 135 Birr
           <p className="text-center text-gray-500">Loading orders...</p>
         ) : searchableOrders.length === 0 ? (
           <p className="text-center text-gray-500">
-            {normalizedSearch
-              ? "🔎 No orders matched your search."
-              : message}
+            {normalizedSearch ? "🔎 No orders matched your search." : message}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -922,6 +954,7 @@ Normal - 110 Birr, Special - 135 Birr
                   <th className="p-3 text-left">Total(Birr)</th>
                   <th className="p-3 text-left">Tracking</th>
                   <th className="p-3 text-left">Status</th>
+                  <th className="p-3 text-left">Payment</th>
                   <th className="p-3 text-left">Actions</th>
                 </tr>
               </thead>
@@ -1097,6 +1130,27 @@ Normal - 110 Birr, Special - 135 Birr
                             "canceled",
                             "no_show",
                           ].map((s) => (
+                            <option key={s} value={s}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+
+                      {/* Payment */}
+                      <td className="p-3">
+                        <select
+                          value={order.paymentStatus || "unpaid"}
+                          onChange={(e) =>
+                            updatePaymentStatus(orderId, e.target.value)
+                          }
+                          className={`border p-1 rounded-md font-medium ${
+                            paymentStatusColors[
+                              order.paymentStatus || "unpaid"
+                            ] || paymentStatusColors.unpaid
+                          }`}
+                        >
+                          {["unpaid", "paid"].map((s) => (
                             <option key={s} value={s}>
                               {s}
                             </option>

@@ -71,6 +71,12 @@ export default function TrackOrder() {
   const isManual =
     (order?.source || "").toString().trim().toLowerCase() === "manual";
 
+  const paymentStatus = (order?.paymentStatus || "unpaid").toLowerCase();
+  const paymentBadgeClass =
+    paymentStatus === "paid"
+      ? "bg-green-100 text-green-700 border-green-300"
+      : "bg-red-100 text-red-700 border-red-300";
+
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       {/* Back to Home Button */}
@@ -107,6 +113,14 @@ export default function TrackOrder() {
             </strong>
             <span className="ml-2 sm:ml-4">
               Placed on: {new Date(order.createdAt).toLocaleString()}
+            </span>
+          </div>
+
+          <div className="mt-3">
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${paymentBadgeClass}`}
+            >
+              Payment: {paymentStatus}
             </span>
           </div>
         </div>

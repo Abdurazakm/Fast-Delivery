@@ -24,8 +24,8 @@ const {
 } = require("../socket");
 
 const TRACK_BASE_URL =
-  process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
-// process.env.TRACK_BASE_URL || "http://localhost:5173/track";
+  // process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
+process.env.TRACK_BASE_URL || "http://localhost:5173/track";
 
 function optionalAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization || "";
@@ -361,10 +361,7 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
     emitGlobalNotification({
       type: "status",
       title: "Order Status Updated",
-      message: `Order is now ${status.replace(
-        "_",
-        " ",
-      )}.`,
+      message: `Order is now ${status.replace("_", " ")}.`,
       trackingCode: updatedOrder.trackingCode,
       url: `/track/${updatedOrder.trackingCode}`,
       status,
@@ -376,6 +373,40 @@ router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+router.put(
+  "/:id/payment-status",
+  authMiddleware,
+  adminMiddleware,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { paymentStatus } = req.body;
+
+      const allowedPaymentStatuses = ["paid", "unpaid"];
+      if (!allowedPaymentStatuses.includes(paymentStatus)) {
+        return res.status(400).json({ message: "Invalid payment status" });
+      }
+
+      const order = await prisma.order.findUnique({
+        where: { id: parseInt(id) },
+      });
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      const updatedOrder = await prisma.order.update({
+        where: { id: parseInt(id) },
+        data: { paymentStatus },
+      });
+
+      emitOrderUpdated(updatedOrder, "payment-status");
+
+      res.json({ message: "Payment status updated", orderId: order.id });
+    } catch (err) {
+      console.error("❌ Error updating payment status:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
 
 /**
  * ------------------------
@@ -409,6 +440,7 @@ router.get("/track/:code", async (req, res) => {
       trackingCode: order.trackingCode,
       trackUrl: order.trackUrl,
       status: order.status,
+      paymentStatus: order.paymentStatus || "unpaid",
       statusHistory: order.statusHistory || [],
       customerName: order.customerName,
       phone: order.phone,
@@ -570,6 +602,7 @@ router.get(
           items: true,
           total: true,
           status: true,
+          paymentStatus: true,
         },
       });
 

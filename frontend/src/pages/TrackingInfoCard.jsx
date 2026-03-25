@@ -140,6 +140,9 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
   const currentIndex = statusSteps.indexOf(currentOrder.status);
   const isManual =
     (currentOrder?.source || "").toString().trim().toLowerCase() === "manual";
+  const paymentStatus = (currentOrder?.paymentStatus || "unpaid")
+    .toString()
+    .toLowerCase();
 
   const statusMessages = {
     pending: "✅ Your order has been received.",
@@ -343,6 +346,17 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
       <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div>
           <strong>Status:</strong> {order.status.replace("_", " ")}
+        </div>
+        <div>
+          <span
+            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${
+              paymentStatus === "paid"
+                ? "bg-green-100 text-green-700 border-green-300"
+                : "bg-red-100 text-red-700 border-red-300"
+            }`}
+          >
+            Payment: {paymentStatus}
+          </span>
         </div>
         {order.trackUrl && (
           <a

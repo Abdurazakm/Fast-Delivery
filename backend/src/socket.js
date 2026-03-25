@@ -48,6 +48,7 @@ function toOrderPayload(order) {
     trackingCode: order.trackingCode,
     trackUrl: order.trackUrl,
     status: order.status,
+    paymentStatus: order.paymentStatus || "unpaid",
     statusHistory: order.statusHistory || [],
     customerName: order.customerName,
     phone: order.phone,
