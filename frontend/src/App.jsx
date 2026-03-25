@@ -173,7 +173,8 @@ function App() {
   function AdminOrEmployRoute({ children, user, loadingUser }) {
     const navigate = useNavigate();
     const role = (user?.role || "").toLowerCase();
-    const isStaff = role === "employ" || role === "employee";
+    const isStaff =
+      role === "employ" || role === "employee" || role === "supleyer";
 
     if (loadingUser) return null;
     if (!user || (role !== "admin" && !isStaff)) {

@@ -33,7 +33,11 @@ const Login = () => {
 
       if (roleLower === "admin") {
         navigate("/availability");
-      } else if (roleLower === "employ" || roleLower === "employee") {
+      } else if (
+        roleLower === "employ" ||
+        roleLower === "employee" ||
+        roleLower === "supleyer"
+      ) {
         navigate("/admin");
       } else {
         navigate("/");

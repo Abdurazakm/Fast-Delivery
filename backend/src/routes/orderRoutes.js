@@ -10,6 +10,7 @@ const {
   authMiddleware,
   adminMiddleware,
   adminOrEmployMiddleware,
+  adminEmploySupleyerReadMiddleware,
 } = require("../middlewares/authMiddleware");
 
 const {
@@ -104,7 +105,7 @@ router.get("/pricing", async (req, res) => {
  *  List Orders (Admin) with Date Filter
  * ------------------------
  */
-router.get("/", authMiddleware, adminOrEmployMiddleware, async (req, res) => {
+router.get("/", authMiddleware, adminEmploySupleyerReadMiddleware, async (req, res) => {
   try {
     const page = parseInt(req.query.page || "1");
     const limit = parseInt(req.query.limit || "100");
@@ -574,7 +575,7 @@ router.get("/latest", authMiddleware, async (req, res) => {
 router.get(
   "/manual-orders",
   authMiddleware,
-  adminOrEmployMiddleware,
+  adminEmploySupleyerReadMiddleware,
   async (req, res) => {
     try {
       const date = req.query.date;

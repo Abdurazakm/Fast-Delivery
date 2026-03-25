@@ -54,6 +54,7 @@ export default function AdminDashboard({ user }) {
 
   const roleLower = (user?.role || "").toLowerCase();
   const isEmploy = roleLower === "employ" || roleLower === "employee";
+  const isSupleyer = roleLower === "supleyer";
   const isAdmin = roleLower === "admin";
   const canManageStatus = isAdmin || isEmploy;
 
@@ -689,7 +690,7 @@ Normal - 110 Birr, Special - 135 Birr
           {/* Right side: Download + Plus button */}
           <div className="flex items-center space-x-2">
             {/* Download Summary Report Button */}
-            {!isEmploy && searchableOrders.length > 0 && (
+            {(isAdmin || isSupleyer) && searchableOrders.length > 0 && (
               <button
                 onClick={downloadSummaryReport}
                 className="bg-green-500 text-white p-2 rounded-md hover:bg-green-600 flex items-center justify-center"
@@ -942,7 +943,7 @@ Normal - 110 Birr, Special - 135 Birr
               ))}
             </div>
 
-            {!isEmploy && (
+            {!isEmploy && !isSupleyer && (
               <div className="mt-2 text-sm font-medium">
                 <p>Total costs price: {totalertibPrice} Birr</p>
                 <p>Total Delivered Price: {totalPrice} Birr</p>
@@ -957,7 +958,7 @@ Normal - 110 Birr, Special - 135 Birr
           </div>
         )}
 
-        {loading ? (
+        {isSupleyer ? null : loading ? (
           <p className="text-center text-gray-500">Loading orders...</p>
         ) : searchableOrders.length === 0 ? (
           <p className="text-center text-gray-500">

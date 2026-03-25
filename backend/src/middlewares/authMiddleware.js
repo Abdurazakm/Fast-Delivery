@@ -31,4 +31,23 @@ function adminOrEmployMiddleware(req, res, next) {
   next();
 }
 
-module.exports = { authMiddleware, adminMiddleware, adminOrEmployMiddleware };
+function adminEmploySupleyerReadMiddleware(req, res, next) {
+  if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
+  const role = String(req.user.role || '').toLowerCase();
+  if (
+    role !== 'admin' &&
+    role !== 'employ' &&
+    role !== 'employee' &&
+    role !== 'supleyer'
+  ) {
+    return res.status(403).json({ message: 'Admin, employ, or supleyer required' });
+  }
+  next();
+}
+
+module.exports = {
+  authMiddleware,
+  adminMiddleware,
+  adminOrEmployMiddleware,
+  adminEmploySupleyerReadMiddleware,
+};

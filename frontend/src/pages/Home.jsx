@@ -487,7 +487,8 @@ export default function Home() {
 
           {(roleLower === "admin" ||
             roleLower === "employ" ||
-            roleLower === "employee") && (
+            roleLower === "employee" ||
+            roleLower === "supleyer") && (
             <Link
               to="/admin"
               title="Admin Dashboard"
