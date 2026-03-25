@@ -117,41 +117,46 @@ router.get("/pricing", async (req, res) => {
  *  List Orders (Admin) with Date Filter
  * ------------------------
  */
-router.get("/", authMiddleware, adminEmploySupleyerReadMiddleware, async (req, res) => {
-  try {
-    const page = parseInt(req.query.page || "1");
-    const limit = parseInt(req.query.limit || "100");
-    const filterStatus = req.query.status;
-    const dateStr = req.query.date; // YYYY-MM-DD format from frontend
+router.get(
+  "/",
+  authMiddleware,
+  adminEmploySupleyerReadMiddleware,
+  async (req, res) => {
+    try {
+      const page = parseInt(req.query.page || "1");
+      const limit = parseInt(req.query.limit || "100");
+      const filterStatus = req.query.status;
+      const dateStr = req.query.date; // YYYY-MM-DD format from frontend
 
-    let where = {};
+      let where = {};
 
-    if (filterStatus) {
-      where.status = filterStatus;
+      if (filterStatus) {
+        where.status = filterStatus;
+      }
+
+      if (dateStr) {
+        const start = new Date(dateStr + "T00:00:00.000Z");
+        const end = new Date(dateStr + "T23:59:59.999Z");
+        where.createdAt = { gte: start, lte: end };
+      }
+
+      const [orders, total] = await Promise.all([
+        prisma.order.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.order.count({ where }),
+      ]);
+
+      res.json({ data: orders, total, page, limit });
+    } catch (err) {
+      console.error("❌ Error listing orders:", err);
+      res.status(500).json({ message: "Server error" });
     }
-
-    if (dateStr) {
-      const start = new Date(dateStr + "T00:00:00.000Z");
-      const end = new Date(dateStr + "T23:59:59.999Z");
-      where.createdAt = { gte: start, lte: end };
-    }
-
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.order.count({ where }),
-    ]);
-
-    res.json({ data: orders, total, page, limit });
-  } catch (err) {
-    console.error("❌ Error listing orders:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+  },
+);
 
 router.post(
   "/",
@@ -179,9 +184,8 @@ router.post(
       }
 
       // Prevent accidental double orders: suggest editing a recent active order.
-      const existingRecentOrder = await findRecentActiveOrderByPhone(
-        normalizedPhone,
-      );
+      const existingRecentOrder =
+        await findRecentActiveOrderByPhone(normalizedPhone);
       const isAdminRequester =
         String(req.userRole || "").toLowerCase() === "admin";
       const canOverrideDuplicate = !!forceCreateDuplicate && isAdminRequester;
@@ -304,9 +308,8 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
       return res.status(400).json({ message: "Invalid phone number" });
     }
 
-    const existingRecentOrder = await findRecentActiveOrderByPhone(
-      normalizedPhone,
-    );
+    const existingRecentOrder =
+      await findRecentActiveOrderByPhone(normalizedPhone);
     if (existingRecentOrder && !forceCreateDuplicate) {
       return res.status(409).json({
         message:
@@ -393,55 +396,60 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
  *  Update Order Status
  * ------------------------
  */
-router.put("/:id/status", authMiddleware, adminOrEmployMiddleware, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
+router.put(
+  "/:id/status",
+  authMiddleware,
+  adminOrEmployMiddleware,
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
 
-    const allowedStatuses = [
-      "pending",
-      "in_progress",
-      "arrived",
-      "delivered",
-      "canceled",
-      "no_show",
-    ];
-    if (!allowedStatuses.includes(status))
-      return res.status(400).json({ message: "Invalid status" });
+      const allowedStatuses = [
+        "pending",
+        "in_progress",
+        "arrived",
+        "delivered",
+        "canceled",
+        "no_show",
+      ];
+      if (!allowedStatuses.includes(status))
+        return res.status(400).json({ message: "Invalid status" });
 
-    const order = await prisma.order.findUnique({
-      where: { id: parseInt(id) },
-    });
-    if (!order) return res.status(404).json({ message: "Order not found" });
+      const order = await prisma.order.findUnique({
+        where: { id: parseInt(id) },
+      });
+      if (!order) return res.status(404).json({ message: "Order not found" });
 
-    // push to statusHistory
-    const newStatusEntry = { status, at: new Date().toISOString() };
-    const updatedHistory = [...(order.statusHistory || []), newStatusEntry];
+      // push to statusHistory
+      const newStatusEntry = { status, at: new Date().toISOString() };
+      const updatedHistory = [...(order.statusHistory || []), newStatusEntry];
 
-    const updatedOrder = await prisma.order.update({
-      where: { id: parseInt(id) },
-      data: {
+      const updatedOrder = await prisma.order.update({
+        where: { id: parseInt(id) },
+        data: {
+          status,
+          statusHistory: updatedHistory,
+        },
+      });
+
+      emitOrderUpdated(updatedOrder, "status");
+      emitGlobalNotification({
+        type: "status",
+        title: "Order Status Updated",
+        message: `Order is now ${status.replace("_", " ")}.`,
+        trackingCode: updatedOrder.trackingCode,
+        url: `/track/${updatedOrder.trackingCode}`,
         status,
-        statusHistory: updatedHistory,
-      },
-    });
+      });
 
-    emitOrderUpdated(updatedOrder, "status");
-    emitGlobalNotification({
-      type: "status",
-      title: "Order Status Updated",
-      message: `Order is now ${status.replace("_", " ")}.`,
-      trackingCode: updatedOrder.trackingCode,
-      url: `/track/${updatedOrder.trackingCode}`,
-      status,
-    });
-
-    res.json({ message: "Status updated", orderId: order.id });
-  } catch (err) {
-    console.error("❌ Error updating status:", err);
-    res.status(500).json({ message: "Server error" });
-  }
-});
+      res.json({ message: "Status updated", orderId: order.id });
+    } catch (err) {
+      console.error("❌ Error updating status:", err);
+      res.status(500).json({ message: "Server error" });
+    }
+  },
+);
 
 router.put(
   "/:id/payment-status",
