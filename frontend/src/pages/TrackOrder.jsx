@@ -127,9 +127,9 @@ export default function TrackOrder() {
             </span>
           </div>
 
-          {paymentStatus === "unpaid" && (
+          {/* {paymentStatus === "unpaid" && (
             <PaymentInstructionsCard amount={order?.total} />
-          )}
+          )} */}
         </div>
       </div>
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0 mt-4 sm:mt-6">

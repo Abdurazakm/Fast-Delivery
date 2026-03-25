@@ -90,6 +90,18 @@ async function isDuplicate(phone, items) {
   return recentOrders.some((o) => formatItems(o.items) === formatItems(items));
 }
 
+async function findRecentActiveOrderByPhone(phone) {
+  const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+  return prisma.order.findFirst({
+    where: {
+      phone,
+      createdAt: { gte: twelveHoursAgo },
+      status: { notIn: ["delivered", "canceled", "no_show"] },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 router.get("/pricing", async (req, res) => {
   try {
     const pricing = await getActivePricing(prisma);
@@ -147,7 +159,8 @@ router.post(
   checkServiceAvailability,
   async (req, res) => {
     try {
-      const { customerName, phone, location, items } = req.body;
+      const { customerName, phone, location, items, forceCreateDuplicate } =
+        req.body;
       const pricing = await getActivePricing(prisma);
 
       if (
@@ -163,6 +176,32 @@ router.post(
       const normalizedPhone = normalizePhone(phone);
       if (!isValidPhone(normalizedPhone)) {
         return res.status(400).json({ message: "Invalid phone number" });
+      }
+
+      // Prevent accidental double orders: suggest editing a recent active order.
+      const existingRecentOrder = await findRecentActiveOrderByPhone(
+        normalizedPhone,
+      );
+      const isAdminRequester =
+        String(req.userRole || "").toLowerCase() === "admin";
+      const canOverrideDuplicate = !!forceCreateDuplicate && isAdminRequester;
+
+      if (existingRecentOrder && !canOverrideDuplicate) {
+        return res.status(409).json({
+          message:
+            "You already have a recent active order with this phone number. Please edit the previous order instead of creating a new one.",
+          code: "EXISTING_PHONE_ORDER",
+          existingOrder: {
+            trackingCode: existingRecentOrder.trackingCode,
+            status: existingRecentOrder.status,
+            paymentStatus: existingRecentOrder.paymentStatus || "unpaid",
+            createdAt: existingRecentOrder.createdAt,
+            trackUrl:
+              existingRecentOrder.trackUrl ||
+              `${TRACK_BASE_URL}/${existingRecentOrder.trackingCode}`,
+            editUrl: `/order?edit=${existingRecentOrder.trackingCode}`,
+          },
+        });
       }
 
       let total = 0;
@@ -246,7 +285,14 @@ router.post(
  */
 router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { customerName, phone, location, items, notes } = req.body;
+    const {
+      customerName,
+      phone,
+      location,
+      items,
+      notes,
+      forceCreateDuplicate,
+    } = req.body;
     const pricing = await getActivePricing(prisma);
 
     if (!customerName || !phone || !location || !items?.length) {
@@ -256,6 +302,27 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
     const normalizedPhone = normalizePhone(phone);
     if (!isValidPhone(normalizedPhone)) {
       return res.status(400).json({ message: "Invalid phone number" });
+    }
+
+    const existingRecentOrder = await findRecentActiveOrderByPhone(
+      normalizedPhone,
+    );
+    if (existingRecentOrder && !forceCreateDuplicate) {
+      return res.status(409).json({
+        message:
+          "A recent active order already exists for this phone number. Edit the previous order, or continue anyway as admin.",
+        code: "EXISTING_PHONE_ORDER",
+        existingOrder: {
+          trackingCode: existingRecentOrder.trackingCode,
+          status: existingRecentOrder.status,
+          paymentStatus: existingRecentOrder.paymentStatus || "unpaid",
+          createdAt: existingRecentOrder.createdAt,
+          trackUrl:
+            existingRecentOrder.trackUrl ||
+            `${TRACK_BASE_URL}/${existingRecentOrder.trackingCode}`,
+          editUrl: `/order?edit=${existingRecentOrder.trackingCode}`,
+        },
+      });
     }
 
     let total = 0;
@@ -454,6 +521,43 @@ router.get("/track/:code", async (req, res) => {
     });
   } catch (err) {
     console.error("❌ Tracking error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+/**
+ * ------------------------
+ *  Get Order For Edit Prefill (by Tracking Code)
+ * ------------------------
+ */
+router.get("/track/:code/edit", async (req, res) => {
+  try {
+    const order = await prisma.order.findFirst({
+      where: { trackingCode: req.params.code },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    res.json({
+      id: order.id,
+      trackingCode: order.trackingCode,
+      trackUrl: order.trackUrl,
+      status: order.status,
+      paymentStatus: order.paymentStatus || "unpaid",
+      statusHistory: order.statusHistory || [],
+      customerName: order.customerName,
+      phone: order.phone,
+      location: order.location,
+      createdAt: order.createdAt,
+      total: order.total,
+      items: order.items || [],
+      source: order.source,
+    });
+  } catch (err) {
+    console.error("❌ Edit prefill load error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });

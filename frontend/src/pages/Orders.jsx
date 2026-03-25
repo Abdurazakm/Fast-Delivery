@@ -45,6 +45,7 @@ export default function Order() {
   const [editMode, setEditMode] = useState(false);
   const [editCode, setEditCode] = useState(null);
   const [toast, setToast] = useState(null);
+  const [duplicateOrderHint, setDuplicateOrderHint] = useState(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -119,7 +120,7 @@ export default function Order() {
 
     const fetchForEdit = async () => {
       try {
-        const res = await API.get(`/orders/track/${code}`);
+        const res = await API.get(`/orders/track/${code}/edit`);
         const o = res.data;
         if (o) {
           setCustomer({
@@ -304,9 +305,10 @@ export default function Order() {
     setReviewMode(true);
   };
 
-  const handleConfirmOrder = async () => {
+  const handleConfirmOrder = async ({ forceCreateDuplicate = false } = {}) => {
     setLoading(true);
     setMessage("");
+    setDuplicateOrderHint(null);
 
     // ensure numeric quantities and compute line totals
     const itemList = items.map((item) => {
@@ -325,6 +327,7 @@ export default function Order() {
       ...customer,
       items: itemList,
       total,
+      ...(forceCreateDuplicate ? { forceCreateDuplicate: true } : {}),
     };
 
     try {
@@ -394,6 +397,13 @@ export default function Order() {
       setReviewMode(false);
     } catch (err) {
       console.error("❌ Order failed:", err);
+      const duplicatePayload = err.response?.data;
+      if (
+        err.response?.status === 409 &&
+        duplicatePayload?.code === "EXISTING_PHONE_ORDER"
+      ) {
+        setDuplicateOrderHint(duplicatePayload.existingOrder || null);
+      }
       setMessage(
         err.response?.data?.message ||
           err.message ||
@@ -405,6 +415,15 @@ export default function Order() {
   };
 
   const handleBack = () => setReviewMode(false);
+
+  const handleEditPreviousOrder = (trackingCode) => {
+    if (!trackingCode) return;
+    setReviewMode(false);
+    setTracking(null);
+    setDuplicateOrderHint(null);
+    setMessage("Loading previous order for edit...");
+    navigate(`/order?edit=${trackingCode}`);
+  };
 
   const buildManualOrderSmsMessage = () => {
     if (!tracking) return "";
@@ -516,6 +535,54 @@ export default function Order() {
               >
                 <AiOutlineClose size={18} />
               </button>
+            </div>
+          )}
+
+          {duplicateOrderHint?.trackingCode && (
+            <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-sm">
+              <div className="font-semibold mb-1">Possible duplicate order detected</div>
+              <p className="mb-3">
+                An active recent order already exists for this phone number.
+                You can edit that order instead of creating a new one.
+              </p>
+
+              <div className="mb-3">
+                <span className="font-medium">Tracking code:</span>{" "}
+                <span className="bg-amber-100 px-2 py-1 rounded">
+                  {duplicateOrderHint.trackingCode}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleEditPreviousOrder(duplicateOrderHint.trackingCode)
+                  }
+                  className="px-3 py-2 rounded-lg bg-amber-700 text-white hover:bg-amber-800 transition"
+                >
+                  Edit Previous Order
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/track/${duplicateOrderHint.trackingCode}`)
+                  }
+                  className="px-3 py-2 rounded-lg border border-amber-700 text-amber-800 hover:bg-amber-100 transition"
+                >
+                  View Previous Order
+                </button>
+                {user?.role === "admin" && (
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmOrder({ forceCreateDuplicate: true })}
+                    disabled={loading}
+                    className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-60"
+                  >
+                    {loading ? "Creating..." : "Create Anyway (Admin)"}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
