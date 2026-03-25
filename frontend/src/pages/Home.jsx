@@ -26,7 +26,7 @@ export default function Home() {
   const [trackingCodeInput, setTrackingCodeInput] = useState("");
   const [trackingResult, setTrackingResult] = useState(null);
   const [trackingError, setTrackingError] = useState("");
-  const [latestOrder, setLatestOrder] = useState(null);
+  const [latestOrders, setLatestOrders] = useState([]);
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const [formattedCutoff, setFormattedCutoff] = useState(""); // <-- add this
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -48,27 +48,26 @@ export default function Home() {
         const currentUser = resUser.data;
         setUser(currentUser);
 
-        // 2️⃣ Fetch latest order for this user
+        // 2️⃣ Fetch all recent orders (last 12 hours) for this user
         try {
           const resOrder = await API.get("/orders/latest", {
             headers: { Authorization: `Bearer ${token}` },
           });
 
-          console.log("Latest order data:", resOrder.data); // 🔍 check what's returned
-
-          setLatestOrder(
-            resOrder.data && Object.keys(resOrder.data).length > 0
-              ? resOrder.data
-              : null,
-          );
+          const orders = Array.isArray(resOrder.data)
+            ? resOrder.data
+            : resOrder.data
+              ? [resOrder.data]
+              : [];
+          setLatestOrders(orders);
         } catch (err) {
-          console.error("Failed to fetch latest order:", err);
-          setLatestOrder(null);
+          console.error("Failed to fetch latest orders:", err);
+          setLatestOrders([]);
         }
       } catch (err) {
         console.error("❌ Failed to fetch user or order:", err);
         setUser(null);
-        setLatestOrder(null);
+        setLatestOrders([]);
       }
     };
 
@@ -526,11 +525,30 @@ export default function Home() {
           {/* Authenticated users */}
           {user ? (
             <>
-              {latestOrder ? (
-                <TrackingInfoCard order={latestOrder} />
+              {latestOrders.length > 0 ? (
+                <div className="space-y-3">
+                  {latestOrders.map((orderItem, index) => {
+                    const label =
+                      index === 0
+                        ? "Most recent order"
+                        : `Recent order #${index + 1}`;
+
+                    return (
+                      <div
+                        key={orderItem.id || orderItem.trackingCode || index}
+                        className="text-left"
+                      >
+                        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-1">
+                          {label}
+                        </p>
+                        <TrackingInfoCard order={orderItem} />
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="text-amber-500 text-sm text-center py-3">
-                  You have no orders today.
+                  You have no orders in the last 12 hours.
                 </div>
               )}
             </>

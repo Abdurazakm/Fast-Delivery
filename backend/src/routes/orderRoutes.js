@@ -551,8 +551,8 @@ router.get("/latest", authMiddleware, async (req, res) => {
     const now = new Date();
     const twelvyHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000); // 12 hours ago
 
-    // Fetch latest order in the last 12 hours for the logged-in user
-    const latestOrder = await prisma.order.findFirst({
+    // Fetch all orders in the last 12 hours for the logged-in user
+    const latestOrders = await prisma.order.findMany({
       where: {
         userId: req.user.id,
         createdAt: {
@@ -565,7 +565,7 @@ router.get("/latest", authMiddleware, async (req, res) => {
       },
     });
 
-    res.json(latestOrder || null);
+    res.json(latestOrders || []);
   } catch (err) {
     console.error("❌ Error fetching latest order:", err);
     res.status(500).json({ error: err.message });
