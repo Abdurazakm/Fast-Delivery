@@ -26,6 +26,11 @@ function App() {
   const [serverOffsetMs, setServerOffsetMs] = useState(0); // difference between server and client time
   const [notificationToast, setNotificationToast] = useState(null);
 
+  const handleLoginSuccess = (authenticatedUser) => {
+    setUser(authenticatedUser);
+    setLoadingUser(false);
+  };
+
   // Fetch current user
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -345,7 +350,10 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/login" element={<Login />} />
+        <Route
+          path="/login"
+          element={<Login onLoginSuccess={handleLoginSuccess} />}
+        />
         <Route path="/register" element={<Register />} />
         <Route
           path="/admin"

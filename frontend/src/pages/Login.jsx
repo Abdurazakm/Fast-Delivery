@@ -5,7 +5,7 @@ import { HiX } from "react-icons/hi";
 
 import API from "../api";
 
-const Login = () => {
+const Login = ({ onLoginSuccess }) => {
   const [formData, setFormData] = useState({ phone: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,6 +30,10 @@ const Login = () => {
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
       localStorage.setItem("name", name);
+
+      if (typeof onLoginSuccess === "function") {
+        onLoginSuccess(user);
+      }
 
       if (roleLower === "admin") {
         navigate("/availability");
