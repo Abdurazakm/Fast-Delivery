@@ -12,7 +12,7 @@ const PAYMENT_METHODS = [
     key: "telebirr",
     label: "Telebirr",
     accountNumber: "0954724664",
-    accountName: "Nur Muhammed",
+    accountName: "Nur Muhhammed",
   },
   {
     key: "cbebirr",
@@ -22,7 +22,12 @@ const PAYMENT_METHODS = [
   },
 ];
 
-export default function PaymentInstructionsCard({ amount, onCopy }) {
+export default function PaymentInstructionsCard({
+  amount,
+  trackingCode,
+  trackingLink,
+  onCopy,
+}) {
   const [copiedKey, setCopiedKey] = useState("");
 
   const handleCopy = async (method) => {
@@ -36,6 +41,20 @@ export default function PaymentInstructionsCard({ amount, onCopy }) {
     } catch (err) {
       if (onCopy) {
         onCopy("Could not copy account number. Please copy it manually.");
+      }
+    }
+  };
+
+  const copyText = async (value, successMessage, fallbackMessage) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      if (onCopy) {
+        onCopy(successMessage);
+      }
+    } catch (err) {
+      if (onCopy) {
+        onCopy(fallbackMessage);
       }
     }
   };
@@ -59,10 +78,39 @@ export default function PaymentInstructionsCard({ amount, onCopy }) {
 
         {Number.isFinite(Number(amount)) && (
           <div className="rounded-xl border border-rose-200 bg-rose-100 p-3 text-rose-900">
-            <p className="text-xs font-semibold uppercase tracking-wide">Amount To Pay</p>
+            <p className="text-xs font-semibold uppercase tracking-wide">
+              Amount To Pay
+            </p>
             <p className="mt-1 text-xl font-extrabold">
               {Number(amount).toFixed(2)} Birr
             </p>
+          </div>
+        )}
+
+        {trackingCode && (
+          <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sky-900">
+            <p className="text-xs font-semibold uppercase tracking-wide">
+              Tracking Code
+            </p>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <p className="font-mono text-base font-bold tracking-wide">
+                {trackingCode}
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  copyText(
+                    trackingCode,
+                    "Tracking code copied",
+                    "Could not copy tracking code. Please copy it manually.",
+                  )
+                }
+                className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+              >
+                <FiCopy />
+                Copy code
+              </button>
+            </div>
           </div>
         )}
 
@@ -105,7 +153,8 @@ export default function PaymentInstructionsCard({ amount, onCopy }) {
         </div>
 
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
-          After payment, send the screenshot via Telegram:
+          After payment, send your payment screenshot and your tracking code via
+          Telegram:
           <a
             href="https://t.me/ABDURAZACQ"
             target="_blank"

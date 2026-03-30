@@ -678,6 +678,8 @@ export default function Order() {
                       "unpaid" && (
                       <PaymentInstructionsCard
                         amount={tracking.total}
+                        trackingCode={tracking.trackingCode}
+                        trackingLink={tracking.trackingLink || tracking.trackUrl}
                         onCopy={(copyMessage) =>
                           setToast({ message: copyMessage, type: "success" })
                         }

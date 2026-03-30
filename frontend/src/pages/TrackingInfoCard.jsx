@@ -376,6 +376,8 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
       {paymentStatus === "unpaid" && (
         <PaymentInstructionsCard
           amount={totalPrice}
+          trackingCode={order.trackingCode}
+          trackingLink={order.trackUrl}
           onCopy={(copyMessage) =>
             setToast({ message: copyMessage, type: "success" })
           }
