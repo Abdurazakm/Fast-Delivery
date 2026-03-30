@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
   useNavigate,
+  useLocation,
 } from "react-router-dom";
 
 import Login from "./pages/Login";
@@ -317,8 +318,107 @@ function App() {
     initPushNotifications().catch(() => {});
   }, []);
 
+  function SeoManager() {
+    const location = useLocation();
+
+    useEffect(() => {
+      const siteUrl = "https://fetandelivery.netlify.app";
+      const defaultImage = `${siteUrl}/favicon.png`;
+
+      const routeSeo = {
+        "/": {
+          title:
+            "Fetan Delivery | AASTU Food Delivery in Addis Ababa",
+          description:
+            "Fast and reliable food delivery inside AASTU, Addis Ababa Science and Technology University. Order m tuludimtu, leyl's fast food, ertib, sambusa, and boiled egg from Fetan Delivery.",
+          robots: "index, follow",
+        },
+        "/order": {
+          title: "Order Now | Fetan Delivery AASTU",
+          description:
+            "Place your food order quickly inside AASTU with Fetan Delivery. Enjoy fast delivery for ertib, sambusa, boiled egg, and more in Addis Ababa.",
+          robots: "index, follow",
+        },
+        "/login": {
+          title: "Login | Fetan Delivery",
+          description:
+            "Login to your Fetan Delivery account to place and track food delivery orders inside AASTU, Addis Ababa.",
+          robots: "noindex, follow",
+        },
+        "/register": {
+          title: "Register | Fetan Delivery",
+          description:
+            "Create your Fetan Delivery account and start ordering fast food delivery inside Addis Ababa Science and Technology University (AASTU).",
+          robots: "noindex, follow",
+        },
+      };
+
+      const isTrackingPage = location.pathname.startsWith("/track/");
+      const seo = isTrackingPage
+        ? {
+            title: "Track Order | Fetan Delivery",
+            description:
+              "Track your Fetan Delivery order in real time inside AASTU, Addis Ababa.",
+            robots: "noindex, nofollow",
+          }
+        : routeSeo[location.pathname] || routeSeo["/"];
+
+      const keywords =
+        "AASTU food delivery, Addis Ababa Science and Technology University food delivery, Addis Ababa university food delivery, m tuludimtu delivery, leyl's fast food delivery, ertib delivery, sambusa delivery, boiled egg delivery, Fetan Delivery, fetandelivery.netlify.app, fast food delivery Addis Ababa";
+
+      const updateMetaByName = (name, content) => {
+        let tag = document.querySelector(`meta[name=\"${name}\"]`);
+        if (!tag) {
+          tag = document.createElement("meta");
+          tag.setAttribute("name", name);
+          document.head.appendChild(tag);
+        }
+        tag.setAttribute("content", content);
+      };
+
+      const updateMetaByProperty = (property, content) => {
+        let tag = document.querySelector(`meta[property=\"${property}\"]`);
+        if (!tag) {
+          tag = document.createElement("meta");
+          tag.setAttribute("property", property);
+          document.head.appendChild(tag);
+        }
+        tag.setAttribute("content", content);
+      };
+
+      const pageUrl = `${siteUrl}${location.pathname}`;
+
+      document.title = seo.title;
+      updateMetaByName("description", seo.description);
+      updateMetaByName("keywords", keywords);
+      updateMetaByName("robots", seo.robots);
+      updateMetaByName("twitter:card", "summary_large_image");
+      updateMetaByName("twitter:title", seo.title);
+      updateMetaByName("twitter:description", seo.description);
+      updateMetaByName("twitter:image", defaultImage);
+
+      updateMetaByProperty("og:type", "website");
+      updateMetaByProperty("og:site_name", "Fetan Delivery");
+      updateMetaByProperty("og:title", seo.title);
+      updateMetaByProperty("og:description", seo.description);
+      updateMetaByProperty("og:url", pageUrl);
+      updateMetaByProperty("og:image", defaultImage);
+
+      let canonical = document.querySelector("link[rel='canonical']");
+      if (!canonical) {
+        canonical = document.createElement("link");
+        canonical.setAttribute("rel", "canonical");
+        document.head.appendChild(canonical);
+      }
+      canonical.setAttribute("href", pageUrl);
+    }, [location.pathname]);
+
+    return null;
+  }
+
   return (
     <Router>
+      <SeoManager />
       {notificationToast && (
         <Toast
           message={notificationToast.message}
