@@ -1,8 +1,7 @@
 const express = require("express");
 const router = express.Router();
-const { PrismaClient } = require("@prisma/client");
 const jwt = require("jsonwebtoken");
-const prisma = new PrismaClient();
+const prisma = require("../config/prisma");
 const { normalizePhone, isValidPhone } = require("../utils/phone");
 const checkServiceAvailability = require("../middlewares/serviceAvailability");
 const { sendSMS } = require("../services/smsService");

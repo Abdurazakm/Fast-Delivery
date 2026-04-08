@@ -1,13 +1,12 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
-const { PrismaClient } = require("@prisma/client");
 const {
   isPushEnabled,
   getPublicVapidKey,
 } = require("../services/pushNotificationService");
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = require("../config/prisma");
 
 function getOptionalUserId(req) {
   const authHeader = req.headers.authorization || "";
