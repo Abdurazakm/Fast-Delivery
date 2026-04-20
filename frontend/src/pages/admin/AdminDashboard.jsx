@@ -116,7 +116,9 @@ export default function AdminDashboard({ user }) {
         onlineResult.status === "rejected" ||
         manualResult.status === "rejected"
       ) {
-        setMessage("⚠️ Some order sources failed to load. Showing available data.");
+        setMessage(
+          "⚠️ Some order sources failed to load. Showing available data.",
+        );
       }
 
       // Merge and deduplicate orders by a robust composite key.
