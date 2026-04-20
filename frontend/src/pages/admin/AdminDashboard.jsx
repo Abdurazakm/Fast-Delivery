@@ -22,12 +22,24 @@ const DEFAULT_PRICING = {
   boiledEggPrice: 30,
   ertibNormalPrice: 115,
   ertibSpecialPrice: 140,
+  fetiraBasePrice: 120,
+  fetiraExtraEggPrice: 30,
+  donut1PairPackagePrice: 60,
+  donut2PairPackagePrice: 120,
+  donut4PairPackagePrice: 220,
+  donut6PairPackagePrice: 320,
   extraKetchupPrice: 10,
   doubleFelafilPrice: 15,
   sambusaCost: 20,
   boiledEggCost: 20,
   ertibNormalCost: 100,
   ertibSpecialCost: 125,
+  fetiraBaseCost: 100,
+  fetiraExtraEggCost: 20,
+  donut1PairPackageCost: 45,
+  donut2PairPackageCost: 90,
+  donut4PairPackageCost: 170,
+  donut6PairPackageCost: 250,
   extraKetchupCost: 0,
   doubleFelafilCost: 0,
 };
@@ -66,25 +78,46 @@ export default function AdminDashboard({ user }) {
       setMessage("");
       const token = localStorage.getItem("token");
 
-      // Fetch online/normal orders
-      const resOnline = await API.get("/orders", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { date: date.format("YYYY-MM-DD") },
-      });
-      const onlineOrders = (resOnline.data.data || []).map((o) => ({
-        ...o,
-        source: "online",
-      }));
+      const [onlineResult, manualResult] = await Promise.allSettled([
+        API.get("/orders", {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { date: date.format("YYYY-MM-DD") },
+        }),
+        API.get("/orders/manual-orders", {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { date: date.format("YYYY-MM-DD") },
+        }),
+      ]);
 
-      // Fetch manual orders
-      const resManual = await API.get("/orders/manual-orders", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { date: date.format("YYYY-MM-DD") }, // pass selected day
-      });
-      const manualOrders = (resManual.data || []).map((o) => ({
-        ...o,
-        source: "manual",
-      }));
+      const onlineOrders =
+        onlineResult.status === "fulfilled"
+          ? (onlineResult.value.data.data || []).map((o) => ({
+              ...o,
+              source: "online",
+            }))
+          : [];
+
+      const manualOrders =
+        manualResult.status === "fulfilled"
+          ? (manualResult.value.data || []).map((o) => ({
+              ...o,
+              source: "manual",
+            }))
+          : [];
+
+      if (
+        onlineResult.status === "rejected" &&
+        manualResult.status === "rejected"
+      ) {
+        throw onlineResult.reason || manualResult.reason;
+      }
+
+      if (
+        onlineResult.status === "rejected" ||
+        manualResult.status === "rejected"
+      ) {
+        setMessage("⚠️ Some order sources failed to load. Showing available data.");
+      }
 
       // Merge and deduplicate orders by a robust composite key.
       const merged = [...onlineOrders, ...manualOrders];
@@ -338,6 +371,31 @@ export default function AdminDashboard({ user }) {
       );
     }
 
+    if (item.foodType === "fetira") {
+      const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
+      return (
+        (Number(pricing.fetiraBasePrice) || 0) +
+        extraEggs * (Number(pricing.fetiraExtraEggPrice) || 0)
+      );
+    }
+
+    if (item.foodType === "donut") {
+      const pairs = Number(item.donutPairsPerPackage) || 1;
+      if (pairs === 1) {
+        return (
+          Number(pricing.donut1PairPackagePrice) ||
+          (Number(pricing.donut2PairPackagePrice) || 0) / 2
+        );
+      }
+      if (pairs === 2) return Number(pricing.donut2PairPackagePrice) || 0;
+      if (pairs === 4) return Number(pricing.donut4PairPackagePrice) || 0;
+      if (pairs === 6) return Number(pricing.donut6PairPackagePrice) || 0;
+      const perPairRate =
+        Number(pricing.donut1PairPackagePrice) ||
+        (Number(pricing.donut2PairPackagePrice) || 0) / 2;
+      return Math.max(0, perPairRate * pairs);
+    }
+
     // Ertib
     const type = (item?.ertibType || "").toLowerCase();
     let base =
@@ -356,6 +414,31 @@ export default function AdminDashboard({ user }) {
 
     if (item.foodType === "boiled_egg") {
       return Number(pricing.boiledEggCost) || Number(pricing.sambusaCost) || 0;
+    }
+
+    if (item.foodType === "fetira") {
+      const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
+      return (
+        (Number(pricing.fetiraBaseCost) || 0) +
+        extraEggs * (Number(pricing.fetiraExtraEggCost) || 0)
+      );
+    }
+
+    if (item.foodType === "donut") {
+      const pairs = Number(item.donutPairsPerPackage) || 1;
+      if (pairs === 1) {
+        return (
+          Number(pricing.donut1PairPackageCost) ||
+          (Number(pricing.donut2PairPackageCost) || 0) / 2
+        );
+      }
+      if (pairs === 2) return Number(pricing.donut2PairPackageCost) || 0;
+      if (pairs === 4) return Number(pricing.donut4PairPackageCost) || 0;
+      if (pairs === 6) return Number(pricing.donut6PairPackageCost) || 0;
+      const perPairCost =
+        Number(pricing.donut1PairPackageCost) ||
+        (Number(pricing.donut2PairPackageCost) || 0) / 2;
+      return Math.max(0, perPairCost * pairs);
     }
 
     const type = (item?.ertibType || "").toLowerCase();
@@ -424,6 +507,17 @@ export default function AdminDashboard({ user }) {
       } else if (item.foodType === "boiled_egg") {
         key = "Boiled Egg";
         boiledEggProfit += lineProfit;
+      } else if (item.foodType === "fetira") {
+        const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
+        key =
+          extraEggs > 0
+            ? `Fetira (+${extraEggs} extra egg${extraEggs > 1 ? "s" : ""})`
+            : "Fetira";
+        ertibProfit += lineProfit;
+      } else if (item.foodType === "donut") {
+        const pairs = Number(item.donutPairsPerPackage) || 1;
+        key = `Donut (${pairs} pairs/package)`;
+        ertibProfit += lineProfit;
       } else {
         // Ertib logic
         let base = item.ertibType;
@@ -501,6 +595,9 @@ export default function AdminDashboard({ user }) {
   let doubleFelafilCount = 0;
   let sambusaCount = 0; // New
   let boiledEggCount = 0;
+  let fetiraCount = 0;
+  let donutPackageCount = 0;
+  let donutTotalCount = 0;
   let totalPriceWithoutProfit = 0;
 
   filteredOrders.forEach((order) => {
@@ -514,6 +611,12 @@ export default function AdminDashboard({ user }) {
         sambusaCount += qty; // count sambusa
       } else if (item.foodType === "boiled_egg") {
         boiledEggCount += qty;
+      } else if (item.foodType === "fetira") {
+        fetiraCount += qty;
+      } else if (item.foodType === "donut") {
+        const pairs = Number(item?.donutPairsPerPackage) || 1;
+        donutPackageCount += qty;
+        donutTotalCount += qty * pairs * 2;
       } else {
         const type = (item?.ertibType || "").toLowerCase();
         if (type === "normal") normalCount += qty;
@@ -864,6 +967,30 @@ Normal - 110 Birr, Special - 135 Birr
                   {boiledEggCount}
                 </td>
               </tr>
+              <tr>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Fetira
+                </td>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  {fetiraCount}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Donut Packages
+                </td>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  {donutPackageCount}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  Total Donuts
+                </td>
+                <td style={{ border: "1px solid #fbbf24", padding: "4px" }}>
+                  {donutTotalCount}
+                </td>
+              </tr>
             </tbody>
           </table>
 
@@ -1046,7 +1173,7 @@ Normal - 110 Birr, Special - 135 Birr
                       return `${greeting}! ✅ We have received your payment for order (Code: ${code}). Your order is now confirmed and being processed. Track your order here: ${baseLink}`;
                     }
 
-                    return `${greeting}! 💳 Payment is still required for your order (Code: ${code}).\n\nAmount to pay: ${totalBirr} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\n🏦 CBE\n1000528463243 (Abdurazak Mohammed)\n\n📱 Telebirr\n0954724664 (Nur Muhammed)\n\n🏦 CBEBirr\n0954724664 (Abdurazak Mohammed)\n\n📸 After payment, send screenshot via Telegram:\nhttps://t.me/ABDURAZACQ\n\nTrack your order: ${baseLink}`;
+                    return `${greeting}! 💳 Payment is still required for your order (Code: ${code}).\n\nAmount to pay: ${totalBirr} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\n🏦 CBE\n1000528463243 (Abdurazak Mohammed)\n\n📱 Telebirr\n0954724664 (Abdurazak Mohammed)\n\n🏦 CBEBirr\n0954724664 (Abdurazak Mohammed)\n\n📸 After payment, send screenshot via Telegram:\nhttps://t.me/ABDURAZACQ\n\nTrack your order: ${baseLink}`;
                   })();
 
                   return (
@@ -1083,6 +1210,22 @@ Normal - 110 Birr, Special - 135 Birr
                             foodDesc = `${item.quantity} × Sambusa`;
                           } else if (item.foodType === "boiled_egg") {
                             foodDesc = `${item.quantity} × Boiled Egg`;
+                          } else if (item.foodType === "fetira") {
+                            const extraEggs = Math.max(
+                              0,
+                              Number(item.extraEggs) || 0,
+                            );
+                            foodDesc = `${item.quantity} × Fetira (3 eggs included`;
+                            if (extraEggs > 0) {
+                              foodDesc += `, +${extraEggs} extra egg${extraEggs > 1 ? "s" : ""}`;
+                            }
+                            foodDesc += ")";
+                          } else if (item.foodType === "donut") {
+                            const pairs =
+                              Number(item.donutPairsPerPackage) || 1;
+                            const qty = Number(item.quantity) || 0;
+                            const totalDonuts = pairs * qty * 2;
+                            foodDesc = `${qty} × Donut package (${pairs} pairs, ${totalDonuts} donuts total)`;
                           } else {
                             // Ertib base
                             foodDesc = `${item.quantity} × ${item.ertibType}`;
@@ -1236,8 +1379,9 @@ Normal - 110 Birr, Special - 135 Birr
                         ) : (
                           <span
                             className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${
-                              paymentStatusColors[order.paymentStatus || "unpaid"] ||
-                              paymentStatusColors.unpaid
+                              paymentStatusColors[
+                                order.paymentStatus || "unpaid"
+                              ] || paymentStatusColors.unpaid
                             }`}
                           >
                             {order.paymentStatus || "unpaid"}
@@ -1246,45 +1390,47 @@ Normal - 110 Birr, Special - 135 Birr
                       </td>
 
                       {/* Actions */}
-                      {isAdmin && <td className="p-3 flex items-center gap-3">
-                        {/* Edit */}
-                        <button
-                          title="Edit order"
-                          onClick={() =>
-                            navigate(
-                              `/order?edit=${encodeURIComponent(
-                                order.trackingCode || orderId,
-                              )}`,
-                            )
-                          }
-                          className="text-amber-600 hover:text-amber-800 p-2 rounded-md bg-amber-100 hover:bg-amber-200 transition"
-                        >
-                          <FaEdit />
-                        </button>
+                      {isAdmin && (
+                        <td className="p-3 flex items-center gap-3">
+                          {/* Edit */}
+                          <button
+                            title="Edit order"
+                            onClick={() =>
+                              navigate(
+                                `/order?edit=${encodeURIComponent(
+                                  order.trackingCode || orderId,
+                                )}`,
+                              )
+                            }
+                            className="text-amber-600 hover:text-amber-800 p-2 rounded-md bg-amber-100 hover:bg-amber-200 transition"
+                          >
+                            <FaEdit />
+                          </button>
 
-                        {/* Delete */}
-                        <button
-                          title="Delete order"
-                          onClick={() => openDeleteModal(orderId)}
-                          className="text-red-600 hover:text-red-800 p-2 rounded-md bg-red-100 hover:bg-red-200 transition"
-                        >
-                          <FaTrash />
-                        </button>
+                          {/* Delete */}
+                          <button
+                            title="Delete order"
+                            onClick={() => openDeleteModal(orderId)}
+                            className="text-red-600 hover:text-red-800 p-2 rounded-md bg-red-100 hover:bg-red-200 transition"
+                          >
+                            <FaTrash />
+                          </button>
 
-                        {/* NEW — Send Tracking SMS */}
-                        <button
-                          title="Send tracking SMS"
-                          onClick={() => {
-                            const smsUrl = `sms:${
-                              order.phone
-                            }?body=${encodeURIComponent(trackingMessage)}`;
-                            window.location.href = smsUrl;
-                          }}
-                          className="text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
-                        >
-                          <FaPaperPlane className="text-md" />
-                        </button>
-                      </td>}
+                          {/* NEW — Send Tracking SMS */}
+                          <button
+                            title="Send tracking SMS"
+                            onClick={() => {
+                              const smsUrl = `sms:${
+                                order.phone
+                              }?body=${encodeURIComponent(trackingMessage)}`;
+                              window.location.href = smsUrl;
+                            }}
+                            className="text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
+                          >
+                            <FaPaperPlane className="text-md" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

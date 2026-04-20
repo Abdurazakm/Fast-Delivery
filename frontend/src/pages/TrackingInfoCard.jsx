@@ -153,9 +153,28 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
   };
 
   const getUnitPrice = (item) => {
-    let price = item.ertibType === "special" ? 135 : 110;
-    if (item.extraKetchup) price += 10;
-    if (item.extraFelafil) price += 15;
+    if (typeof item?.unitPrice === "number") return item.unitPrice;
+
+    if (item?.foodType === "sambusa") return 30;
+    if (item?.foodType === "boiled_egg") return 30;
+
+    if (item?.foodType === "fetira") {
+      const extraEggs = Math.max(0, Number(item?.extraEggs) || 0);
+      return 120 + extraEggs * 30;
+    }
+
+    if (item?.foodType === "donut") {
+      const pairs = Number(item?.donutPairsPerPackage) || 1;
+      if (pairs === 1) return 60;
+      if (pairs === 2) return 120;
+      if (pairs === 4) return 220;
+      if (pairs === 6) return 320;
+      return pairs * 60;
+    }
+
+    let price = item?.ertibType === "special" ? 135 : 110;
+    if (item?.extraKetchup) price += 10;
+    if (item?.extraFelafil || item?.doubleFelafil) price += 15;
     return price;
   };
 
@@ -166,6 +185,22 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
 
     if (item.foodType === "boiled_egg") {
       return `${item.quantity} × Boiled Egg`;
+    }
+
+    if (item.foodType === "fetira") {
+      const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
+      const baseText = `${item.quantity} × Fetira (3 eggs included`;
+      if (extraEggs > 0) {
+        return `${baseText}, +${extraEggs} extra egg${extraEggs > 1 ? "s" : ""})`;
+      }
+      return `${baseText})`;
+    }
+
+    if (item.foodType === "donut") {
+      const pairs = Number(item.donutPairsPerPackage) || 1;
+      const qty = Number(item.quantity) || 0;
+      const totalDonuts = pairs * qty * 2;
+      return `${qty} × Donut package (${pairs} pairs/package, total donuts: ${totalDonuts})`;
     }
 
     let desc = `${item.quantity} × ${item.ertibType} Ertib`;
@@ -188,10 +223,12 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
 
   const totalPrice =
     currentOrder.total ??
-    currentOrder.items.reduce(
-      (sum, item) => sum + getUnitPrice(item) * (item.quantity || 1),
-      0,
-    );
+    currentOrder.items.reduce((sum, item) => {
+      const qty = Number(item?.quantity) || 1;
+      const lineTotal = Number(item?.lineTotal);
+      if (Number.isFinite(lineTotal)) return sum + lineTotal;
+      return sum + getUnitPrice(item) * qty;
+    }, 0);
 
   useEffect(() => {
     setCurrentOrder(order);

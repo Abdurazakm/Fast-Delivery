@@ -100,19 +100,54 @@ router.put("/pricing", authMiddleware, adminMiddleware, async (req, res) => {
       boiledEggPrice: parsed.boiledEggPrice,
       ertibNormalPrice: parsed.ertibNormalPrice,
       ertibSpecialPrice: parsed.ertibSpecialPrice,
+      fetiraBasePrice: parsed.fetiraBasePrice,
+      fetiraExtraEggPrice: parsed.fetiraExtraEggPrice,
+      donut1PairPackagePrice: parsed.donut1PairPackagePrice,
+      donut2PairPackagePrice: parsed.donut2PairPackagePrice,
+      donut4PairPackagePrice: parsed.donut4PairPackagePrice,
+      donut6PairPackagePrice: parsed.donut6PairPackagePrice,
       extraKetchupPrice: parsed.extraKetchupPrice,
       doubleFelafilPrice: parsed.doubleFelafilPrice,
       sambusaCost: parsed.sambusaCost,
       boiledEggCost: parsed.boiledEggCost,
       ertibNormalCost: parsed.ertibNormalCost,
       ertibSpecialCost: parsed.ertibSpecialCost,
+      fetiraBaseCost: parsed.fetiraBaseCost,
+      fetiraExtraEggCost: parsed.fetiraExtraEggCost,
+      donut1PairPackageCost: parsed.donut1PairPackageCost,
+      donut2PairPackageCost: parsed.donut2PairPackageCost,
+      donut4PairPackageCost: parsed.donut4PairPackageCost,
+      donut6PairPackageCost: parsed.donut6PairPackageCost,
       extraKetchupCost: parsed.extraKetchupCost,
       doubleFelafilCost: parsed.doubleFelafilCost,
     };
 
-    const updated = existing
-      ? await prisma.pricing.update({ where: { id: existing.id }, data })
-      : await prisma.pricing.create({ data });
+    // Backward-compatible fallback for environments where Prisma client
+    // has not been regenerated after adding donut1 fields.
+    const dataWithoutDonut1 = {
+      ...data,
+    };
+    delete dataWithoutDonut1.donut1PairPackagePrice;
+    delete dataWithoutDonut1.donut1PairPackageCost;
+
+    const persistPricing = async (payload) =>
+      existing
+        ? prisma.pricing.update({ where: { id: existing.id }, data: payload })
+        : prisma.pricing.create({ data: payload });
+
+    let updated;
+    try {
+      updated = await persistPricing(data);
+    } catch (persistErr) {
+      const msg = String(persistErr?.message || "");
+      const unknownDonut1Field =
+        msg.includes("donut1PairPackagePrice") ||
+        msg.includes("donut1PairPackageCost");
+
+      if (!unknownDonut1Field) throw persistErr;
+
+      updated = await persistPricing(dataWithoutDonut1);
+    }
 
     const normalized = normalizePricing(updated);
     emitPricingUpdated(normalized);

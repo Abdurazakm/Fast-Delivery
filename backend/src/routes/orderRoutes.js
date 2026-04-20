@@ -26,7 +26,7 @@ const {
 
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
-// process.env.TRACK_BASE_URL || "http://localhost:5173/track";
+  // process.env.TRACK_BASE_URL || "http://localhost:5173/track";
 
 function optionalAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization || "";
@@ -77,6 +77,8 @@ async function isDuplicate(phone, items) {
       arr.map((i) => ({
         foodType: i.foodType || "ertib",
         ertibType: i.ertibType,
+        extraEggs: Number(i.extraEggs) || 0,
+        donutPairsPerPackage: Number(i.donutPairsPerPackage) || 0,
         Felafil: !!i.Felafil,
         ketchup: !!i.ketchup,
         spices: !!i.spices,

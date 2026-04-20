@@ -13,9 +13,74 @@ const DEFAULT_PRICING = {
   boiledEggPrice: 30,
   ertibNormalPrice: 115,
   ertibSpecialPrice: 140,
+  fetiraBasePrice: 120,
+  fetiraExtraEggPrice: 30,
+  donut1PairPackagePrice: 60,
+  donut2PairPackagePrice: 120,
+  donut4PairPackagePrice: 220,
+  donut6PairPackagePrice: 320,
   extraKetchupPrice: 10,
   doubleFelafilPrice: 15,
 };
+
+const FETIRA_DEFAULT_EGGS = 3;
+const DONUT_PACKAGE_OPTIONS = [1, 2];
+
+function buildDefaultItem(foodType = "ertib") {
+  if (foodType === "sambusa") {
+    return { foodType: "sambusa", quantity: 1 };
+  }
+
+  if (foodType === "boiled_egg") {
+    return { foodType: "boiled_egg", quantity: 1 };
+  }
+
+  if (foodType === "fetira") {
+    return {
+      foodType: "fetira",
+      quantity: 1,
+      defaultEggs: FETIRA_DEFAULT_EGGS,
+      extraEggs: 0,
+    };
+  }
+
+  if (foodType === "donut") {
+    return {
+      foodType: "donut",
+      quantity: 1,
+      donutPairsPerPackage: 1,
+    };
+  }
+
+  return {
+    foodType: "ertib",
+    ertibType: "normal",
+    Felafil: true,
+    ketchup: true,
+    spices: true,
+    extraKetchup: false,
+    doubleFelafil: false,
+    quantity: 1,
+  };
+}
+
+function getDonutPackageUnitPrice(item, pricing) {
+  const pairs = Number(item?.donutPairsPerPackage) || 1;
+  if (pairs === 1) {
+    return (
+      Number(pricing.donut1PairPackagePrice) ||
+      (Number(pricing.donut2PairPackagePrice) || 0) / 2
+    );
+  }
+  if (pairs === 2) return Number(pricing.donut2PairPackagePrice) || 0;
+  if (pairs === 4) return Number(pricing.donut4PairPackagePrice) || 0;
+  if (pairs === 6) return Number(pricing.donut6PairPackagePrice) || 0;
+
+  const perPairRate =
+    Number(pricing.donut1PairPackagePrice) ||
+    (Number(pricing.donut2PairPackagePrice) || 0) / 2;
+  return Math.max(0, pairs * perPairRate);
+}
 
 export default function Order() {
   const [customer, setCustomer] = useState({
@@ -25,18 +90,7 @@ export default function Order() {
   });
   const [tracking, setTracking] = useState(null);
   const [user, setUser] = useState(null);
-  const [items, setItems] = useState([
-    {
-      foodType: "ertib", // "ertib" or "sambusa"
-      ertibType: "normal",
-      Felafil: true,
-      ketchup: true,
-      spices: true,
-      extraKetchup: false,
-      doubleFelafil: false,
-      quantity: 1,
-    },
-  ]);
+  const [items, setItems] = useState([buildDefaultItem("ertib")]);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -133,23 +187,24 @@ export default function Order() {
           const safeItems =
             o.items && o.items.length
               ? o.items.map((it) => ({
-                  foodType: it.foodType || "ertib",
-                  ertibType: it.ertibType || "normal",
-                  Felafil: typeof it.Felafil === "boolean" ? it.Felafil : true,
-                  ketchup: typeof it.ketchup === "boolean" ? it.ketchup : true,
-                  spices: typeof it.spices === "boolean" ? it.spices : true,
-                  extraKetchup:
-                    typeof it.extraKetchup === "boolean"
-                      ? it.extraKetchup
-                      : false,
-                  doubleFelafil:
-                    typeof it.doubleFelafil === "boolean"
-                      ? it.doubleFelafil
-                      : false,
+                  ...buildDefaultItem(it.foodType || "ertib"),
+                  ...it,
                   quantity:
                     typeof it.quantity === "number"
                       ? it.quantity
                       : +it.quantity || 1,
+                  extraEggs:
+                    typeof it.extraEggs === "number"
+                      ? it.extraEggs
+                      : +it.extraEggs || 0,
+                  defaultEggs:
+                    typeof it.defaultEggs === "number"
+                      ? it.defaultEggs
+                      : FETIRA_DEFAULT_EGGS,
+                  donutPairsPerPackage:
+                    typeof it.donutPairsPerPackage === "number"
+                      ? it.donutPairsPerPackage
+                      : +it.donutPairsPerPackage || 1,
                 }))
               : items;
 
@@ -184,6 +239,15 @@ export default function Order() {
         Number(pricing.boiledEggPrice) || Number(pricing.sambusaPrice) || 0
       );
     }
+    if (item.foodType === "fetira") {
+      const base = Number(pricing.fetiraBasePrice) || 0;
+      const extraEggPrice = Number(pricing.fetiraExtraEggPrice) || 0;
+      const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
+      return base + extraEggPrice * extraEggs;
+    }
+    if (item.foodType === "donut") {
+      return getDonutPackageUnitPrice(item, pricing);
+    }
     let base =
       item.ertibType === "special"
         ? Number(pricing.ertibSpecialPrice) || 0
@@ -209,31 +273,11 @@ export default function Order() {
 
         // If changing the food type, reset ertib-specific fields when switching away from ertib
         if (name === "foodType") {
-          if (value !== "ertib") {
-            return {
-              ...item,
-              foodType: value,
-              // Clear ertib-specific options (keeps quantity)
-              ertibType: "normal",
-              Felafil: false,
-              ketchup: false,
-              spices: false,
-              extraKetchup: false,
-              doubleFelafil: false,
-            };
-          } else {
-            // switching to ertib: ensure ertib defaults enabled
-            return {
-              ...item,
-              foodType: "ertib",
-              ertibType: item.ertibType || "normal",
-              Felafil: typeof item.Felafil === "boolean" ? item.Felafil : true,
-              ketchup: typeof item.ketchup === "boolean" ? item.ketchup : true,
-              spices: typeof item.spices === "boolean" ? item.spices : true,
-              extraKetchup: item.extraKetchup || false,
-              doubleFelafil: item.doubleFelafil || false,
-            };
-          }
+          const nextDefaults = buildDefaultItem(value);
+          return {
+            ...nextDefaults,
+            quantity: Number(item.quantity) || 1,
+          };
         }
 
         // Handle number input properly
@@ -254,19 +298,7 @@ export default function Order() {
   };
 
   const addItem = () => {
-    setItems((prev) => [
-      ...prev,
-      {
-        foodType: "ertib",
-        ertibType: "normal",
-        Felafil: true,
-        ketchup: true,
-        spices: true,
-        extraKetchup: false,
-        doubleFelafil: false,
-        quantity: 1,
-      },
-    ]);
+    setItems((prev) => [...prev, buildDefaultItem("ertib")]);
   };
 
   const removeItem = (index) => {
@@ -280,6 +312,23 @@ export default function Order() {
 
     if (item.foodType === "boiled_egg") {
       return `${item.quantity} × Boiled Egg`;
+    }
+
+    if (item.foodType === "fetira") {
+      const defaultEggs = Number(item.defaultEggs) || FETIRA_DEFAULT_EGGS;
+      const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
+      const extraLabel =
+        extraEggs > 0
+          ? ` + ${extraEggs} extra egg${extraEggs > 1 ? "s" : ""}`
+          : "";
+      return `${item.quantity} × Fetira (${defaultEggs} eggs included${extraLabel})`;
+    }
+
+    if (item.foodType === "donut") {
+      const pairs = Number(item.donutPairsPerPackage) || 1;
+      const packages = Number(item.quantity) || 0;
+      const totalDonuts = pairs * packages * 2;
+      return `${packages} × Donut package (${pairs} pairs/package, total donuts: ${totalDonuts})`;
     }
 
     let desc = `${item.quantity} × ${item.ertibType} Ertib`;
@@ -382,18 +431,7 @@ export default function Order() {
 
       // Reset form after success
       setCustomer({ customerName: "", phone: "", location: "" });
-      setItems([
-        {
-          foodType: "ertib",
-          ertibType: "normal",
-          Felafil: true,
-          ketchup: true,
-          spices: true,
-          extraKetchup: false,
-          doubleFelafil: false,
-          quantity: 1,
-        },
-      ]);
+      setItems([buildDefaultItem("ertib")]);
       setReviewMode(false);
     } catch (err) {
       console.error("❌ Order failed:", err);
@@ -430,7 +468,9 @@ export default function Order() {
 
     const code = tracking.trackingCode || "--";
     const trackLink = tracking.trackingLink || "";
-    const paymentStatus = String(tracking.paymentStatus || "unpaid").toLowerCase();
+    const paymentStatus = String(
+      tracking.paymentStatus || "unpaid",
+    ).toLowerCase();
     const amount = Number(tracking.total || 0).toFixed(2);
 
     if (paymentStatus === "paid") {
@@ -540,10 +580,12 @@ export default function Order() {
 
           {duplicateOrderHint?.trackingCode && (
             <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-sm">
-              <div className="font-semibold mb-1">Possible duplicate order detected</div>
+              <div className="font-semibold mb-1">
+                Possible duplicate order detected
+              </div>
               <p className="mb-3">
-                An active recent order already exists for this phone number.
-                You can edit that order instead of creating a new one.
+                An active recent order already exists for this phone number. You
+                can edit that order instead of creating a new one.
               </p>
 
               <div className="mb-3">
@@ -575,7 +617,9 @@ export default function Order() {
                 {user?.role === "admin" && (
                   <button
                     type="button"
-                    onClick={() => handleConfirmOrder({ forceCreateDuplicate: true })}
+                    onClick={() =>
+                      handleConfirmOrder({ forceCreateDuplicate: true })
+                    }
                     disabled={loading}
                     className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-60"
                   >
@@ -679,7 +723,9 @@ export default function Order() {
                       <PaymentInstructionsCard
                         amount={tracking.total}
                         trackingCode={tracking.trackingCode}
-                        trackingLink={tracking.trackingLink || tracking.trackUrl}
+                        trackingLink={
+                          tracking.trackingLink || tracking.trackUrl
+                        }
                         onCopy={(copyMessage) =>
                           setToast({ message: copyMessage, type: "success" })
                         }
@@ -760,6 +806,8 @@ export default function Order() {
                       className="w-full border p-2 rounded-lg mb-3"
                     >
                       <option value="ertib">Ertib</option>
+                      <option value="fetira">Fetira</option>
+                      <option value="donut">Donut</option>
                       <option value="sambusa">Sambusa</option>
                       <option value="boiled_egg">Boiled Egg</option>
                     </select>
@@ -804,9 +852,57 @@ export default function Order() {
                       </>
                     )}
 
+                    {item.foodType === "fetira" && (
+                      <div className="mt-2 space-y-3">
+                        <div className="text-sm text-gray-700">
+                          <strong>Default eggs included:</strong>{" "}
+                          {FETIRA_DEFAULT_EGGS}
+                        </div>
+                        <div>
+                          <label className="block font-medium">
+                            Extra Eggs:
+                          </label>
+                          <input
+                            type="number"
+                            name="extraEggs"
+                            min="0"
+                            value={item.extraEggs ?? 0}
+                            onChange={(e) => handleItemChange(index, e)}
+                            className="w-full border p-2 rounded-lg"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {item.foodType === "donut" && (
+                      <div className="mt-2 space-y-3">
+                        <div>
+                          <label className="block font-medium">
+                            Package Size (pairs):
+                          </label>
+                          <select
+                            name="donutPairsPerPackage"
+                            value={item.donutPairsPerPackage ?? 1}
+                            onChange={(e) => handleItemChange(index, e)}
+                            className="w-full border p-2 rounded-lg"
+                          >
+                            {DONUT_PACKAGE_OPTIONS.map((pairs) => (
+                              <option key={pairs} value={pairs}>
+                                {pairs} pairs per package
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Quantity — always visible for both food types */}
                     <div className="mt-3">
-                      <label className="block font-medium">Quantity:</label>
+                      <label className="block font-medium">
+                        {item.foodType === "donut"
+                          ? "Quantity (packages):"
+                          : "Quantity:"}
+                      </label>
                       <input
                         type="number"
                         name="quantity"
@@ -823,6 +919,15 @@ export default function Order() {
                         Line Total: {getUnitPrice(item) * item.quantity} Birr
                       </span>
                     </div>
+
+                    {item.foodType === "donut" && (
+                      <div className="text-sm mt-2 text-gray-700">
+                        Total donuts:{" "}
+                        {(Number(item.donutPairsPerPackage) || 1) *
+                          (Number(item.quantity) || 0) *
+                          2}
+                      </div>
+                    )}
                   </div>
                 ))}
 

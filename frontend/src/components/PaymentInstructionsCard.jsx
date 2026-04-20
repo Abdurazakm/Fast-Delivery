@@ -12,7 +12,7 @@ const PAYMENT_METHODS = [
     key: "telebirr",
     label: "Telebirr",
     accountNumber: "0954724664",
-    accountName: "Nur Muhhammed",
+    accountName: "Abdurazak Mohammed",
   },
   {
     key: "cbebirr",
