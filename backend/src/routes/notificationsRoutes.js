@@ -42,8 +42,14 @@ router.post("/subscribe", async (req, res) => {
   try {
     const { subscription } = req.body || {};
 
-    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
-      return res.status(400).json({ message: "Invalid push subscription payload." });
+    if (
+      !subscription?.endpoint ||
+      !subscription?.keys?.p256dh ||
+      !subscription?.keys?.auth
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Invalid push subscription payload." });
     }
 
     const userId = getOptionalUserId(req);
@@ -66,7 +72,9 @@ router.post("/subscribe", async (req, res) => {
     return res.json({ success: true });
   } catch (err) {
     console.error("❌ subscribe push failed:", err);
-    return res.status(500).json({ message: "Failed to save push subscription." });
+    return res
+      .status(500)
+      .json({ message: "Failed to save push subscription." });
   }
 });
 
@@ -77,11 +85,15 @@ router.post("/unsubscribe", async (req, res) => {
       return res.status(400).json({ message: "Endpoint is required." });
     }
 
-    await prisma.pushSubscription.delete({ where: { endpoint } }).catch(() => {});
+    await prisma.pushSubscription
+      .delete({ where: { endpoint } })
+      .catch(() => {});
     return res.json({ success: true });
   } catch (err) {
     console.error("❌ unsubscribe push failed:", err);
-    return res.status(500).json({ message: "Failed to remove push subscription." });
+    return res
+      .status(500)
+      .json({ message: "Failed to remove push subscription." });
   }
 });
 
