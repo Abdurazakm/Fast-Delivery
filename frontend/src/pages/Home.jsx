@@ -354,6 +354,36 @@ export default function Home() {
           onClose={() => setToast(null)}
         />
       )}
+      {roleLower !== "admin" && (
+        <a
+          href="#menu"
+          className="group fixed top-2 left-2 z-50 inline-flex max-w-[calc(100vw-1rem)] items-center gap-2 overflow-hidden rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-[0_14px_35px_rgba(234,88,12,0.28)] transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_22px_50px_rgba(234,88,12,0.42)] focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 sm:top-4 sm:left-4 sm:max-w-none sm:px-4 sm:py-2.5 sm:text-sm"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute -inset-2 rounded-full bg-linear-to-r from-amber-200/0 via-amber-200/35 to-pink-200/0 blur-xl opacity-80"
+          />
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 rounded-full animate-spin blur-[1px]"
+            style={{
+              backgroundImage:
+                "conic-gradient(from 0deg, rgba(255,255,255,0) 0 58%, #fbbf24 62%, #fb923c 68%, #f97316 74%, #f472b6 80%, #fde68a 86%, #fbbf24 92%, rgba(255,255,255,0) 100%)",
+              animationDuration: "3.2s",
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="absolute inset-0.5 rounded-full bg-linear-to-r from-amber-500 via-orange-500 to-red-500 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
+          />
+          <span className="relative z-10 flex items-center gap-2">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm sm:h-7 sm:w-7">
+              <ArrowRight size={12} className="rotate-45 sm:text-[15px]" />
+            </span>
+            <span className="whitespace-nowrap leading-none">Explore Our Menu</span>
+          </span>
+        </a>
+      )}
       {/* Top Right Auth Buttons */}
       <div className="w-full flex items-center justify-end max-w-6xl mb-6">
         {user?.role === "admin" ? (
@@ -471,9 +501,25 @@ export default function Home() {
             <Link
               to="/order"
               title="Create New Order"
-              className="p-3 rounded-full bg-green-600 text-white shadow-md transition transform hover:scale-105 hover:shadow-xl hover:bg-green-700"
+              className="group relative inline-flex items-center justify-center overflow-hidden rounded-full p-3 text-white shadow-lg transition transform hover:-translate-y-0.5 hover:scale-105 hover:shadow-xl"
             >
-              <FaPlus size={18} />
+              <span
+                aria-hidden="true"
+                className="absolute -inset-2 rounded-full bg-linear-to-r from-emerald-200/0 via-emerald-200/35 to-lime-200/0 blur-xl opacity-80"
+              />
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 rounded-full animate-spin blur-[1px]"
+                style={{
+                  backgroundImage:
+                    "conic-gradient(from 0deg, rgba(255,255,255,0) 0 56%, #34d399 60%, #22c55e 66%, #facc15 72%, #f59e0b 78%, #34d399 84%, rgba(255,255,255,0) 100%)",
+                  animationDuration: "3.2s",
+                }}
+              />
+              <span className="absolute inset-0.5 rounded-full bg-linear-to-r from-emerald-500 via-green-500 to-lime-500 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]" />
+              <span className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
+                <FaPlus size={18} />
+              </span>
             </Link>
           ) : (
             <span className="relative group">
@@ -500,19 +546,42 @@ export default function Home() {
 
               <button
                 onClick={handleOrderClick}
-                className={`px-6 py-3 rounded-full transition transform shadow-lg ${
+                className={`group relative overflow-hidden rounded-full px-6 py-3 font-semibold transition transform shadow-lg ${
                   serviceAvailable
-                    ? "bg-green-600 text-white hover:bg-green-700 hover:scale-105 hover:shadow-xl"
+                    ? "text-white hover:-translate-y-0.5 hover:scale-105 hover:shadow-xl"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
                 }`}
               >
-                {serviceAvailable ? (
-                  <>{user ? "Place Your Order" : "Order Directly"}</>
-                ) : (
-                  <span className="invisible">
-                    {user ? "Place Your Order" : "Order Directly"}
-                  </span>
+                {serviceAvailable && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="absolute -inset-2 rounded-full bg-linear-to-r from-emerald-200/0 via-emerald-200/35 to-lime-200/0 blur-xl opacity-80"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-0 rounded-full animate-spin blur-[1px]"
+                      style={{
+                        backgroundImage:
+                          "conic-gradient(from 0deg, rgba(255,255,255,0) 0 56%, #34d399 60%, #22c55e 66%, #facc15 72%, #f59e0b 78%, #34d399 84%, rgba(255,255,255,0) 100%)",
+                        animationDuration: "3.2s",
+                      }}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-0.5 rounded-full bg-linear-to-r from-emerald-500 via-green-500 to-lime-500 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]"
+                    />
+                  </>
                 )}
+                <span className="relative z-10">
+                  {serviceAvailable ? (
+                    <>{user ? "Place Your Order" : "Order Directly"}</>
+                  ) : (
+                    <span className="invisible">
+                      {user ? "Place Your Order" : "Order Directly"}
+                    </span>
+                  )}
+                </span>
               </button>
 
               {!serviceAvailable && (
@@ -624,7 +693,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className="mt-12 max-w-4xl w-full px-4">
+      <div id="menu" className="mt-12 max-w-4xl w-full px-4 scroll-mt-28">
         <h2 className="text-2xl md:text-3xl font-bold mb-6 text-center text-amber-700">
           Explore Our Menu
         </h2>
@@ -641,21 +710,21 @@ export default function Home() {
                 className={`bg-white p-5 rounded-2xl shadow-md transition-all duration-300 border border-amber-100 flex flex-col items-center justify-center gap-2 group ${
                   isBlockedForCustomer
                     ? "opacity-70 cursor-not-allowed"
-                    : "cursor-pointer hover:shadow-xl hover:-translate-y-1"
+                    : "cursor-pointer hover:-translate-y-1.5 hover:shadow-[0_18px_40px_rgba(217,119,6,0.18)] hover:border-amber-200"
                 }`}
               >
-                <div className="text-4xl group-hover:scale-110 transition-transform duration-300">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-amber-100 via-white to-orange-100 text-4xl shadow-inner ring-1 ring-amber-100 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6 group-hover:shadow-lg">
                   {food.emoji}
                 </div>
-                <span className="font-semibold text-amber-900 text-sm md:text-base text-center">
+                <span className="font-semibold text-amber-900 text-sm md:text-base text-center transition-colors duration-300 group-hover:text-amber-700">
                   {food.name}
                 </span>
 
                 <span
-                  className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                  className={`text-[11px] px-3 py-1 rounded-full border backdrop-blur-sm transition-all duration-300 ${
                     isFoodAvailable
-                      ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-                      : "bg-red-50 border-red-300 text-red-700"
+                      ? "bg-emerald-50/90 border-emerald-300 text-emerald-700 group-hover:bg-emerald-100"
+                      : "bg-red-50/90 border-red-300 text-red-700"
                   }`}
                 >
                   {isFoodAvailable ? "Available" : "Unavailable"}
