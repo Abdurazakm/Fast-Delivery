@@ -32,12 +32,29 @@ const DEFAULT_PRICING = {
   doubleFelafilCost: 0,
 };
 
+const DEFAULT_ITEM_AVAILABILITY = {
+  ertib: true,
+  fetira: true,
+  donut: true,
+  sambusa: true,
+  boiled_egg: true,
+};
+
+const ITEM_LABELS = {
+  ertib: "Ertib",
+  fetira: "Fetira",
+  donut: "Donut",
+  sambusa: "Sambusa",
+  boiled_egg: "Boiled Egg",
+};
+
 export default function AdminAvailability() {
   const [availability, setAvailability] = useState({
     weeklyDays: ["Mon", "Tue", "Wed", "Thu"],
     cutoffTime: "18:00",
     isTemporarilyClosed: false,
     tempCloseReason: "",
+    itemAvailability: DEFAULT_ITEM_AVAILABILITY,
   });
 
   const [toastMessage, setToastMessage] = useState(null);
@@ -51,7 +68,16 @@ export default function AdminAvailability() {
   useEffect(() => {
     Promise.all([API.get("/availability"), API.get("/admin/pricing")])
       .then(([availabilityRes, pricingRes]) => {
-        if (availabilityRes.data) setAvailability(availabilityRes.data);
+        if (availabilityRes.data) {
+          setAvailability((prev) => ({
+            ...prev,
+            ...availabilityRes.data,
+            itemAvailability: {
+              ...DEFAULT_ITEM_AVAILABILITY,
+              ...(availabilityRes.data.itemAvailability || {}),
+            },
+          }));
+        }
         if (pricingRes.data) {
           setPricing((prev) => ({ ...prev, ...pricingRes.data }));
         }
@@ -64,13 +90,29 @@ export default function AdminAvailability() {
 
     const handleAvailabilityUpdated = (payload) => {
       if (payload) {
-        setAvailability(payload);
+        setAvailability((prev) => ({
+          ...prev,
+          ...payload,
+          itemAvailability: {
+            ...DEFAULT_ITEM_AVAILABILITY,
+            ...(payload.itemAvailability || {}),
+          },
+        }));
         return;
       }
 
       API.get("/availability")
         .then((res) => {
-          if (res.data) setAvailability(res.data);
+          if (res.data) {
+            setAvailability((prev) => ({
+              ...prev,
+              ...res.data,
+              itemAvailability: {
+                ...DEFAULT_ITEM_AVAILABILITY,
+                ...(res.data.itemAvailability || {}),
+              },
+            }));
+          }
         })
         .catch((err) => console.error("Error refreshing availability:", err));
     };
@@ -114,6 +156,20 @@ export default function AdminAvailability() {
           : [...prev.weeklyDays, day],
       };
     });
+  };
+
+  const handleToggleItemAvailability = (foodType) => {
+    setAvailability((prev) => ({
+      ...prev,
+      itemAvailability: {
+        ...DEFAULT_ITEM_AVAILABILITY,
+        ...(prev.itemAvailability || {}),
+        [foodType]: !{
+          ...DEFAULT_ITEM_AVAILABILITY,
+          ...(prev.itemAvailability || {}),
+        }[foodType],
+      },
+    }));
   };
 
   const handleSave = async () => {
@@ -301,7 +357,7 @@ export default function AdminAvailability() {
               <label
                 className="block mb-3 text-lg font-semibold text-gray-900 
                 tracking-wide px-4 py-2 rounded-xl 
-                bg-gradient-to-r from-amber-300/20 to-amber-100/10
+                bg-linear-to-r from-amber-300/20 to-amber-100/10
                 border-l-4 border-amber-500 shadow-sm backdrop-blur-sm"
               >
                 Working Days
@@ -330,7 +386,7 @@ export default function AdminAvailability() {
               <label
                 className="block mb-3 text-lg font-semibold text-gray-900 
                 tracking-wide px-4 py-2 rounded-xl 
-                bg-gradient-to-r from-amber-300/20 to-amber-100/10
+                bg-linear-to-r from-amber-300/20 to-amber-100/10
                 border-l-4 border-amber-500 shadow-sm backdrop-blur-sm"
               >
                 Cutoff Time
@@ -355,7 +411,7 @@ export default function AdminAvailability() {
               <label
                 className="flex items-center gap-3 text-lg font-semibold text-gray-900 
                 tracking-wide px-4 py-2 rounded-xl
-                bg-gradient-to-r from-amber-300/20 to-amber-100/10
+                bg-linear-to-r from-amber-300/20 to-amber-100/10
                 border-l-4 border-amber-500 shadow-sm backdrop-blur-sm"
               >
                 <input
@@ -396,8 +452,61 @@ export default function AdminAvailability() {
                 text-white font-semibold rounded-xl shadow-lg 
                 transition-all duration-200 hover:shadow-xl hover:scale-[1.03]"
               >
-                Save Changes
+                Save Schedule
               </button>
+            </div>
+
+            {/* Item Availability */}
+            <div className="mt-10 pt-8 border-t border-gray-200">
+              <label
+                className="block mb-4 text-lg font-semibold text-gray-900 
+                tracking-wide px-4 py-2 rounded-xl 
+                bg-linear-to-r from-amber-300/20 to-amber-100/10
+                border-l-4 border-amber-500 shadow-sm backdrop-blur-sm"
+              >
+                Item Availability
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {Object.keys(DEFAULT_ITEM_AVAILABILITY).map((foodType) => {
+                  const isAvailable = {
+                    ...DEFAULT_ITEM_AVAILABILITY,
+                    ...(availability.itemAvailability || {}),
+                  }[foodType];
+
+                  return (
+                    <button
+                      key={foodType}
+                      type="button"
+                      onClick={() => handleToggleItemAvailability(foodType)}
+                      className={`w-full px-4 py-3 rounded-xl border text-left transition ${
+                        isAvailable
+                          ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                          : "bg-red-50 border-red-300 text-red-700"
+                      }`}
+                    >
+                      <div className="font-semibold">
+                        {ITEM_LABELS[foodType]}
+                      </div>
+                      <div className="text-xs mt-1">
+                        {isAvailable ? "Available" : "Unavailable"}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="text-center mt-6">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 
+                  text-white font-semibold rounded-xl shadow-lg 
+                  transition-all duration-200 hover:shadow-xl hover:scale-[1.03]"
+                >
+                  Save Item Status
+                </button>
+              </div>
             </div>
 
             {/* Pricing Settings */}
@@ -405,7 +514,7 @@ export default function AdminAvailability() {
               <label
                 className="block mb-4 text-lg font-semibold text-gray-900 
                 tracking-wide px-4 py-2 rounded-xl 
-                bg-gradient-to-r from-amber-300/20 to-amber-100/10
+                bg-linear-to-r from-amber-300/20 to-amber-100/10
                 border-l-4 border-amber-500 shadow-sm backdrop-blur-sm"
               >
                 Dynamic Pricing

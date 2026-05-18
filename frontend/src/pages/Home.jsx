@@ -16,6 +16,22 @@ import {
   enablePushNotificationsNow,
 } from "../pushNotifications";
 
+const DEFAULT_ITEM_AVAILABILITY = {
+  ertib: true,
+  fetira: true,
+  donut: true,
+  sambusa: true,
+  boiled_egg: true,
+};
+
+const MENU_ITEMS = [
+  { id: "ertib", name: "Ertib", emoji: "🍲" },
+  { id: "sambusa", name: "Sambusa", emoji: "🥟" },
+  { id: "boiled_egg", name: "Boiled Egg", emoji: "🥚" },
+  { id: "fetira", name: "Fetira", emoji: "🥞" },
+  { id: "donut", name: "Donut", emoji: "🍩" },
+];
+
 export default function Home() {
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState("");
@@ -29,6 +45,9 @@ export default function Home() {
   const [latestOrders, setLatestOrders] = useState([]);
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const [formattedCutoff, setFormattedCutoff] = useState(""); // <-- add this
+  const [itemAvailability, setItemAvailability] = useState(
+    DEFAULT_ITEM_AVAILABILITY,
+  );
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushSupported, setPushSupported] = useState(true);
@@ -144,6 +163,11 @@ export default function Home() {
     const { weeklyDays, cutoffTime, isTemporarilyClosed, tempCloseReason } =
       availability;
 
+    setItemAvailability({
+      ...DEFAULT_ITEM_AVAILABILITY,
+      ...(availability.itemAvailability || {}),
+    });
+
     const now = new Date(Date.now() + serverOffsetMs);
     const nowEAT = getEATNowParts(now);
     const dayStr = nowEAT.dayStr;
@@ -234,7 +258,22 @@ export default function Home() {
     };
   }, [serverOffsetMs]);
 
-  const handleOrderClick = () => {
+  const handleOrderClick = (foodOrEvent) => {
+    const isString = typeof foodOrEvent === "string";
+    const foodId = isString ? foodOrEvent : "ertib";
+
+    if (
+      isString &&
+      itemAvailability[foodId] === false &&
+      user?.role !== "admin"
+    ) {
+      setToast({
+        message: `⚠️ ${MENU_ITEMS.find((item) => item.id === foodId)?.name || "This item"} is currently unavailable.`,
+        type: "error",
+      });
+      return;
+    }
+
     if (!serviceAvailable && user?.role !== "admin") {
       let warningMessage = "";
 
@@ -253,7 +292,7 @@ export default function Home() {
       });
       return;
     }
-    navigate("/order");
+    navigate(isString ? `/order?food=${foodId}` : "/order");
   };
 
   const handleLogout = () => {
@@ -306,7 +345,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-amber-50 to-orange-100 p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-b from-amber-50 to-orange-100 p-6">
       {/* Toast Notification */}
       {toast && (
         <Toast
@@ -584,6 +623,48 @@ export default function Home() {
           )}
         </div>
       )}
+
+      <div className="mt-12 max-w-4xl w-full px-4">
+        <h2 className="text-2xl md:text-3xl font-bold mb-6 text-center text-amber-700">
+          Explore Our Menu
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {MENU_ITEMS.map((food) => {
+            const isFoodAvailable = itemAvailability[food.id] !== false;
+            const isBlockedForCustomer =
+              !isFoodAvailable && user?.role !== "admin";
+
+            return (
+              <div
+                key={food.id}
+                onClick={() => handleOrderClick(food.id)}
+                className={`bg-white p-5 rounded-2xl shadow-md transition-all duration-300 border border-amber-100 flex flex-col items-center justify-center gap-2 group ${
+                  isBlockedForCustomer
+                    ? "opacity-70 cursor-not-allowed"
+                    : "cursor-pointer hover:shadow-xl hover:-translate-y-1"
+                }`}
+              >
+                <div className="text-4xl group-hover:scale-110 transition-transform duration-300">
+                  {food.emoji}
+                </div>
+                <span className="font-semibold text-amber-900 text-sm md:text-base text-center">
+                  {food.name}
+                </span>
+
+                <span
+                  className={`text-[11px] px-2 py-0.5 rounded-full border ${
+                    isFoodAvailable
+                      ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                      : "bg-red-50 border-red-300 text-red-700"
+                  }`}
+                >
+                  {isFoodAvailable ? "Available" : "Unavailable"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Features */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">

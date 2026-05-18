@@ -17,6 +17,12 @@ const {
 } = require("../middlewares/getUserIdMiddleware.js");
 const { calcUnitPrice, getActivePricing } = require("../config/pricing");
 const {
+  normalizeItemAvailability,
+  getUnavailableFoodTypes,
+  formatFoodTypeLabel,
+  parseAvailabilityMetadata,
+} = require("../config/itemAvailability");
+const {
   emitOrderUpdated,
   emitOrderDeleted,
   emitGlobalNotification,
@@ -25,8 +31,8 @@ const {
 } = require("../socket");
 
 const TRACK_BASE_URL =
-  process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
-  // process.env.TRACK_BASE_URL || "http://localhost:5173/track";
+  // process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
+  process.env.TRACK_BASE_URL || "http://localhost:5173/track";
 
 function optionalAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization || "";
@@ -103,6 +109,26 @@ async function findRecentActiveOrderByPhone(phone) {
   });
 }
 
+async function getCurrentItemAvailability() {
+  const availability = await prisma.availability.findFirst();
+  const { itemAvailability } = parseAvailabilityMetadata(
+    availability?.tempCloseReason,
+  );
+  return normalizeItemAvailability(itemAvailability);
+}
+
+function buildUnavailableItemsResponse(unavailableFoodTypes = []) {
+  const itemLabels = unavailableFoodTypes.map((foodType) =>
+    formatFoodTypeLabel(foodType),
+  );
+
+  return {
+    message: `These items are currently unavailable: ${itemLabels.join(", ")}. Please update your order items.`,
+    code: "ITEM_UNAVAILABLE",
+    unavailableItems: unavailableFoodTypes,
+  };
+}
+
 router.get("/pricing", async (req, res) => {
   try {
     const pricing = await getActivePricing(prisma);
@@ -177,6 +203,17 @@ router.post(
         items.length === 0
       ) {
         return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const currentItemAvailability = await getCurrentItemAvailability();
+      const unavailableFoodTypes = getUnavailableFoodTypes(
+        items,
+        currentItemAvailability,
+      );
+      if (unavailableFoodTypes.length) {
+        return res
+          .status(400)
+          .json(buildUnavailableItemsResponse(unavailableFoodTypes));
       }
 
       const normalizedPhone = normalizePhone(phone);
@@ -596,6 +633,20 @@ router.put(
       let builtItems = order.items;
 
       if (items && Array.isArray(items)) {
+        if (req.user?.role !== "admin") {
+          const currentItemAvailability = await getCurrentItemAvailability();
+          const unavailableFoodTypes = getUnavailableFoodTypes(
+            items,
+            currentItemAvailability,
+          );
+
+          if (unavailableFoodTypes.length) {
+            return res
+              .status(400)
+              .json(buildUnavailableItemsResponse(unavailableFoodTypes));
+          }
+        }
+
         computedTotal = 0;
         builtItems = items.map((it) => {
           const unitPrice = calcUnitPrice(it, pricing);

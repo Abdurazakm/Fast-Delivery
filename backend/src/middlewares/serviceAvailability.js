@@ -1,5 +1,6 @@
 // serviceAvailability.js
 const prisma = require("../config/prisma");
+const { parseAvailabilityMetadata } = require("../config/itemAvailability");
 
 const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
@@ -30,8 +31,12 @@ async function checkServiceAvailability(req, res, next) {
 
     // Temporary closure
     if (availability.isTemporarilyClosed) {
+      const { reasonText } = parseAvailabilityMetadata(
+        availability.tempCloseReason,
+      );
+
       return res.status(403).json({
-        message: availability.tempCloseReason || "Service temporarily closed.",
+        message: reasonText || "Service temporarily closed.",
       });
     }
 

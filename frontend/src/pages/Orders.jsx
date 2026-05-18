@@ -25,6 +25,20 @@ const DEFAULT_PRICING = {
 
 const FETIRA_DEFAULT_EGGS = 3;
 const DONUT_PACKAGE_OPTIONS = [1, 2];
+const FOOD_TYPE_LABELS = {
+  ertib: "Ertib",
+  fetira: "Fetira",
+  donut: "Donut",
+  sambusa: "Sambusa",
+  boiled_egg: "Boiled Egg",
+};
+const DEFAULT_ITEM_AVAILABILITY = {
+  ertib: true,
+  fetira: true,
+  donut: true,
+  sambusa: true,
+  boiled_egg: true,
+};
 
 function buildDefaultItem(foodType = "ertib") {
   if (foodType === "sambusa") {
@@ -90,11 +104,28 @@ export default function Order() {
   });
   const [tracking, setTracking] = useState(null);
   const [user, setUser] = useState(null);
-  const [items, setItems] = useState([buildDefaultItem("ertib")]);
+  const [items, setItems] = useState(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const foodQuery = params.get("food");
+      if (
+        foodQuery &&
+        ["ertib", "sambusa", "boiled_egg", "fetira", "donut"].includes(
+          foodQuery,
+        )
+      ) {
+        return [buildDefaultItem(foodQuery)];
+      }
+    }
+    return [buildDefaultItem("ertib")];
+  });
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [pricing, setPricing] = useState(DEFAULT_PRICING);
+  const [itemAvailability, setItemAvailability] = useState(
+    DEFAULT_ITEM_AVAILABILITY,
+  );
   const [reviewMode, setReviewMode] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editCode, setEditCode] = useState(null);
@@ -141,6 +172,24 @@ export default function Order() {
   }, []);
 
   useEffect(() => {
+    const fetchAvailability = async () => {
+      try {
+        const res = await API.get("/availability");
+        if (res.data) {
+          setItemAvailability({
+            ...DEFAULT_ITEM_AVAILABILITY,
+            ...(res.data.itemAvailability || {}),
+          });
+        }
+      } catch (err) {
+        console.error("❌ Failed to load item availability:", err);
+      }
+    };
+
+    fetchAvailability();
+  }, []);
+
+  useEffect(() => {
     const socket = getSocket();
 
     const handlePricingUpdated = async (payload) => {
@@ -161,10 +210,46 @@ export default function Order() {
 
     socket.on("pricing:updated", handlePricingUpdated);
 
+    const handleAvailabilityUpdated = (payload) => {
+      if (payload && typeof payload === "object") {
+        setItemAvailability({
+          ...DEFAULT_ITEM_AVAILABILITY,
+          ...(payload.itemAvailability || {}),
+        });
+      }
+    };
+
+    socket.on("availability:updated", handleAvailabilityUpdated);
+
     return () => {
       socket.off("pricing:updated", handlePricingUpdated);
+      socket.off("availability:updated", handleAvailabilityUpdated);
     };
   }, []);
+
+  useEffect(() => {
+    if (user?.role === "admin") return;
+
+    const fallbackFoodType =
+      Object.keys(DEFAULT_ITEM_AVAILABILITY).find(
+        (foodType) => itemAvailability[foodType] !== false,
+      ) || "ertib";
+
+    let changed = false;
+    const nextItems = items.map((item) => {
+      const isAvailable = itemAvailability[item.foodType] !== false;
+      if (isAvailable) return item;
+      changed = true;
+      return buildDefaultItem(fallbackFoodType);
+    });
+
+    if (changed) {
+      setItems(nextItems);
+      setMessage(
+        "One or more items were unavailable and were replaced with available options.",
+      );
+    }
+  }, [itemAvailability, user?.role, items]);
 
   // Prefill when editing
   useEffect(() => {
@@ -273,6 +358,13 @@ export default function Order() {
 
         // If changing the food type, reset ertib-specific fields when switching away from ertib
         if (name === "foodType") {
+          if (user?.role !== "admin" && itemAvailability[value] === false) {
+            setMessage(
+              `${FOOD_TYPE_LABELS[value] || "This item"} is currently unavailable.`,
+            );
+            return item;
+          }
+
           const nextDefaults = buildDefaultItem(value);
           return {
             ...nextDefaults,
@@ -298,11 +390,25 @@ export default function Order() {
   };
 
   const addItem = () => {
-    setItems((prev) => [...prev, buildDefaultItem("ertib")]);
+    const fallbackFoodType =
+      Object.keys(DEFAULT_ITEM_AVAILABILITY).find(
+        (foodType) => itemAvailability[foodType] !== false,
+      ) || "ertib";
+
+    setItems((prev) => [...prev, buildDefaultItem(fallbackFoodType)]);
   };
 
   const removeItem = (index) => {
     setItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const getSelectableFoodTypes = () => {
+    const allFoodTypes = Object.keys(FOOD_TYPE_LABELS);
+    if (user?.role === "admin") return allFoodTypes;
+
+    return allFoodTypes.filter(
+      (foodType) => itemAvailability[foodType] !== false,
+    );
   };
 
   const describeItem = (item) => {
@@ -355,6 +461,25 @@ export default function Order() {
   };
 
   const handleConfirmOrder = async ({ forceCreateDuplicate = false } = {}) => {
+    if (user?.role !== "admin") {
+      const unavailableFoodTypes = Array.from(
+        new Set(
+          items
+            .map((item) => item.foodType || "ertib")
+            .filter((foodType) => itemAvailability[foodType] === false),
+        ),
+      );
+
+      if (unavailableFoodTypes.length) {
+        setMessage(
+          `These items are unavailable: ${unavailableFoodTypes
+            .map((foodType) => FOOD_TYPE_LABELS[foodType] || foodType)
+            .join(", ")}.`,
+        );
+        return;
+      }
+    }
+
     setLoading(true);
     setMessage("");
     setDuplicateOrderHint(null);
@@ -511,7 +636,7 @@ export default function Order() {
   const msgMeta = getMessageMeta(message);
 
   return (
-    <div className="min-h-screen relative flex flex-col items-center justify-start p-6 bg-gradient-to-br from-amber-600 via-orange-500 to-red-600">
+    <div className="min-h-screen relative flex flex-col items-center justify-start p-6 bg-linear-to-br from-amber-600 via-orange-500 to-red-600">
       {/* Header */}
       <div className="w-full flex items-center justify-between mb-4 sm:mb-6">
         <div>
@@ -805,12 +930,23 @@ export default function Order() {
                       onChange={(e) => handleItemChange(index, e)}
                       className="w-full border p-2 rounded-lg mb-3"
                     >
-                      <option value="ertib">Ertib</option>
-                      <option value="fetira">Fetira</option>
-                      <option value="donut">Donut</option>
-                      <option value="sambusa">Sambusa</option>
-                      <option value="boiled_egg">Boiled Egg</option>
+                      {getSelectableFoodTypes().map((foodType) => {
+                        const isAvailable =
+                          itemAvailability[foodType] !== false;
+                        return (
+                          <option key={foodType} value={foodType}>
+                            {FOOD_TYPE_LABELS[foodType]}
+                          </option>
+                        );
+                      })}
                     </select>
+
+                    {itemAvailability[item.foodType] === false && (
+                      <div className="mb-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1">
+                        {FOOD_TYPE_LABELS[item.foodType] || "This item"} is
+                        currently unavailable.
+                      </div>
+                    )}
 
                     {/* Ertib options — only show when foodType === 'ertib' */}
                     {item.foodType === "ertib" && (

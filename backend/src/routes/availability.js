@@ -3,6 +3,11 @@ const router = express.Router();
 const prisma = require("../config/prisma");
 const { emitAvailabilityUpdated } = require("../socket");
 const {
+  normalizeItemAvailability,
+  parseAvailabilityMetadata,
+  serializeAvailabilityMetadata,
+} = require("../config/itemAvailability");
+const {
   authMiddleware,
   adminMiddleware,
 } = require("../middlewares/authMiddleware");
@@ -14,6 +19,11 @@ router.get("/", async (req, res) => {
     if (availability && availability.weeklyDays) {
       // Convert string back to array
       availability.weeklyDays = availability.weeklyDays.split(",");
+      const { reasonText, itemAvailability } = parseAvailabilityMetadata(
+        availability.tempCloseReason,
+      );
+      availability.tempCloseReason = reasonText;
+      availability.itemAvailability = itemAvailability;
     }
     res.json(availability);
   } catch (err) {
@@ -24,13 +34,24 @@ router.get("/", async (req, res) => {
 
 // POST or PUT — create/update availability
 router.post("/", authMiddleware, adminMiddleware, async (req, res) => {
-  const { weeklyDays, cutoffTime, isTemporarilyClosed, tempCloseReason } =
-    req.body;
+  const {
+    weeklyDays,
+    cutoffTime,
+    isTemporarilyClosed,
+    tempCloseReason,
+    itemAvailability,
+  } = req.body;
 
   try {
     const weeklyDaysString = Array.isArray(weeklyDays)
       ? weeklyDays.join(",")
       : weeklyDays;
+    const normalizedItemAvailability =
+      normalizeItemAvailability(itemAvailability);
+    const metadata = serializeAvailabilityMetadata(
+      tempCloseReason,
+      normalizedItemAvailability,
+    );
 
     const existing = await prisma.availability.findFirst();
 
@@ -42,11 +63,13 @@ router.post("/", authMiddleware, adminMiddleware, async (req, res) => {
           weeklyDays: weeklyDaysString,
           cutoffTime,
           isTemporarilyClosed,
-          tempCloseReason,
+          tempCloseReason: metadata,
         },
       });
       // Convert back to array before sending response
       updated.weeklyDays = updated.weeklyDays.split(",");
+      updated.tempCloseReason = tempCloseReason || "";
+      updated.itemAvailability = normalizedItemAvailability;
       emitAvailabilityUpdated(updated);
       res.json(updated);
     } else {
@@ -56,10 +79,12 @@ router.post("/", authMiddleware, adminMiddleware, async (req, res) => {
           weeklyDays: weeklyDaysString,
           cutoffTime,
           isTemporarilyClosed,
-          tempCloseReason,
+          tempCloseReason: metadata,
         },
       });
       created.weeklyDays = created.weeklyDays.split(",");
+      created.tempCloseReason = tempCloseReason || "";
+      created.itemAvailability = normalizedItemAvailability;
       emitAvailabilityUpdated(created);
       res.json(created);
     }

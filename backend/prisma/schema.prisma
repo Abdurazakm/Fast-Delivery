@@ -5,19 +5,18 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  phone     String   @unique
-  block     String
-  password  String
-  role      String   @default("user")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
+  id                Int                @id @default(autoincrement())
+  name              String
+  phone             String             @unique
+  block             String
+  password          String
+  role              String             @default("user")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  orders            Order[]
   pushSubscriptions PushSubscription[]
 }
 
@@ -48,37 +47,37 @@ model Availability {
   cutoffTime          String
   isTemporarilyClosed Boolean  @default(false)
   tempCloseReason     String?  @default("")
-  updatedAt           DateTime @db.Timestamp(6)
+  updatedAt           DateTime @updatedAt @db.Timestamp(6)
 }
 
 model Pricing {
-  id                 Int      @id @default(autoincrement())
-  sambusaPrice       Float    @default(30)
-  boiledEggPrice     Float    @default(30)
-  ertibNormalPrice   Float    @default(115)
-  ertibSpecialPrice  Float    @default(140)
-  fetiraBasePrice    Float    @default(120)
-  fetiraExtraEggPrice Float   @default(30)
-  donut1PairPackagePrice Float @default(60)
-  donut2PairPackagePrice Float @default(120)
-  donut4PairPackagePrice Float @default(220)
-  donut6PairPackagePrice Float @default(320)
-  extraKetchupPrice  Float    @default(10)
-  doubleFelafilPrice Float    @default(15)
-  sambusaCost        Float    @default(20)
-  boiledEggCost      Float    @default(20)
-  ertibNormalCost    Float    @default(100)
-  ertibSpecialCost   Float    @default(125)
-  fetiraBaseCost     Float    @default(100)
-  fetiraExtraEggCost Float    @default(20)
-  donut1PairPackageCost Float @default(45)
-  donut2PairPackageCost Float @default(90)
-  donut4PairPackageCost Float @default(170)
-  donut6PairPackageCost Float @default(250)
-  extraKetchupCost   Float    @default(0)
-  doubleFelafilCost  Float    @default(0)
-  updatedAt          DateTime @updatedAt
-  createdAt          DateTime @default(now())
+  id                     Int      @id @default(autoincrement())
+  sambusaPrice           Float    @default(30)
+  boiledEggPrice         Float    @default(30)
+  ertibNormalPrice       Float    @default(115)
+  ertibSpecialPrice      Float    @default(140)
+  fetiraBasePrice        Float    @default(120)
+  fetiraExtraEggPrice    Float    @default(30)
+  donut1PairPackagePrice Float    @default(60)
+  donut2PairPackagePrice Float    @default(120)
+  donut4PairPackagePrice Float    @default(220)
+  donut6PairPackagePrice Float    @default(320)
+  extraKetchupPrice      Float    @default(10)
+  doubleFelafilPrice     Float    @default(15)
+  sambusaCost            Float    @default(20)
+  boiledEggCost          Float    @default(20)
+  ertibNormalCost        Float    @default(100)
+  ertibSpecialCost       Float    @default(125)
+  fetiraBaseCost         Float    @default(100)
+  fetiraExtraEggCost     Float    @default(20)
+  donut1PairPackageCost  Float    @default(45)
+  donut2PairPackageCost  Float    @default(90)
+  donut4PairPackageCost  Float    @default(170)
+  donut6PairPackageCost  Float    @default(250)
+  extraKetchupCost       Float    @default(0)
+  doubleFelafilCost      Float    @default(0)
+  updatedAt              DateTime @updatedAt
+  createdAt              DateTime @default(now())
 }
 
 model PushSubscription {
