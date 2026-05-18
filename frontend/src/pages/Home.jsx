@@ -380,7 +380,9 @@ export default function Home() {
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm sm:h-7 sm:w-7">
               <ArrowRight size={12} className="rotate-45 sm:text-[15px]" />
             </span>
-            <span className="whitespace-nowrap leading-none">Explore Our Menu</span>
+            <span className="whitespace-nowrap leading-none">
+              Explore Our Menu
+            </span>
           </span>
         </a>
       )}
