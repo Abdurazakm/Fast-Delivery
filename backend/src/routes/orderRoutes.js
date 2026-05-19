@@ -31,8 +31,8 @@ const {
 } = require("../socket");
 
 const TRACK_BASE_URL =
-  // process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
-  process.env.TRACK_BASE_URL || "http://localhost:5173/track";
+  process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
+  // process.env.TRACK_BASE_URL || "http://localhost:5173/track";
 
 function optionalAuthMiddleware(req, res, next) {
   const authHeader = req.headers.authorization || "";
