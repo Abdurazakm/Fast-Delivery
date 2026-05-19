@@ -14,3 +14,23 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Environment variables
+
+Add environment variables to `frontend/.env`. Vite exposes variables prefixed with `VITE_` to the client build.
+
+- **VITE_API_URL**: Base URL for API requests. Example:
+
+  VITE_API_URL=https://fast-delivery-4gog.onrender.com/api
+
+- **VITE_API_KEY**: Optional API key sent as `x-api-key` header. Example:
+
+  VITE_API_KEY=your_key_here
+
+After editing `frontend/.env`, restart the Vite dev server:
+
+```bash
+npm run dev
+```
+
+Requests from the frontend will use these variables via `import.meta.env`.

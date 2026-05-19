@@ -427,7 +427,12 @@ export default function Order() {
         extraEggs > 0
           ? ` + ${extraEggs} extra egg${extraEggs > 1 ? "s" : ""}`
           : "";
-      return `${item.quantity} × Fetira (${defaultEggs} eggs included${extraLabel})`;
+        if(!extraLabel) {
+          return `${item.quantity} × Fetira`;
+        }
+        else {
+          return `${item.quantity} × Fetira (${extraLabel})`;
+        }
     }
 
     if (item.foodType === "donut") {
@@ -990,10 +995,10 @@ export default function Order() {
 
                     {item.foodType === "fetira" && (
                       <div className="mt-2 space-y-3">
-                        <div className="text-sm text-gray-700">
+                        {/* <div className="text-sm text-gray-700">
                           <strong>Default eggs included:</strong>{" "}
                           {FETIRA_DEFAULT_EGGS}
-                        </div>
+                        </div> */}
                         <div>
                           <label className="block font-medium">
                             Extra Eggs:

@@ -189,11 +189,14 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
 
     if (item.foodType === "fetira") {
       const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
-      const baseText = `${item.quantity} × Fetira (3 eggs included`;
+      const baseText = !extraEggs
+        ? `${item.quantity} × Fetira`
+        : `${item.quantity} × Fetira(`;
+
       if (extraEggs > 0) {
-        return `${baseText}, +${extraEggs} extra egg${extraEggs > 1 ? "s" : ""})`;
+        return `${baseText}+${extraEggs} extra egg${extraEggs > 1 ? "s" : ""})`;
       }
-      return `${baseText})`;
+      return !extraEggs ? baseText : `${baseText})`;
     }
 
     if (item.foodType === "donut") {
