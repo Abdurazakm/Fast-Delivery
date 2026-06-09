@@ -12,6 +12,7 @@ import {
 import API from "../api";
 import { motion, AnimatePresence } from "framer-motion";
 import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
+import OrderingInfoCards from "./OrderingInfoCards";
 
 // Toast component
 function Toast({ message, type = "success", onClose, duration = 3000 }) {
@@ -363,6 +364,11 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
           <strong>Customer:</strong> {currentOrder.customerName}
         </div>
       )}
+
+      <OrderingInfoCards
+        serverOffsetMs={serverOffsetMs}
+        showOnlyEstimatedDelivery
+      />
       {isManual && currentOrder.location && (
         <div className="mb-1">
           <strong>Location:</strong> {currentOrder.location}
