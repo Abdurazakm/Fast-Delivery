@@ -71,10 +71,10 @@ export default function PaymentInstructionsCard({
       </div>
 
       <div className="space-y-4 p-4 text-slate-800">
-        <p className="text-sm leading-6 font-semibold text-rose-800">
+        {/* <p className="text-sm leading-6 font-semibold text-rose-800">
           Payment is required now. Your order will not be confirmed or prepared
           until payment is completed.
-        </p>
+        </p> */}
 
         {Number.isFinite(Number(amount)) && (
           <div className="rounded-xl border border-rose-200 bg-rose-100 p-3 text-rose-900">
@@ -156,10 +156,15 @@ export default function PaymentInstructionsCard({
           After payment, send your payment screenshot and your tracking code via
           Telegram:
           <a
-            href="https://t.me/ABDURAZACQ"
+            //message pre-filled with tracking code for convenience
+            href={`https://t.me/ABDURAZACQ?text=Payment%20completed%20for%20tracking%20code%20${trackingCode}.%20Here%20is%20the%20screenshot%20of%20my%20payment.`}
             target="_blank"
             rel="noopener noreferrer"
             className="ml-1 font-semibold underline"
+            //message pre-filled with tracking code for convenience
+            // href={`https://t.me/ABDURAZACQ?text=Payment%20completed%20for%20tracking%20code%20${trackingCode}.%20Here%20is%20the%20screenshot%20of%20my%20payment.`}
+
+            
           >
             @ABDURAZACQ
           </a>
