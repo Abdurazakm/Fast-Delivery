@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import API from "../api";
 import { getSocket } from "../socket";
 
-export default function OrderingInfoCards({ serverOffsetMs = 0 }) {
+export default function OrderingInfoCards({
+  serverOffsetMs = 0,
+  showOnlyEstimatedDelivery = false,
+}) {
   const [timeLeft, setTimeLeft] = useState("");
   const [isClosed, setIsClosed] = useState(false);
   const [showCards, setShowCards] = useState(true);
@@ -117,8 +120,8 @@ export default function OrderingInfoCards({ serverOffsetMs = 0 }) {
         setTimeLeft(`${hours ? hours + "h " : ""}${minutes}m ${seconds}s`);
       }
 
-      const startDelivery = new Date(lastOrdering.getTime() + 30 * 60 * 1000);
-      const endDelivery = new Date(lastOrdering.getTime() + 90 * 60 * 1000);
+      const startDelivery = new Date(lastOrdering.getTime() + 60 * 60 * 1000);
+      const endDelivery = new Date(lastOrdering.getTime() + 120 * 60 * 1000);
 
       setEstimatedDelivery(
         `${formatTime(startDelivery)} – ${formatTime(endDelivery)}`,
@@ -130,10 +133,25 @@ export default function OrderingInfoCards({ serverOffsetMs = 0 }) {
     return () => clearInterval(countdownInterval);
   }, [serverOffsetMs, cutoffTime, isTemporarilyClosed]);
 
-  if (!showCards) return null;
+  if (!showOnlyEstimatedDelivery && !showCards) return null;
 
   const cardBase =
     "flex flex-col items-center justify-center px-6 py-5 w-full rounded-2xl shadow-xl text-center transition-all transform hover:scale-[1.03]";
+
+  if (showOnlyEstimatedDelivery) {
+    return (
+      <div className="w-full max-w-3xl mx-auto mt-6 px-4">
+        <div className={`${cardBase} bg-green-500 text-white`}>
+          <span className="text-base font-bold tracking-wide">
+            Estimated Delivery
+          </span>
+          <span className="mt-2 text-xl font-semibold">
+            {estimatedDelivery}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-3xl mx-auto mt-6 grid grid-cols-1 sm:grid-cols-2 gap-5 px-4">
