@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, CheckCheck, Trash2, ExternalLink } from "lucide-react";
+import { Bell, CheckCheck, Trash2, ExternalLink, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -89,9 +89,11 @@ export default function NotificationBell() {
     };
     if (open) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [open]);
 
@@ -130,7 +132,7 @@ export default function NotificationBell() {
 
       {/* Dropdown Menu */}
       {open && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed left-3 right-3 top-16 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
           <div className="p-4 bg-linear-to-r from-amber-500 to-orange-500 text-white flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -163,6 +165,13 @@ export default function NotificationBell() {
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               )}
+              <button
+                onClick={() => setOpen(false)}
+                className="text-white/80 hover:text-white p-1 rounded-full cursor-pointer sm:hidden ml-1"
+                title="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
 

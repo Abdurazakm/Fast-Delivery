@@ -881,7 +881,7 @@ export default function Home() {
       {/* Visual Unblock Modal for Denied Permissions */}
       {showPermissionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm mx-auto shadow-2xl relative">
             <button
               onClick={() => setShowPermissionModal(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full cursor-pointer"

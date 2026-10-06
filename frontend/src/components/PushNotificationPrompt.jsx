@@ -159,7 +159,7 @@ export default function PushNotificationPrompt({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl border border-gray-100 relative">
+      <div className="bg-white rounded-3xl p-6 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm mx-auto shadow-2xl border border-gray-100 relative">
         <button
           onClick={handleDismiss}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full"
