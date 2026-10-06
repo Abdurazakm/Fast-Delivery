@@ -11,16 +11,16 @@ import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
   boiledEggPrice: 30,
-  ertibNormalPrice: 115,
-  ertibSpecialPrice: 140,
-  fetiraBasePrice: 120,
+  ertibNormalPrice: 145,
+  ertibSpecialPrice: 170,
+  fetiraBasePrice: 150,
   fetiraExtraEggPrice: 30,
   donut1PairPackagePrice: 60,
   donut2PairPackagePrice: 120,
   donut4PairPackagePrice: 220,
   donut6PairPackagePrice: 320,
-  extraKetchupPrice: 10,
-  doubleFelafilPrice: 15,
+  extraKetchupPrice: 15,
+  doubleFelafilPrice: 20,
 };
 
 const FETIRA_DEFAULT_EGGS = 3;
@@ -502,12 +502,15 @@ export default function Order() {
 
     const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
 
+    const fcmToken = localStorage.getItem("fcm_token");
     const payload = {
       ...customer,
       items: itemList,
       total,
+      ...(fcmToken ? { fcmToken } : {}),
       ...(forceCreateDuplicate ? { forceCreateDuplicate: true } : {}),
     };
+
 
     try {
       if (editMode && editCode) {

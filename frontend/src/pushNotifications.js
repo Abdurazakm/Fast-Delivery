@@ -1,77 +1,41 @@
 import API from "./api";
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; i += 1) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-
-  return outputArray;
-}
+import { requestFirebaseToken } from "./firebase";
 
 export async function initPushNotifications() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("Notification" in window)) {
     return { enabled: false, reason: "unsupported" };
   }
 
   try {
-    const keyRes = await API.get("/notifications/public-key");
-    const publicKey = keyRes?.data?.publicKey;
-    if (!publicKey) {
-      return { enabled: false, reason: "missing-public-key" };
+    const { token, error } = await requestFirebaseToken();
+
+    if (!token) {
+      return { enabled: false, reason: error || "permission-denied" };
     }
 
-    const registration = await navigator.serviceWorker.register("/sw.js");
-    const permission = await Notification.requestPermission();
+    // Save token to backend database
+    await API.post("/notifications/register-token", { token });
 
-    if (permission !== "granted") {
-      return { enabled: false, reason: "permission-denied" };
-    }
-
-    const existingSubscription =
-      await registration.pushManager.getSubscription();
-    const subscription =
-      existingSubscription ||
-      (await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      }));
-
-    await API.post("/notifications/subscribe", {
-      subscription: subscription.toJSON(),
-    });
-
-    return { enabled: true };
+    localStorage.setItem("fcm_token", token);
+    return { enabled: true, token };
   } catch (err) {
+    console.error("Failed to enable push notifications:", err);
     return { enabled: false, reason: "init-failed", error: err };
   }
 }
 
 export async function getPushNotificationStatus() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+  if (typeof window === "undefined" || !("Notification" in window)) {
     return { supported: false, permission: "unsupported", subscribed: false };
   }
 
-  let subscribed = false;
-  try {
-    const registration = await navigator.serviceWorker.getRegistration();
-    if (registration) {
-      const existingSubscription =
-        await registration.pushManager.getSubscription();
-      subscribed = !!existingSubscription;
-    }
-  } catch (err) {
-    subscribed = false;
-  }
+  const token = localStorage.getItem("fcm_token");
+  const permission = Notification.permission;
 
   return {
     supported: true,
-    permission: Notification.permission,
-    subscribed,
+    permission,
+    subscribed: permission === "granted" && !!token,
   };
 }
 

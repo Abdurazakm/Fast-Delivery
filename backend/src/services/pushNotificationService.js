@@ -1,85 +1,207 @@
-const webpush = require("web-push");
+const { messaging } = require("../config/firebase");
 const prisma = require("../config/prisma");
 
-let configured = false;
-
-function configureVapid() {
-  if (configured) return true;
-
-  const publicKey = process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
-
-  if (!publicKey || !privateKey) {
-    return false;
-  }
-
-  webpush.setVapidDetails(subject, publicKey, privateKey);
-  configured = true;
-  return true;
-}
-
 function isPushEnabled() {
-  return configureVapid();
+  return !!messaging;
 }
 
-function getPublicVapidKey() {
-  return process.env.VAPID_PUBLIC_KEY || "";
-}
-
-async function sendPushNotificationToAll(notification) {
-  if (!configureVapid()) {
+/**
+ * Send notification to a specific list of FCM tokens
+ */
+async function sendNotificationToTokens(tokens, { title, body, data = {}, url = "/" }) {
+  if (!messaging || !tokens || !tokens.length) {
     return { sent: 0, failed: 0, skipped: true };
   }
 
-  const subscriptions = await prisma.pushSubscription.findMany();
-  if (!subscriptions.length) {
-    return { sent: 0, failed: 0, skipped: false };
+  // Filter unique valid strings
+  const uniqueTokens = [...new Set(tokens.filter((t) => typeof t === "string" && t.trim()))];
+  if (!uniqueTokens.length) {
+    return { sent: 0, failed: 0, skipped: true };
   }
 
-  const payload = JSON.stringify({
-    title: notification.title || "Notification",
-    message: notification.message || "You have a new update.",
-    url: notification.url || "/",
-    type: notification.type || "info",
-    trackingCode: notification.trackingCode,
-    status: notification.status,
-    at: notification.at || new Date().toISOString(),
-  });
+  // Payload for Firebase Cloud Messaging
+  const message = {
+    notification: {
+      title: title || "Fetan Delivery",
+      body: body || "You have a new update.",
+    },
+    data: {
+      ...Object.fromEntries(
+        Object.entries(data).map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)])
+      ),
+      url: url || "/",
+      click_action: url || "/",
+    },
+    webpush: {
+      fcmOptions: {
+        link: url || "/",
+      },
+      notification: {
+        icon: "/favicon.png",
+        badge: "/favicon.png",
+        renotify: true,
+        tag: data?.type || "order-update",
+      },
+    },
+    tokens: uniqueTokens,
+  };
 
-  let sent = 0;
-  let failed = 0;
+  try {
+    const response = await messaging.sendEachForMulticast(message);
 
-  await Promise.all(
-    subscriptions.map(async (sub) => {
-      const subscription = {
-        endpoint: sub.endpoint,
-        keys: {
-          p256dh: sub.p256dh,
-          auth: sub.auth,
-        },
-      };
-
-      try {
-        await webpush.sendNotification(subscription, payload);
-        sent += 1;
-      } catch (err) {
-        failed += 1;
-
-        if (err?.statusCode === 404 || err?.statusCode === 410) {
-          await prisma.pushSubscription
-            .delete({ where: { endpoint: sub.endpoint } })
-            .catch(() => {});
+    // Identify stale/unregistered tokens for automatic database cleanup
+    const tokensToRemove = [];
+    response.responses.forEach((res, idx) => {
+      if (!res.success) {
+        const code = res.error?.code;
+        if (
+          code === "messaging/invalid-registration-token" ||
+          code === "messaging/registration-token-not-registered"
+        ) {
+          tokensToRemove.push(uniqueTokens[idx]);
         }
       }
-    }),
-  );
+    });
 
-  return { sent, failed, skipped: false };
+    if (tokensToRemove.length) {
+      await prisma.deviceToken
+        .deleteMany({
+          where: { token: { in: tokensToRemove } },
+        })
+        .catch((err) => console.warn("Failed to prune invalid FCM tokens:", err?.message));
+    }
+
+    return {
+      sent: response.successCount,
+      failed: response.failureCount,
+      skipped: false,
+    };
+  } catch (error) {
+    console.error("❌ FCM sendEachForMulticast error:", error);
+    return { sent: 0, failed: uniqueTokens.length, error: error.message };
+  }
+}
+
+/**
+ * Send notification to a specific user by userId
+ */
+async function sendNotificationToUser(userId, notification) {
+  if (!userId) return { sent: 0, failed: 0, skipped: true };
+
+  try {
+    const devices = await prisma.deviceToken.findMany({
+      where: { userId: Number(userId) },
+      select: { token: true },
+    });
+
+    if (!devices.length) return { sent: 0, failed: 0, skipped: false };
+    const tokens = devices.map((d) => d.token);
+    return await sendNotificationToTokens(tokens, notification);
+  } catch (err) {
+    console.error("❌ sendNotificationToUser error:", err);
+    return { sent: 0, failed: 0, error: err.message };
+  }
+}
+
+/**
+ * Send notification to all admin users
+ */
+async function sendNotificationToAdmins(notification) {
+  try {
+    const adminUsers = await prisma.user.findMany({
+      where: { role: "admin" },
+      select: { id: true },
+    });
+
+    if (!adminUsers.length) return { sent: 0, failed: 0, skipped: true };
+
+    const adminIds = adminUsers.map((u) => u.id);
+    const devices = await prisma.deviceToken.findMany({
+      where: { userId: { in: adminIds } },
+      select: { token: true },
+    });
+
+    if (!devices.length) return { sent: 0, failed: 0, skipped: false };
+    const tokens = devices.map((d) => d.token);
+    return await sendNotificationToTokens(tokens, notification);
+  } catch (err) {
+    console.error("❌ sendNotificationToAdmins error:", err);
+    return { sent: 0, failed: 0, error: err.message };
+  }
+}
+
+/**
+ * Broadcast notification to all registered devices
+ */
+async function sendPushNotificationToAll(notification) {
+  try {
+    const devices = await prisma.deviceToken.findMany({
+      select: { token: true },
+    });
+
+    if (!devices.length) return { sent: 0, failed: 0, skipped: false };
+    const tokens = devices.map((d) => d.token);
+    return await sendNotificationToTokens(tokens, notification);
+  } catch (err) {
+    console.error("❌ sendPushNotificationToAll error:", err);
+    return { sent: 0, failed: 0, error: err.message };
+  }
+}
+
+/**
+ * Send notification ONLY to the customer device(s) that placed this specific order
+ */
+async function sendNotificationForOrder(order, { title, body, data = {}, url }) {
+
+  if (!order) return { sent: 0, failed: 0, skipped: true };
+
+  try {
+    const whereConditions = [];
+
+    if (order.userId) {
+      whereConditions.push({ userId: Number(order.userId) });
+    }
+
+    if (order.phone) {
+      whereConditions.push({ phone: String(order.phone).trim() });
+    }
+
+    if (!whereConditions.length) {
+      return { sent: 0, failed: 0, skipped: true };
+    }
+
+    const devices = await prisma.deviceToken.findMany({
+      where: { OR: whereConditions },
+      select: { token: true },
+    });
+
+    if (!devices.length) return { sent: 0, failed: 0, skipped: false };
+    const tokens = devices.map((d) => d.token);
+
+    return await sendNotificationToTokens(tokens, {
+      title,
+      body,
+      data: {
+        ...data,
+        type: "order-status",
+        orderId: String(order.id),
+        trackingCode: order.trackingCode,
+        status: order.status,
+      },
+      url: url || `/track/${order.trackingCode}`,
+    });
+  } catch (err) {
+    console.error("❌ sendNotificationForOrder error:", err);
+    return { sent: 0, failed: 0, error: err.message };
+  }
 }
 
 module.exports = {
   isPushEnabled,
-  getPublicVapidKey,
+  sendNotificationToTokens,
+  sendNotificationToUser,
+  sendNotificationForOrder,
+  sendNotificationToAdmins,
   sendPushNotificationToAll,
 };
+

@@ -1,12 +1,13 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const prisma = require("../config/prisma");
 const {
   isPushEnabled,
-  getPublicVapidKey,
+  sendNotificationToTokens,
+  sendPushNotificationToAll,
 } = require("../services/pushNotificationService");
 
 const router = express.Router();
-const prisma = require("../config/prisma");
 
 function getOptionalUserId(req) {
   const authHeader = req.headers.authorization || "";
@@ -18,82 +19,100 @@ function getOptionalUserId(req) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    return decoded?.id || null;
+    return decoded?.id ? Number(decoded.id) : null;
   } catch (err) {
     return null;
   }
 }
 
-router.get("/public-key", async (req, res) => {
-  const publicKey = getPublicVapidKey();
-  const enabled = isPushEnabled();
-
-  if (!enabled || !publicKey) {
-    return res.status(503).json({
-      enabled: false,
-      message: "Push notifications are not configured on the server.",
-    });
-  }
-
-  return res.json({ enabled: true, publicKey });
+/**
+ * Check if push notifications are configured & enabled
+ */
+router.get("/status", (req, res) => {
+  return res.json({ enabled: isPushEnabled() });
 });
 
-router.post("/subscribe", async (req, res) => {
+/**
+ * Register or update an FCM device token
+ */
+router.post("/register-token", async (req, res) => {
   try {
-    const { subscription } = req.body || {};
+    const { token, phone } = req.body || {};
 
-    if (
-      !subscription?.endpoint ||
-      !subscription?.keys?.p256dh ||
-      !subscription?.keys?.auth
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Invalid push subscription payload." });
+    if (!token || typeof token !== "string") {
+      return res.status(400).json({ message: "Valid device token is required." });
     }
 
     const userId = getOptionalUserId(req);
+    const normalizedPhone = phone ? String(phone).trim() : undefined;
 
-    await prisma.pushSubscription.upsert({
-      where: { endpoint: subscription.endpoint },
+    await prisma.deviceToken.upsert({
+      where: { token },
       update: {
-        p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
-        userId,
+        userId: userId || undefined,
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
       },
       create: {
-        endpoint: subscription.endpoint,
-        p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
-        userId,
+        token,
+        userId: userId || null,
+        phone: normalizedPhone || null,
       },
     });
 
-    return res.json({ success: true });
+    return res.json({ success: true, message: "Token registered successfully." });
   } catch (err) {
-    console.error("❌ subscribe push failed:", err);
-    return res
-      .status(500)
-      .json({ message: "Failed to save push subscription." });
+    console.error("❌ register-token failed:", err);
+    return res.status(500).json({ message: "Failed to register push token." });
   }
 });
 
-router.post("/unsubscribe", async (req, res) => {
+
+/**
+ * Remove an FCM device token (e.g. on logout or user disabled notifications)
+ */
+router.post("/unregister-token", async (req, res) => {
   try {
-    const { endpoint } = req.body || {};
-    if (!endpoint) {
-      return res.status(400).json({ message: "Endpoint is required." });
+    const { token } = req.body || {};
+    if (!token) {
+      return res.status(400).json({ message: "Token is required." });
     }
 
-    await prisma.pushSubscription
-      .delete({ where: { endpoint } })
+    await prisma.deviceToken
+      .delete({ where: { token } })
       .catch(() => {});
+
     return res.json({ success: true });
   } catch (err) {
-    console.error("❌ unsubscribe push failed:", err);
-    return res
-      .status(500)
-      .json({ message: "Failed to remove push subscription." });
+    console.error("❌ unregister-token failed:", err);
+    return res.status(500).json({ message: "Failed to remove push token." });
+  }
+});
+
+/**
+ * Send a test push notification to a specific token or to all devices
+ */
+router.post("/test", async (req, res) => {
+  try {
+    const { token, title, body } = req.body || {};
+
+    if (token) {
+      const result = await sendNotificationToTokens([token], {
+        title: title || "Test Notification 🚀",
+        body: body || "Firebase push notifications are working smoothly!",
+        url: "/",
+      });
+      return res.json({ success: true, result });
+    }
+
+    const result = await sendPushNotificationToAll({
+      title: title || "Broadcast Test 🚀",
+      body: body || "Broadcast push notification from Fetan Delivery!",
+      url: "/",
+    });
+    return res.json({ success: true, result });
+  } catch (err) {
+    console.error("❌ test notification failed:", err);
+    return res.status(500).json({ message: "Failed to send test push notification." });
   }
 });
 

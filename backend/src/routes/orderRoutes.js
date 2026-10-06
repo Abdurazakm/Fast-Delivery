@@ -29,6 +29,11 @@ const {
   emitAdminNotification,
   getSocket,
 } = require("../socket");
+const {
+  sendNotificationForOrder,
+  sendNotificationToUser,
+} = require("../services/pushNotificationService");
+
 
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
@@ -277,6 +282,24 @@ router.post(
       };
 
       const order = await prisma.order.create({ data: orderData });
+
+      const { fcmToken } = req.body || {};
+      if (fcmToken && typeof fcmToken === "string") {
+        await prisma.deviceToken
+          .upsert({
+            where: { token: fcmToken },
+            update: {
+              userId: userId || undefined,
+              phone: normalizedPhone,
+            },
+            create: {
+              token: fcmToken,
+              userId: userId || null,
+              phone: normalizedPhone,
+            },
+          })
+          .catch((err) => console.warn("Failed to link FCM token:", err?.message));
+      }
       emitOrderUpdated(order, "created");
       emitAdminNotification({
         type: "new-order",
@@ -472,14 +495,25 @@ router.put(
       });
 
       emitOrderUpdated(updatedOrder, "status");
+
+      // Send push notification ONLY to the customer device(s) that placed this order
+      sendNotificationForOrder(updatedOrder, {
+        title: "Order Status Updated 🛵",
+        body: `Your order #${updatedOrder.id} is now ${status.replace("_", " ")}.`,
+        url: `/track/${updatedOrder.trackingCode}`,
+      }).catch((err) => console.error("❌ Customer push failed:", err?.message));
+
+      // Live socket update for open apps (broadcastPush: false ensures other phones don't get push alerts)
       emitGlobalNotification({
         type: "status",
         title: "Order Status Updated",
-        message: `Order is now ${status.replace("_", " ")}.`,
+        message: `Order #${updatedOrder.id} is now ${status.replace("_", " ")}.`,
         trackingCode: updatedOrder.trackingCode,
         url: `/track/${updatedOrder.trackingCode}`,
         status,
+        broadcastPush: false,
       });
+
 
       res.json({ message: "Status updated", orderId: order.id });
     } catch (err) {
@@ -867,29 +901,32 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
  */
 router.post("/bulk-sms", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, title } = req.body;
     if (!message)
       return res.status(400).json({ message: "Message text is required" });
 
     const io = getSocket();
     const connectedUsers = io?.engine?.clientsCount || 0;
+    const notificationTitle = title || "Fetan Delivery Announcement 📢";
 
     emitGlobalNotification({
       type: "announcement",
-      title: "New Announcement",
+      title: notificationTitle,
       message,
+      broadcastPush: true,
     });
 
     res.json({
       success: true,
-      channel: "socket-notification",
+      channel: "broadcast",
       deliveredToConnectedClients: connectedUsers,
-      message: "Announcement broadcasted to connected users.",
+      message: "Announcement broadcasted to connected users and push devices.",
     });
   } catch (err) {
-    console.error("❌ Bulk SMS error:", err);
+    console.error("❌ Bulk broadcast error:", err);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 module.exports = router;

@@ -19,6 +19,9 @@ import AdminAvailability from "./pages/admin/AdminAvailability";
 import Toast from "./pages/Toast";
 import { getSocket } from "./socket";
 import { initPushNotifications } from "./pushNotifications";
+import InstallPwaBanner from "./components/InstallPwaBanner";
+
+
 /* ---------------- Main App ---------------- */
 function App() {
   const [user, setUser] = useState(null);
@@ -419,7 +422,9 @@ function App() {
   return (
     <Router>
       <SeoManager />
+      <InstallPwaBanner />
       {notificationToast && (
+
         <Toast
           message={notificationToast.message}
           type={notificationToast.type}

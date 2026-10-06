@@ -1,6 +1,7 @@
 const { Server } = require("socket.io");
 const {
   sendPushNotificationToAll,
+  sendNotificationToAdmins,
 } = require("./services/pushNotificationService");
 
 let io = null;
@@ -113,13 +114,22 @@ function emitGlobalNotification(notification) {
 
   io.emit("notification:broadcast", payload);
 
-  sendPushNotificationToAll(payload).catch((err) => {
-    console.error(
-      "❌ Push notification broadcast failed:",
-      err?.message || err,
-    );
-  });
+  // Only broadcast push notification to ALL devices if explicitly flagged as an announcement
+  if (notification.broadcastPush === true) {
+    sendPushNotificationToAll({
+      title: payload.title || "Fetan Delivery",
+      body: payload.message || "You have a new update.",
+      data: payload,
+      url: payload.url || "/",
+    }).catch((err) => {
+      console.error(
+        "❌ Push notification broadcast failed:",
+        err?.message || err,
+      );
+    });
+  }
 }
+
 
 function emitAdminNotification(notification) {
   if (!io || !notification) return;
@@ -131,6 +141,15 @@ function emitAdminNotification(notification) {
   };
 
   io.to("admin").emit("notification:broadcast", payload);
+
+  sendNotificationToAdmins({
+    title: payload.title || "Admin Alert",
+    body: payload.message || "New activity detected.",
+    data: payload,
+    url: payload.url || "/admin",
+  }).catch((err) => {
+    console.error("❌ Admin push notification failed:", err?.message || err);
+  });
 }
 
 module.exports = {

@@ -5,6 +5,7 @@ import {
   FaPaperPlane,
   FaPhoneAlt,
   FaRegEnvelope,
+  FaBullhorn,
   FaEdit,
   FaTrash,
   FaCopy,
@@ -20,16 +21,16 @@ import { getSocket } from "../../socket";
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
   boiledEggPrice: 30,
-  ertibNormalPrice: 115,
-  ertibSpecialPrice: 140,
-  fetiraBasePrice: 120,
+  ertibNormalPrice: 145,
+  ertibSpecialPrice: 170,
+  fetiraBasePrice: 150,
   fetiraExtraEggPrice: 30,
   donut1PairPackagePrice: 60,
   donut2PairPackagePrice: 120,
   donut4PairPackagePrice: 220,
   donut6PairPackagePrice: 320,
-  extraKetchupPrice: 10,
-  doubleFelafilPrice: 15,
+  extraKetchupPrice: 15,
+  doubleFelafilPrice: 20,
   sambusaCost: 20,
   boiledEggCost: 20,
   ertibNormalCost: 100,
@@ -60,9 +61,12 @@ export default function AdminDashboard({ user }) {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [smsTitle, setSmsTitle] = useState("");
   const [smsMessage, setSmsMessage] = useState("");
   const [smsDay, setSmsDay] = useState(""); // Mon, Tue, etc.
+  const [smsSending, setSmsSending] = useState(false);
   const [toast, setToast] = useState(null);
+
 
   const roleLower = (user?.role || "").toLowerCase();
   const isEmploy = roleLower === "employ" || roleLower === "employee";
@@ -741,19 +745,34 @@ Normal - 110 Birr, Special - 135 Birr
   };
 
   const sendBulkSMS = async () => {
+    if (!smsMessage.trim()) {
+      showToast("⚠️ Please enter a broadcast message");
+      return;
+    }
+
+    setSmsSending(true);
     try {
       await API.post(
         "/orders/bulk-sms",
-        { message: smsMessage, day: smsDay },
+        {
+          title: smsTitle.trim() || "Fetan Delivery Announcement 📢",
+          message: smsMessage.trim(),
+          day: smsDay,
+        },
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      showToast("✅ Notification sent to connected users!");
+      showToast("✅ Broadcast sent to all devices & users!");
       closeSmsModal();
+      setSmsMessage("");
+      setSmsTitle("");
     } catch (err) {
       console.error("Failed to send broadcast notification:", err);
-      showToast("❌ Failed to send notification");
+      showToast("❌ Failed to send broadcast notification");
+    } finally {
+      setSmsSending(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -1217,11 +1236,12 @@ Normal - 110 Birr, Special - 135 Birr
                               0,
                               Number(item.extraEggs) || 0,
                             );
-                            foodDesc = `${item.quantity} × Fetira (3 eggs included`;
+                            foodDesc = `${item.quantity} × Fetira`;
                             if (extraEggs > 0) {
-                              foodDesc += `, +${extraEggs} extra egg${extraEggs > 1 ? "s" : ""}`;
+                              foodDesc += ` (+${extraEggs} extra egg${
+                                extraEggs > 1 ? "s" : ""
+                              })`;
                             }
-                            foodDesc += ")";
                           } else if (item.foodType === "donut") {
                             const pairs =
                               Number(item.donutPairsPerPackage) || 1;
@@ -1481,58 +1501,83 @@ Normal - 110 Birr, Special - 135 Birr
           </div>
         </div>
       )}
+      {/* Floating Broadcast / Push Notification Button */}
       {isAdmin && (
         <button
           onClick={openSmsModal}
-          className="fixed bottom-6 right-6 bg-amber-500 hover:bg-amber-600 text-white p-4 rounded-full shadow-lg z-50 flex items-center justify-center"
-          title="Send Promotional SMS"
+          className="fixed bottom-6 right-6 bg-amber-500 hover:bg-amber-600 text-white p-4 rounded-full shadow-2xl z-50 flex items-center justify-center transition-transform hover:scale-110"
+          title="Send Broadcast Push Notification"
         >
-          <FaRegEnvelope className="text-sm" />
+          <FaBullhorn className="text-xl" />
         </button>
       )}
 
-      {/* SMS Modal */}
+      {/* Broadcast Notification Modal */}
       {isAdmin && smsModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-xl w-96 shadow-lg relative">
-            <h2 className="text-lg font-bold mb-4 text-amber-700">
-              📣 Send Broadcast Notification
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl relative">
+            <h2 className="text-xl font-bold mb-1 text-amber-700 flex items-center gap-2">
+              <FaBullhorn className="text-amber-600" /> Send Broadcast Notification
             </h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Sends an instant Firebase push notification to all subscribed customer devices and a live banner to online visitors.
+            </p>
 
-            <label className="block mb-2 font-medium">Select Day</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Title (Optional)
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Special Discount Today! 🎉"
+              value={smsTitle}
+              onChange={(e) => setSmsTitle(e.target.value)}
+              className="border border-gray-300 p-2.5 rounded-lg w-full mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Quick Promo Template (Optional)
+            </label>
             <select
               value={smsDay}
               onChange={handleDayChange}
-              className="border p-2 rounded w-full mb-4"
+              className="border border-gray-300 p-2.5 rounded-lg w-full mb-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
-              <option value="">-- Select Day --</option>
+              <option value="">-- Choose a template or write custom --</option>
               {["Monday", "Tuesday", "Wednesday", "Thursday"].map((day) => (
                 <option key={day} value={day}>
-                  {day}
+                  {day} Promo Template
                 </option>
               ))}
             </select>
 
-            <label className="block mb-2 font-medium">Message</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notification Message <span className="text-red-500">*</span>
+            </label>
             <textarea
-              rows={6}
-              className="border p-2 rounded w-full mb-4"
+              rows={5}
+              placeholder="Enter your announcement or promo message..."
+              className="border border-gray-300 p-2.5 rounded-lg w-full mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
               value={smsMessage}
               onChange={(e) => setSmsMessage(e.target.value)}
             />
 
             <div className="flex justify-end gap-2">
               <button
+                type="button"
                 onClick={closeSmsModal}
-                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
+                disabled={smsSending}
+                className="bg-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 text-gray-700 font-medium text-sm transition"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={sendBulkSMS}
-                className="bg-amber-500 px-4 py-2 rounded hover:bg-amber-600 text-white flex items-center gap-2"
+                disabled={smsSending || !smsMessage.trim()}
+                className="bg-amber-600 px-5 py-2 rounded-lg hover:bg-amber-700 text-white font-medium text-sm flex items-center gap-2 shadow transition disabled:opacity-50"
               >
-                <FaPaperPlane />
+                <FaPaperPlane className="text-xs" />
+                {smsSending ? "Sending..." : "Send Broadcast"}
               </button>
             </div>
           </div>

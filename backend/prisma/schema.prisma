@@ -18,6 +18,7 @@ model User {
   updatedAt         DateTime           @updatedAt
   orders            Order[]
   pushSubscriptions PushSubscription[]
+  deviceTokens      DeviceToken[]
 }
 
 model Order {
@@ -90,3 +91,15 @@ model PushSubscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model DeviceToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int?
+  phone     String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+

@@ -6,6 +6,8 @@ import TrackingInfoCard from "./TrackingInfoCard";
 import { FiArrowLeft } from "react-icons/fi";
 import { getSocket } from "../socket";
 import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
+import PushNotificationPrompt from "../components/PushNotificationPrompt";
+
 
 export default function TrackOrder() {
   const { code } = useParams();
@@ -133,8 +135,12 @@ export default function TrackOrder() {
         </div>
       </div>
       <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0 mt-4 sm:mt-6">
+        {/* Live Delivery Push Alerts Prompt */}
+        <PushNotificationPrompt order={order} mode="inline" />
+
         {/* Tracking Info Card */}
         <TrackingInfoCard order={order} hideCustomerWhenManual />
+
 
         {/* Status Timeline */}
         <div className="bg-white rounded-lg shadow p-6">

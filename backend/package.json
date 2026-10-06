@@ -20,6 +20,7 @@
     "dayjs": "^1.11.18",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
+    "firebase-admin": "^14.5.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.8.7",
     "morgan": "^1.10.1",

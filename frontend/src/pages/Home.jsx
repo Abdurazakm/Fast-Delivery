@@ -15,6 +15,11 @@ import {
   getPushNotificationStatus,
   enablePushNotificationsNow,
 } from "../pushNotifications";
+import { onMessageListener } from "../firebase";
+import PushNotificationPrompt from "../components/PushNotificationPrompt";
+import NotificationBell from "../components/NotificationBell";
+
+
 
 const DEFAULT_ITEM_AVAILABILITY = {
   ertib: true,
@@ -312,6 +317,15 @@ export default function Home() {
       setPushSupported(false);
       setPushEnabled(false);
     });
+
+    onMessageListener((payload) => {
+      const title = payload.notification?.title || payload.data?.title || "New Notification";
+      const body = payload.notification?.body || payload.data?.message || payload.data?.body || "";
+      setToast({
+        message: body ? `${title}: ${body}` : title,
+        type: "info",
+      });
+    });
   }, []);
 
   const handleEnableNotifications = async () => {
@@ -386,8 +400,10 @@ export default function Home() {
           </span>
         </a>
       )}
-      {/* Top Right Auth Buttons */}
-      <div className="w-full flex items-center justify-end max-w-6xl mb-6">
+      {/* Top Right Auth & Notification Buttons */}
+      <div className="w-full flex items-center justify-end max-w-6xl mb-6 gap-3">
+        <NotificationBell />
+
         {user?.role === "admin" ? (
           <Link
             to="/availability"
@@ -790,6 +806,10 @@ export default function Home() {
           Developed by Abdurazak
         </a>
       </footer>
+
+      {/* Soft Push Notification Opt-in Prompt */}
+      <PushNotificationPrompt mode="soft-modal" onStatusChange={refreshPushStatus} />
     </div>
   );
 }
+
