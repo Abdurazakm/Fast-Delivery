@@ -4,14 +4,21 @@ const path = require("path");
 const fs = require("fs");
 
 if (!admin.getApps().length) {
-  const serviceAccountPath = path.resolve(__dirname, "../../serviceAccountKey.json");
+  const possiblePaths = [
+    path.resolve(__dirname, "../../serviceAccountKey.json"),
+    path.resolve(process.cwd(), "serviceAccountKey.json"),
+    path.resolve(process.cwd(), "backend/serviceAccountKey.json"),
+    "/etc/secrets/serviceAccountKey.json",
+  ];
+  const serviceAccountPath = possiblePaths.find((p) => fs.existsSync(p));
 
-  if (fs.existsSync(serviceAccountPath)) {
+  if (serviceAccountPath) {
     const serviceAccount = require(serviceAccountPath);
     admin.initializeApp({
       credential: admin.cert(serviceAccount),
     });
-    console.log("✅ Firebase Admin initialized using serviceAccountKey.json");
+    console.log(`✅ Firebase Admin initialized using ${serviceAccountPath}`);
+
   } else if (
     process.env.FIREBASE_PROJECT_ID &&
     process.env.FIREBASE_CLIENT_EMAIL &&
