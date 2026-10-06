@@ -24,13 +24,20 @@ export const getFirebaseMessaging = async () => {
   return messagingInstance;
 };
 
+const FALLBACK_VAPID_KEY =
+  "BLoanI6vetrGPv-Jr4OI8ohxdxYAhhDzbbwynMgFc5fRNpVJ_LIulfgAaVybCHv-PrABXz39sVkrHoLlaxmZUv8";
+
 export const requestFirebaseToken = async () => {
   try {
     if (typeof window === "undefined" || !("Notification" in window)) {
       return { token: null, error: "Notifications not supported in this browser." };
     }
 
-    const permission = await Notification.requestPermission();
+    let permission = Notification.permission;
+    if (permission !== "granted") {
+      permission = await Notification.requestPermission();
+    }
+
     if (permission !== "granted") {
       return { token: null, error: "permission-denied" };
     }
@@ -40,15 +47,19 @@ export const requestFirebaseToken = async () => {
       return { token: null, error: "Firebase messaging is not supported in this environment." };
     }
 
-    const swRegistration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
-
-    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
-    if (!vapidKey) {
-      console.warn("VITE_FIREBASE_VAPID_KEY is not set.");
+    let swRegistration = await navigator.serviceWorker.getRegistration("/firebase-messaging-sw.js");
+    if (!swRegistration) {
+      swRegistration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
     }
 
+    // Wait until the service worker is active and ready
+    swRegistration = await navigator.serviceWorker.ready;
+
+    const vapidKey =
+      import.meta.env.VITE_FIREBASE_VAPID_KEY || FALLBACK_VAPID_KEY;
+
     const currentToken = await getToken(messaging, {
-      vapidKey: vapidKey || undefined,
+      vapidKey,
       serviceWorkerRegistration: swRegistration,
     });
 
@@ -58,6 +69,7 @@ export const requestFirebaseToken = async () => {
     return { token: null, error: err?.message || "Failed to retrieve token" };
   }
 };
+
 
 export const onMessageListener = (callback) => {
   getFirebaseMessaging().then((messaging) => {

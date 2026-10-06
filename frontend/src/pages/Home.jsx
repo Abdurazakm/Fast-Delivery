@@ -54,9 +54,12 @@ export default function Home() {
     DEFAULT_ITEM_AVAILABILITY,
   );
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushPermission, setPushPermission] = useState("default");
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
   const [pushSupported, setPushSupported] = useState(true);
   const roleLower = (user?.role || "").toLowerCase();
+
 
   // Fetch user & latest order
   useEffect(() => {
@@ -307,9 +310,28 @@ export default function Home() {
   };
 
   const refreshPushStatus = async () => {
-    const status = await getPushNotificationStatus();
-    setPushSupported(status.supported);
-    setPushEnabled(status.permission === "granted" && status.subscribed);
+    try {
+      const status = await getPushNotificationStatus();
+      setPushSupported(status.supported);
+      const perm =
+        status.permission ||
+        (typeof Notification !== "undefined"
+          ? Notification.permission
+          : "default");
+      setPushPermission(perm);
+
+      if (perm === "granted") {
+        setPushEnabled(true);
+        if (!status.subscribed) {
+          enablePushNotificationsNow().catch(() => {});
+        }
+      } else {
+        setPushEnabled(false);
+      }
+    } catch {
+      setPushSupported(false);
+      setPushEnabled(false);
+    }
   };
 
   useEffect(() => {
@@ -319,8 +341,15 @@ export default function Home() {
     });
 
     onMessageListener((payload) => {
-      const title = payload.notification?.title || payload.data?.title || "New Notification";
-      const body = payload.notification?.body || payload.data?.message || payload.data?.body || "";
+      const title =
+        payload.notification?.title ||
+        payload.data?.title ||
+        "New Notification";
+      const body =
+        payload.notification?.body ||
+        payload.data?.message ||
+        payload.data?.body ||
+        "";
       setToast({
         message: body ? `${title}: ${body}` : title,
         type: "info",
@@ -329,6 +358,16 @@ export default function Home() {
   }, []);
 
   const handleEnableNotifications = async () => {
+    const currentPerm =
+      typeof Notification !== "undefined"
+        ? Notification.permission
+        : pushPermission;
+
+    if (currentPerm === "denied") {
+      setShowPermissionModal(true);
+      return;
+    }
+
     setPushLoading(true);
     try {
       const result = await enablePushNotificationsNow();
@@ -336,15 +375,20 @@ export default function Home() {
 
       if (result?.enabled) {
         setToast({
-          message: "✅ Notifications enabled. You will receive popup alerts.",
+          message:
+            "✅ Notifications enabled! You will receive live delivery alerts.",
           type: "success",
         });
+      } else if (
+        result?.reason === "permission-denied" ||
+        (typeof Notification !== "undefined" &&
+          Notification.permission === "denied")
+      ) {
+        setPushPermission("denied");
+        setShowPermissionModal(true);
       } else {
         setToast({
-          message:
-            result?.reason === "permission-denied"
-              ? "⚠️ Notification permission denied. Enable it from browser settings."
-              : "⚠️ Failed to enable notifications.",
+          message: "⚠️ Could not enable notifications. Please try again.",
           type: "error",
         });
       }
@@ -357,6 +401,7 @@ export default function Home() {
       setPushLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-b from-amber-50 to-orange-100 p-6">
@@ -460,29 +505,47 @@ export default function Home() {
       <div className="mt-4 flex justify-center">
         <button
           onClick={handleEnableNotifications}
-          disabled={!pushSupported || pushLoading || pushEnabled}
-          className={`px-5 py-2 rounded-full font-medium shadow-md transition-all duration-200 ${
-            pushEnabled
-              ? "bg-green-600 text-white cursor-default"
-              : !pushSupported
-                ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                : pushLoading
-                  ? "bg-amber-300 text-white cursor-wait"
-                  : "bg-amber-500 hover:bg-amber-600 text-white"
+          disabled={!pushSupported || pushLoading || (pushEnabled && pushPermission === "granted")}
+          className={`px-5 py-2.5 rounded-full font-semibold shadow-md transition-all duration-200 flex items-center gap-2 ${
+            pushEnabled && pushPermission === "granted"
+              ? "bg-emerald-600 text-white cursor-default"
+              : pushPermission === "denied"
+                ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 cursor-pointer"
+                : !pushSupported
+                  ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                  : pushLoading
+                    ? "bg-amber-300 text-white cursor-wait"
+                    : "bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white cursor-pointer active:scale-95"
           }`}
           title={
-            pushEnabled
-              ? "Notifications are already enabled"
-              : "Enable browser popup notifications"
+            pushEnabled && pushPermission === "granted"
+              ? "Notifications are enabled"
+              : pushPermission === "denied"
+                ? "Notifications are blocked in your browser. Tap to see how to fix it."
+                : "Enable browser popup notifications"
           }
         >
-          {pushEnabled
-            ? "🔔 Notifications Enabled"
-            : pushLoading
-              ? "Enabling..."
-              : "🔔 Enable Notifications"}
+          {pushEnabled && pushPermission === "granted" ? (
+            <>
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span>🔔 Notifications Active</span>
+            </>
+          ) : pushPermission === "denied" ? (
+            <>
+              <span>🔒 Notifications Blocked (Tap to Fix)</span>
+            </>
+          ) : pushLoading ? (
+            <>
+              <span>Enabling...</span>
+            </>
+          ) : (
+            <>
+              <span>🔔 Enable Notifications</span>
+            </>
+          )}
         </button>
       </div>
+
 
       {user?.role !== "admin" && !serviceAvailable && message && (
         <div
@@ -630,16 +693,21 @@ export default function Home() {
       <div className="mt-4">
         <span
           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
-            pushEnabled
+            pushEnabled && pushPermission === "granted"
               ? "bg-green-100 text-green-700 border-green-300"
-              : "bg-red-100 text-red-700 border-red-300"
+              : pushPermission === "denied"
+                ? "bg-amber-100 text-amber-800 border-amber-300"
+                : "bg-gray-100 text-gray-600 border-gray-300"
           }`}
         >
-          {pushEnabled
+          {pushEnabled && pushPermission === "granted"
             ? "🔔 Notification status: Enabled"
-            : "🔕 Notification status: Disabled"}
+            : pushPermission === "denied"
+              ? "🔒 Notification status: Blocked in Browser"
+              : "🔕 Notification status: Not enabled"}
         </span>
       </div>
+
 
       {/* Track Your Order */}
       {user?.role !== "admin" && (
@@ -809,7 +877,58 @@ export default function Home() {
 
       {/* Soft Push Notification Opt-in Prompt */}
       <PushNotificationPrompt mode="soft-modal" onStatusChange={refreshPushStatus} />
+
+      {/* Visual Unblock Modal for Denied Permissions */}
+      {showPermissionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative">
+            <button
+              onClick={() => setShowPermissionModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full cursor-pointer"
+            >
+              ✕
+            </button>
+
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3 text-2xl font-bold shadow-inner">
+              🔒
+            </div>
+
+            <h3 className="text-base font-bold text-gray-900 text-center mb-1">
+              Notifications are Blocked
+            </h3>
+            <p className="text-xs text-gray-500 text-center mb-4">
+              Your browser has notifications set to <b>Blocked</b>. Follow these 3 simple steps to unblock:
+            </p>
+
+            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 text-xs space-y-2.5 text-gray-700">
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
+                <span>Look at your browser's address bar at the top (next to <b>https://...</b>).</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
+                <span>Tap the <b>🔒 Lock</b> or <b>Site Settings / Tune (⚙️)</b> icon.</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
+                <span>Switch <b>Notifications</b> from <i>Blocked</i> to <b>Allow</b>, then refresh!</span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowPermissionModal(false);
+                window.location.reload();
+              }}
+              className="w-full mt-4 bg-linear-to-r from-amber-500 to-orange-500 text-white font-semibold py-2.5 rounded-xl text-xs shadow hover:from-amber-600 hover:to-orange-600 transition cursor-pointer"
+            >
+              I Allowed It (Reload Page)
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
