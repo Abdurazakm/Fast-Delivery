@@ -1,5 +1,6 @@
 const { messaging } = require("../config/firebase");
 const prisma = require("../config/prisma");
+const { normalizePhone } = require("../utils/phone");
 
 function isPushEnabled() {
   return !!messaging;
@@ -33,14 +34,21 @@ async function sendNotificationToTokens(tokens, { title, body, data = {}, url = 
       click_action: url || "/",
     },
     webpush: {
+      headers: {
+        Urgency: "high",
+        TTL: "86400", // 24 hours retention for sleeping/inactive devices
+      },
       fcmOptions: {
         link: url || "/",
       },
       notification: {
+        title: title || "Fetan Delivery",
+        body: body || "You have a new update.",
         icon: "/favicon.png",
         badge: "/favicon.png",
         renotify: true,
-        tag: data?.type || "order-update",
+        requireInteraction: true,
+        tag: data?.type ? `${data.type}-${data.orderId || data.trackingCode || ""}` : "order-update",
       },
     },
     tokens: uniqueTokens,
@@ -163,7 +171,16 @@ async function sendNotificationForOrder(order, { title, body, data = {}, url }) 
     }
 
     if (order.phone) {
-      whereConditions.push({ phone: String(order.phone).trim() });
+      const rawPhone = String(order.phone).trim();
+      whereConditions.push({ phone: rawPhone });
+      const norm = normalizePhone(rawPhone);
+      if (norm) {
+        whereConditions.push({ phone: norm });
+        if (norm.startsWith("+251")) {
+          whereConditions.push({ phone: "0" + norm.slice(4) });
+          whereConditions.push({ phone: norm.slice(4) });
+        }
+      }
     }
 
     if (!whereConditions.length) {
@@ -175,7 +192,10 @@ async function sendNotificationForOrder(order, { title, body, data = {}, url }) 
       select: { token: true },
     });
 
-    if (!devices.length) return { sent: 0, failed: 0, skipped: false };
+    if (!devices.length) {
+      console.log(`ℹ️ [Push] No FCM tokens linked to order #${order.id} (phone: ${order.phone}, user: ${order.userId})`);
+      return { sent: 0, failed: 0, skipped: false };
+    }
     const tokens = devices.map((d) => d.token);
 
     return await sendNotificationToTokens(tokens, {

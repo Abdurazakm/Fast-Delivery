@@ -20,6 +20,10 @@ messaging.onBackgroundMessage((payload) => {
     body: payload.notification?.body || payload.data?.message || payload.data?.body || "You have a new update.",
     icon: "/favicon.png",
     badge: "/favicon.png",
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
+    tag: payload.data?.orderId ? `order-${payload.data.orderId}` : "fetan-update",
+    renotify: true,
     data: {
       url: payload.data?.url || payload.data?.click_action || "/",
       ...payload.data,
@@ -27,6 +31,49 @@ messaging.onBackgroundMessage((payload) => {
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// Native push listener: guarantees delivery on inactive/sleeping devices & closed browsers
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  let payload = {};
+  try {
+    payload = event.data.json();
+  } catch (err) {
+    try {
+      payload = { notification: { body: event.data.text() } };
+    } catch {}
+  }
+
+  // If payload is empty, default
+  const title = payload.notification?.title || payload.data?.title || "Fetan Delivery";
+  const body =
+    payload.notification?.body ||
+    payload.data?.message ||
+    payload.data?.body ||
+    "You have a new order update.";
+  const url =
+    payload.data?.url ||
+    payload.data?.click_action ||
+    payload.fcmOptions?.link ||
+    "/";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/favicon.png",
+      badge: "/favicon.png",
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+      tag: payload.data?.orderId ? `order-${payload.data.orderId}` : "fetan-update",
+      renotify: true,
+      data: {
+        url,
+        ...payload.data,
+      },
+    })
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {

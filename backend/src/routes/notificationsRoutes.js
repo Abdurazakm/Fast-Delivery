@@ -1,6 +1,7 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/prisma");
+const { normalizePhone } = require("../utils/phone");
 const {
   isPushEnabled,
   sendNotificationToTokens,
@@ -37,19 +38,44 @@ router.get("/status", (req, res) => {
  */
 router.post("/register-token", async (req, res) => {
   try {
-    const { token, phone } = req.body || {};
+    const { token, phone, trackingCode } = req.body || {};
 
     if (!token || typeof token !== "string") {
       return res.status(400).json({ message: "Valid device token is required." });
     }
 
-    const userId = getOptionalUserId(req);
-    const normalizedPhone = phone ? String(phone).trim() : undefined;
+    let userId = getOptionalUserId(req);
+    let normalizedPhone = phone ? normalizePhone(phone) : null;
+
+    if (trackingCode) {
+      const order = await prisma.order.findFirst({
+        where: { trackingCode },
+        select: { phone: true, userId: true },
+      });
+      if (order) {
+        if (!normalizedPhone && order.phone) {
+          normalizedPhone = normalizePhone(order.phone);
+        }
+        if (!userId && order.userId) {
+          userId = order.userId;
+        }
+      }
+    }
+
+    if (!normalizedPhone && userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { phone: true },
+      });
+      if (user?.phone) {
+        normalizedPhone = normalizePhone(user.phone);
+      }
+    }
 
     await prisma.deviceToken.upsert({
       where: { token },
       update: {
-        userId: userId || undefined,
+        ...(userId ? { userId } : {}),
         ...(normalizedPhone ? { phone: normalizedPhone } : {}),
       },
       create: {

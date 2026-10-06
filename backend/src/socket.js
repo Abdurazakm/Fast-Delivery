@@ -3,6 +3,7 @@ const {
   sendPushNotificationToAll,
   sendNotificationToAdmins,
 } = require("./services/pushNotificationService");
+const { normalizePhone } = require("./utils/phone");
 
 let io = null;
 
@@ -31,6 +32,26 @@ function initSocket(httpServer) {
     socket.on("leave-order", (trackingCode) => {
       if (!trackingCode) return;
       socket.leave(`order:${trackingCode}`);
+    });
+
+    socket.on("join-user", (userId) => {
+      if (userId) socket.join(`user:${userId}`);
+    });
+
+    socket.on("leave-user", (userId) => {
+      if (userId) socket.leave(`user:${userId}`);
+    });
+
+    socket.on("join-phone", (phone) => {
+      if (!phone) return;
+      const normalized = normalizePhone(phone);
+      if (normalized) socket.join(`phone:${normalized}`);
+    });
+
+    socket.on("leave-phone", (phone) => {
+      if (!phone) return;
+      const normalized = normalizePhone(phone);
+      if (normalized) socket.leave(`phone:${normalized}`);
     });
   });
 
@@ -131,6 +152,41 @@ function emitGlobalNotification(notification) {
 }
 
 
+function emitTargetedOrderNotification(order, notification) {
+  if (!io || !order) return;
+
+  const payload = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    at: new Date().toISOString(),
+    orderId: order.id,
+    trackingCode: order.trackingCode,
+    status: order.status,
+    url: `/track/${order.trackingCode}`,
+    ...notification,
+  };
+
+  // 1. Direct to anyone watching this specific order tracking page
+  if (order.trackingCode) {
+    io.to(`order:${order.trackingCode}`).emit("order:notification", payload);
+  }
+
+  // 2. Direct to customer account room (if user is logged in)
+  if (order.userId) {
+    io.to(`user:${order.userId}`).emit("order:notification", payload);
+  }
+
+  // 3. Direct to customer phone room
+  if (order.phone) {
+    const norm = normalizePhone(order.phone);
+    if (norm) {
+      io.to(`phone:${norm}`).emit("order:notification", payload);
+    }
+  }
+
+  // 4. Direct to admins for their dashboard alerts
+  io.to("admin").emit("admin:order-notification", payload);
+}
+
 function emitAdminNotification(notification) {
   if (!io || !notification) return;
 
@@ -140,7 +196,7 @@ function emitAdminNotification(notification) {
     ...notification,
   };
 
-  io.to("admin").emit("notification:broadcast", payload);
+  io.to("admin").emit("admin:order-notification", payload);
 
   sendNotificationToAdmins({
     title: payload.title || "Admin Alert",
@@ -161,4 +217,5 @@ module.exports = {
   emitAvailabilityUpdated,
   emitGlobalNotification,
   emitAdminNotification,
+  emitTargetedOrderNotification,
 };

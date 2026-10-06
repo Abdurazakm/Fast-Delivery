@@ -18,9 +18,22 @@ export default function TrackOrder() {
   useEffect(() => {
     const fetchTrack = async () => {
       try {
-        const res = await API.get(`/orders/track/${code}`);
-        setOrder(res.data);
-        console.debug("Fetched order:", res.data);
+        const orderData = res.data;
+        setOrder(orderData);
+        if (orderData?.trackingCode) {
+          localStorage.setItem("last_order_tracking", orderData.trackingCode);
+        }
+        if (orderData?.phone) {
+          localStorage.setItem("last_order_phone", orderData.phone);
+        }
+        const fcmToken = localStorage.getItem("fcm_token");
+        if (fcmToken && orderData?.phone) {
+          API.post("/notifications/register-token", {
+            token: fcmToken,
+            phone: orderData.phone,
+            trackingCode: orderData.trackingCode,
+          }).catch(() => {});
+        }
       } catch (err) {
         console.error("Tracking fetch error:", err);
         setError(

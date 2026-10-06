@@ -13,8 +13,14 @@ export async function initPushNotifications() {
       return { enabled: false, reason: error || "permission-denied" };
     }
 
-    // Save token to backend database
-    await API.post("/notifications/register-token", { token });
+    // Save token to backend database with known phone or tracking code
+    const phone = localStorage.getItem("last_order_phone") || undefined;
+    const trackingCode = localStorage.getItem("last_order_tracking") || undefined;
+    await API.post("/notifications/register-token", {
+      token,
+      ...(phone ? { phone } : {}),
+      ...(trackingCode ? { trackingCode } : {}),
+    });
 
     localStorage.setItem("fcm_token", token);
     return { enabled: true, token };

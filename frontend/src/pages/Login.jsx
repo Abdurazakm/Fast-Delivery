@@ -31,6 +31,15 @@ const Login = ({ onLoginSuccess }) => {
       localStorage.setItem("role", role);
       localStorage.setItem("name", name);
 
+      const fcmToken = localStorage.getItem("fcm_token");
+      if (fcmToken) {
+        API.post(
+          "/notifications/register-token",
+          { token: fcmToken, phone: user.phone },
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => {});
+      }
+
       if (typeof onLoginSuccess === "function") {
         onLoginSuccess(user);
       }

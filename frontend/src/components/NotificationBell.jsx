@@ -67,15 +67,29 @@ export default function NotificationBell() {
       });
     });
 
-    // 2. Socket.IO live announcements
+    // 2. Socket.IO live targeted and announcement notifications
     const socket = getSocket();
     if (socket) {
       const handleBroadcast = (payload) => {
+        // Only accept system-wide broadcasts if they are announcements (prevent order leaks)
+        if (payload && payload.type === "announcement") {
+          addNotification(payload);
+        }
+      };
+
+      const handleOrderNotification = (payload) => {
+        // Targeted order notifications destined for this specific user/device
         if (payload) addNotification(payload);
       };
+
       socket.on("notification:broadcast", handleBroadcast);
+      socket.on("order:notification", handleOrderNotification);
+      socket.on("admin:order-notification", handleOrderNotification);
+
       return () => {
         socket.off("notification:broadcast", handleBroadcast);
+        socket.off("order:notification", handleOrderNotification);
+        socket.off("admin:order-notification", handleOrderNotification);
       };
     }
   }, []);

@@ -552,11 +552,32 @@ export default function Order() {
         }
 
         setMessage("Order placed successfully!");
+        const finalTrackingCode = orderData.trackingCode;
+        const finalPhone = orderData.phone || customer.phone;
+
+        localStorage.setItem("last_order_tracking", finalTrackingCode);
+        localStorage.setItem("last_order_phone", finalPhone);
+
+        const socket = getSocket();
+        if (socket) {
+          socket.emit("join-order", finalTrackingCode);
+          socket.emit("join-phone", finalPhone);
+        }
+
+        const currentFcmToken = localStorage.getItem("fcm_token");
+        if (currentFcmToken) {
+          API.post("/notifications/register-token", {
+            token: currentFcmToken,
+            phone: finalPhone,
+            trackingCode: finalTrackingCode,
+          }).catch(() => {});
+        }
+
         setTracking({
-          trackingCode: orderData.trackingCode,
+          trackingCode: finalTrackingCode,
           trackingLink: orderData.trackUrl,
           createdByAdmin: user?.role === "admin",
-          customerPhone: orderData.phone || customer.phone,
+          customerPhone: finalPhone,
           paymentStatus: orderData.paymentStatus || "unpaid",
           total: orderData.total ?? total,
         });

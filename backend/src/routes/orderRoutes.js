@@ -27,6 +27,7 @@ const {
   emitOrderDeleted,
   emitGlobalNotification,
   emitAdminNotification,
+  emitTargetedOrderNotification,
   getSocket,
 } = require("../socket");
 const {
@@ -309,6 +310,13 @@ router.post(
         url: `/track/${order.trackingCode}`,
       });
 
+      // Send push confirmation directly to the customer's device
+      sendNotificationForOrder(order, {
+        title: "Order Placed Successfully! 🎉",
+        body: `Hi ${customerName}, your order #${order.id} is confirmed and pending.`,
+        url: `/track/${order.trackingCode}`,
+      }).catch((err) => console.error("❌ Order confirmation push failed:", err?.message));
+
       // Send SMS (non-blocking)
       const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
       sendSMS(normalizedPhone, smsText)
@@ -503,15 +511,11 @@ router.put(
         url: `/track/${updatedOrder.trackingCode}`,
       }).catch((err) => console.error("❌ Customer push failed:", err?.message));
 
-      // Live socket update for open apps (broadcastPush: false ensures other phones don't get push alerts)
-      emitGlobalNotification({
+      // Real-time targeted socket update ONLY to this order's owner and watching screens
+      emitTargetedOrderNotification(updatedOrder, {
         type: "status",
-        title: "Order Status Updated",
-        message: `Order #${updatedOrder.id} is now ${status.replace("_", " ")}.`,
-        trackingCode: updatedOrder.trackingCode,
-        url: `/track/${updatedOrder.trackingCode}`,
-        status,
-        broadcastPush: false,
+        title: "Order Status Updated 🛵",
+        message: `Your order #${updatedOrder.id} is now ${status.replace("_", " ")}.`,
       });
 
 

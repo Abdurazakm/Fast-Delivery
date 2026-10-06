@@ -296,30 +296,81 @@ function App() {
       });
     };
 
-    socket.on("notification:broadcast", handleNotification);
+    const handleBroadcast = (payload) => {
+      // ONLY show broadcast popups/toasts if it's an announcement (prevent other users' orders from showing)
+      if (payload?.type === "announcement") {
+        handleNotification(payload);
+      }
+    };
+
+    const handleOrderNotification = (payload) => {
+      // Targeted for this user's specific order
+      handleNotification(payload);
+    };
+
+    socket.on("notification:broadcast", handleBroadcast);
+    socket.on("order:notification", handleOrderNotification);
+    if (user?.role === "admin") {
+      socket.on("admin:order-notification", handleOrderNotification);
+    }
 
     return () => {
-      socket.off("notification:broadcast", handleNotification);
+      socket.off("notification:broadcast", handleBroadcast);
+      socket.off("order:notification", handleOrderNotification);
+      socket.off("admin:order-notification", handleOrderNotification);
     };
-  }, []);
+  }, [user?.role]);
 
+  // Join targeted user/phone/order socket rooms
   useEffect(() => {
     const socket = getSocket();
 
     if (user?.role === "admin") {
       socket.emit("join-admin");
-      return () => {
-        socket.emit("leave-admin");
-      };
+    } else {
+      socket.emit("leave-admin");
     }
 
-    socket.emit("leave-admin");
-    return undefined;
-  }, [user?.role]);
+    if (user?.id) {
+      socket.emit("join-user", user.id);
+    }
+    if (user?.phone) {
+      socket.emit("join-phone", user.phone);
+    }
 
+    // Guest phone and tracking code rooms
+    const guestPhone = localStorage.getItem("last_order_phone");
+    if (guestPhone) {
+      socket.emit("join-phone", guestPhone);
+    }
+
+    const lastTracking = localStorage.getItem("last_order_tracking");
+    if (lastTracking) {
+      socket.emit("join-order", lastTracking);
+    }
+
+    return () => {
+      if (user?.id) socket.emit("leave-user", user.id);
+      if (user?.phone) socket.emit("leave-phone", user.phone);
+      if (guestPhone) socket.emit("leave-phone", guestPhone);
+    };
+  }, [user?.id, user?.phone, user?.role]);
+
+  // Sync FCM token with user or phone whenever user changes
   useEffect(() => {
-    initPushNotifications().catch(() => {});
-  }, []);
+    initPushNotifications()
+      .then(() => {
+        const fcmToken = localStorage.getItem("fcm_token");
+        if (fcmToken && (user?.phone || localStorage.getItem("last_order_phone"))) {
+          API.post("/notifications/register-token", {
+            token: fcmToken,
+            phone: user?.phone || localStorage.getItem("last_order_phone"),
+            trackingCode: localStorage.getItem("last_order_tracking"),
+          }).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, [user?.phone, user?.id]);
 
   function SeoManager() {
     const location = useLocation();
