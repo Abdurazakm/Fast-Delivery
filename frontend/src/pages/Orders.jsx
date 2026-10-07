@@ -7,6 +7,7 @@ import Toast from "./Toast";
 import API from "../api";
 import { getSocket } from "../socket";
 import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
+import PushNotificationPrompt from "../components/PushNotificationPrompt";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -794,6 +795,16 @@ export default function Order() {
                   onClose={() => setToast(null)}
                 />
               )}
+
+              {/* Post-Order Live Delivery Alert Prompt */}
+              <PushNotificationPrompt
+                order={{
+                  trackingCode: tracking.trackingCode,
+                  phone: tracking.customerPhone,
+                }}
+                mode="inline"
+              />
+
               <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm relative">
                 <button
                   onClick={() => setTracking(null)}
