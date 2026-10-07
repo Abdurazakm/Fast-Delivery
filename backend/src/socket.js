@@ -156,7 +156,7 @@ function emitTargetedOrderNotification(order, notification) {
   if (!io || !order) return;
 
   const payload = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: notification.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     at: new Date().toISOString(),
     orderId: order.id,
     trackingCode: order.trackingCode,
@@ -165,25 +165,29 @@ function emitTargetedOrderNotification(order, notification) {
     ...notification,
   };
 
-  // 1. Direct to anyone watching this specific order tracking page
+  // Collect unique target customer rooms
+  const targetRooms = new Set();
   if (order.trackingCode) {
-    io.to(`order:${order.trackingCode}`).emit("order:notification", payload);
+    targetRooms.add(`order:${order.trackingCode}`);
   }
-
-  // 2. Direct to customer account room (if user is logged in)
   if (order.userId) {
-    io.to(`user:${order.userId}`).emit("order:notification", payload);
+    targetRooms.add(`user:${order.userId}`);
   }
-
-  // 3. Direct to customer phone room
   if (order.phone) {
     const norm = normalizePhone(order.phone);
-    if (norm) {
-      io.to(`phone:${norm}`).emit("order:notification", payload);
-    }
+    if (norm) targetRooms.add(`phone:${norm}`);
   }
 
-  // 4. Direct to admins for their dashboard alerts
+  // Chaining rooms in a single emit guarantees each connected socket receives the event EXACTLY ONCE
+  if (targetRooms.size > 0) {
+    let emitter = io;
+    targetRooms.forEach((room) => {
+      emitter = emitter.to(room);
+    });
+    emitter.emit("order:notification", payload);
+  }
+
+  // Direct to admins for their dashboard alerts
   io.to("admin").emit("admin:order-notification", payload);
 }
 

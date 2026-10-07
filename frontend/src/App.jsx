@@ -20,7 +20,10 @@ import Toast from "./pages/Toast";
 import { getSocket } from "./socket";
 import { initPushNotifications } from "./pushNotifications";
 import { onMessageListener } from "./firebase";
-import { saveNotificationToCollection } from "./notificationStore";
+import {
+  saveNotificationToCollection,
+  isDuplicateNotification,
+} from "./notificationStore";
 import InstallPwaBanner from "./components/InstallPwaBanner";
 
 
@@ -287,6 +290,9 @@ function App() {
 
     const handleNotification = async (payload) => {
       if (!payload?.message) return;
+
+      // Prevent duplicate notification popups if both Socket and FCM deliver
+      if (isDuplicateNotification(payload)) return;
 
       // 1. Save directly into notification collection for top-right bell dropdown
       saveNotificationToCollection(payload);

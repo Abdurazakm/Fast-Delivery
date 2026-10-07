@@ -3,8 +3,6 @@ import { Bell, CheckCheck, Trash2, ExternalLink, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { onMessageListener } from "../firebase";
-import { getSocket } from "../socket";
 
 dayjs.extend(relativeTime);
 
@@ -12,11 +10,10 @@ import {
   STORAGE_KEY,
   NOTIFICATIONS_UPDATED_EVENT,
   getStoredNotifications,
-  saveNotificationToCollection,
 } from "../notificationStore";
 
 export default function NotificationBell() {
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState(() => getStoredNotifications());
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -44,50 +41,6 @@ export default function NotificationBell() {
       new CustomEvent(NOTIFICATIONS_UPDATED_EVENT, { detail: newList })
     );
   };
-
-  const addNotification = (notif) => {
-    saveNotificationToCollection(notif);
-  };
-
-  // Listen for real-time messages from Firebase and Socket.IO
-  useEffect(() => {
-    // 1. Firebase foreground push
-    onMessageListener((payload) => {
-      addNotification({
-        title: payload.notification?.title || payload.data?.title,
-        message: payload.notification?.body || payload.data?.message,
-        url: payload.data?.url || payload.data?.click_action,
-        type: payload.data?.type,
-        timestamp: new Date().toISOString(),
-      });
-    });
-
-    // 2. Socket.IO live targeted and announcement notifications
-    const socket = getSocket();
-    if (socket) {
-      const handleBroadcast = (payload) => {
-        // Only accept system-wide broadcasts if they are announcements (prevent order leaks)
-        if (payload && payload.type === "announcement") {
-          addNotification(payload);
-        }
-      };
-
-      const handleOrderNotification = (payload) => {
-        // Targeted order notifications destined for this specific user/device
-        if (payload) addNotification(payload);
-      };
-
-      socket.on("notification:broadcast", handleBroadcast);
-      socket.on("order:notification", handleOrderNotification);
-      socket.on("admin:order-notification", handleOrderNotification);
-
-      return () => {
-        socket.off("notification:broadcast", handleBroadcast);
-        socket.off("order:notification", handleOrderNotification);
-        socket.off("admin:order-notification", handleOrderNotification);
-      };
-    }
-  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {

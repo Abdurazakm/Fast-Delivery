@@ -14,7 +14,28 @@ firebase.initializeApp(firebaseConfig);
 
 const messaging = firebase.messaging();
 
+let lastShownTag = null;
+let lastShownTime = 0;
+
+function shouldDisplayNotification(tag) {
+  const now = Date.now();
+  if (lastShownTag && lastShownTag === tag && now - lastShownTime < 5000) {
+    return false;
+  }
+  lastShownTag = tag;
+  lastShownTime = now;
+  return true;
+}
+
 messaging.onBackgroundMessage((payload) => {
+  const tag = payload.data?.orderId
+    ? `order-${payload.data.orderId}-${payload.data.status || ""}`
+    : payload.data?.trackingCode
+      ? `order-${payload.data.trackingCode}-${payload.data.status || ""}`
+      : "fetan-update";
+
+  if (!shouldDisplayNotification(tag)) return;
+
   const notificationTitle = payload.notification?.title || payload.data?.title || "Fetan Delivery";
   const notificationOptions = {
     body: payload.notification?.body || payload.data?.message || payload.data?.body || "You have a new update.",
@@ -22,7 +43,7 @@ messaging.onBackgroundMessage((payload) => {
     badge: "/favicon.png",
     vibrate: [200, 100, 200],
     requireInteraction: true,
-    tag: payload.data?.orderId ? `order-${payload.data.orderId}` : "fetan-update",
+    tag,
     renotify: true,
     data: {
       url: payload.data?.url || payload.data?.click_action || "/",
@@ -46,7 +67,14 @@ self.addEventListener("push", (event) => {
     } catch {}
   }
 
-  // If payload is empty, default
+  const tag = payload.data?.orderId
+    ? `order-${payload.data.orderId}-${payload.data.status || ""}`
+    : payload.data?.trackingCode
+      ? `order-${payload.data.trackingCode}-${payload.data.status || ""}`
+      : "fetan-update";
+
+  if (!shouldDisplayNotification(tag)) return;
+
   const title = payload.notification?.title || payload.data?.title || "Fetan Delivery";
   const body =
     payload.notification?.body ||
@@ -66,7 +94,7 @@ self.addEventListener("push", (event) => {
       badge: "/favicon.png",
       vibrate: [200, 100, 200],
       requireInteraction: true,
-      tag: payload.data?.orderId ? `order-${payload.data.orderId}` : "fetan-update",
+      tag,
       renotify: true,
       data: {
         url,

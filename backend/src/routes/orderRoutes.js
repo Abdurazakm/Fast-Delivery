@@ -34,6 +34,7 @@ const {
   sendNotificationForOrder,
   sendNotificationToUser,
 } = require("../services/pushNotificationService");
+const { maskTrackingCode } = require("../utils/masking");
 
 
 const TRACK_BASE_URL =
@@ -301,19 +302,20 @@ router.post(
           })
           .catch((err) => console.warn("Failed to link FCM token:", err?.message));
       }
+      const maskedCode = maskTrackingCode(order.trackingCode);
       emitOrderUpdated(order, "created");
       emitAdminNotification({
         type: "new-order",
         title: "New Order Received",
-        message: `${order.customerName} placed order ${order.trackingCode}.`,
+        message: `${order.customerName} placed order (${maskedCode}).`,
         trackingCode: order.trackingCode,
         url: `/track/${order.trackingCode}`,
       });
 
       // Send push confirmation directly to the customer's device
       sendNotificationForOrder(order, {
-        title: "Order Placed Successfully! 🎉",
-        body: `Hi ${customerName}, your order #${order.id} is confirmed and pending.`,
+        title: `Order (${maskedCode}) Confirmed 🎉`,
+        body: `Hi ${customerName}, your order (${maskedCode}) is confirmed and pending.`,
         url: `/track/${order.trackingCode}`,
       }).catch((err) => console.error("❌ Order confirmation push failed:", err?.message));
 
@@ -504,18 +506,23 @@ router.put(
 
       emitOrderUpdated(updatedOrder, "status");
 
+      const maskedCode = maskTrackingCode(updatedOrder.trackingCode);
+      const formattedStatus = status.replace("_", " ");
+      const notificationTitle = `Order (${maskedCode}) Updated 🛵`;
+      const notificationMessage = `Your order (${maskedCode}) is now ${formattedStatus}.`;
+
       // Send push notification ONLY to the customer device(s) that placed this order
       sendNotificationForOrder(updatedOrder, {
-        title: "Order Status Updated 🛵",
-        body: `Your order #${updatedOrder.id} is now ${status.replace("_", " ")}.`,
+        title: notificationTitle,
+        body: notificationMessage,
         url: `/track/${updatedOrder.trackingCode}`,
       }).catch((err) => console.error("❌ Customer push failed:", err?.message));
 
       // Real-time targeted socket update ONLY to this order's owner and watching screens
       emitTargetedOrderNotification(updatedOrder, {
         type: "status",
-        title: "Order Status Updated 🛵",
-        message: `Your order #${updatedOrder.id} is now ${status.replace("_", " ")}.`,
+        title: notificationTitle,
+        message: notificationMessage,
       });
 
 

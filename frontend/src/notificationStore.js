@@ -2,6 +2,46 @@ export const STORAGE_KEY = "fcm_notifications_history";
 export const NOTIFICATIONS_UPDATED_EVENT = "notifications_updated";
 const MAX_NOTIFICATIONS = 25;
 
+/**
+ * Mask tracking code (e.g. FD-523814 -> FD-52***4)
+ */
+export function maskTrackingCode(code) {
+  if (!code) return "";
+  const s = String(code).trim();
+  const match = s.match(/^([A-Za-z]+-)(\d{2})\d{3}(\d+)$/);
+  if (match) {
+    return `${match[1]}${match[2]}***${match[3]}`;
+  }
+  if (s.length >= 8) {
+    return `${s.slice(0, 5)}***${s.slice(8) || s.slice(-1)}`;
+  }
+  return s;
+}
+
+// In-memory set to prevent duplicate popups and duplicate storage within 10 seconds
+const recentSignatures = new Map();
+
+export function isDuplicateNotification(notif) {
+  if (!notif) return true;
+  const now = Date.now();
+
+  // Clean old signatures (> 15 seconds)
+  for (const [key, time] of recentSignatures.entries()) {
+    if (now - time > 15000) recentSignatures.delete(key);
+  }
+
+  const sig =
+    notif.id ||
+    `${notif.trackingCode || notif.orderId || "order"}-${notif.status || ""}-${notif.title || ""}-${notif.message || notif.body || ""}`;
+
+  if (recentSignatures.has(sig)) {
+    return true; // Already processed recently!
+  }
+
+  recentSignatures.set(sig, now);
+  return false;
+}
+
 export function getStoredNotifications() {
   if (typeof window === "undefined") return [];
   try {
@@ -10,6 +50,11 @@ export function getStoredNotifications() {
   } catch {
     return [];
   }
+}
+
+export function getUnreadCount() {
+  const list = getStoredNotifications();
+  return list.filter((n) => !n.read).length;
 }
 
 export function saveNotificationToCollection(notif) {
@@ -29,14 +74,14 @@ export function saveNotificationToCollection(notif) {
       read: false,
     };
 
-    // Prevent duplicate entries by id or identical title + message
+    // Prevent duplicate entries by id or identical title + message within recent time
     if (
       list.some(
         (n) =>
           n.id === newEntry.id ||
           (n.title === newEntry.title &&
             n.message === newEntry.message &&
-            Math.abs(new Date(n.timestamp) - new Date(newEntry.timestamp)) < 4000)
+            Math.abs(new Date(n.timestamp) - new Date(newEntry.timestamp)) < 15000)
       )
     ) {
       return;
