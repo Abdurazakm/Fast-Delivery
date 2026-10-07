@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AiOutlineClose } from "react-icons/ai";
-import { FaPlus, FaLaptopCode } from "react-icons/fa";
-import { FiPhoneCall, FiInfo } from "react-icons/fi";
-import { ArrowRight } from "lucide-react";
-import { MdEventAvailable } from "react-icons/md";
+import {
+  ArrowRight,
+  Phone,
+  Clock,
+  Sparkles,
+  Search,
+  ShieldCheck,
+  Utensils,
+  MapPin,
+  X,
+  ExternalLink,
+} from "lucide-react";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
-import Toast from "./Toast"; // import your reusable Toast component
-import OrderingInfoCards from "./OrderingInfoCards";
-import { motion } from "framer-motion";
+import Toast from "./Toast";
+import { motion, AnimatePresence } from "framer-motion";
 import { getSocket } from "../socket";
 import {
   getPushNotificationStatus,
@@ -18,8 +24,6 @@ import {
 import { onMessageListener } from "../firebase";
 import PushNotificationPrompt from "../components/PushNotificationPrompt";
 import NotificationBell from "../components/NotificationBell";
-
-
 
 const DEFAULT_ITEM_AVAILABILITY = {
   ertib: true,
@@ -30,18 +34,58 @@ const DEFAULT_ITEM_AVAILABILITY = {
 };
 
 const MENU_ITEMS = [
-  { id: "ertib", name: "Ertib", emoji: "🍲" },
-  { id: "sambusa", name: "Sambusa", emoji: "🥟" },
-  { id: "boiled_egg", name: "Boiled Egg", emoji: "🥚" },
-  { id: "fetira", name: "Fetira", emoji: "🥞" },
-  { id: "donut", name: "Donut", emoji: "🍩" },
+  {
+    id: "ertib",
+    name: "Ertib",
+    emoji: "🍲",
+    desc: "Famous Leyla recipe with crispy felafil & fresh bread",
+    pricePrefix: "From",
+    priceKey: "ertibNormalPrice",
+    defaultPrice: 145,
+  },
+  {
+    id: "fetira",
+    name: "Fetira",
+    emoji: "🥞",
+    desc: "Flaky layered flatbread with eggs & honey",
+    pricePrefix: "",
+    priceKey: "fetiraBasePrice",
+    defaultPrice: 150,
+  },
+  {
+    id: "sambusa",
+    name: "Sambusa",
+    emoji: "🥟",
+    desc: "Golden crispy pastry with spiced filling",
+    pricePrefix: "",
+    priceKey: "sambusaPrice",
+    defaultPrice: 30,
+  },
+  {
+    id: "donut",
+    name: "Donut",
+    emoji: "🍩",
+    desc: "Fresh soft glazed doughnuts in pairs",
+    pricePrefix: "From",
+    priceKey: "donut1PairPackagePrice",
+    defaultPrice: 60,
+  },
+  {
+    id: "boiled_egg",
+    name: "Boiled Egg",
+    emoji: "🥚",
+    desc: "Nutritious quick protein boiled fresh",
+    pricePrefix: "",
+    priceKey: "boiledEggPrice",
+    defaultPrice: 30,
+  },
 ];
 
 export default function Home() {
   const [user, setUser] = useState(null);
   const [message, setMessage] = useState("");
   const [serviceAvailable, setServiceAvailable] = useState(true);
-  const [toast, setToast] = useState(null); // ✅ toast state
+  const [toast, setToast] = useState(null);
   const navigate = useNavigate();
 
   const [trackingCodeInput, setTrackingCodeInput] = useState("");
@@ -49,50 +93,55 @@ export default function Home() {
   const [trackingError, setTrackingError] = useState("");
   const [latestOrders, setLatestOrders] = useState([]);
   const [serverOffsetMs, setServerOffsetMs] = useState(0);
-  const [formattedCutoff, setFormattedCutoff] = useState(""); // <-- add this
+  const [formattedCutoff, setFormattedCutoff] = useState("");
   const [itemAvailability, setItemAvailability] = useState(
     DEFAULT_ITEM_AVAILABILITY,
   );
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushPermission, setPushPermission] = useState("default");
-  const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [pushLoading, setPushLoading] = useState(false);
-  const [pushSupported, setPushSupported] = useState(true);
+  const [pricing, setPricing] = useState({
+    ertibNormalPrice: 145,
+    fetiraBasePrice: 150,
+    donut1PairPackagePrice: 60,
+    sambusaPrice: 30,
+    boiledEggPrice: 30,
+  });
+
   const roleLower = (user?.role || "").toLowerCase();
 
+  // Load pricing
+  useEffect(() => {
+    API.get("/orders/pricing")
+      .then((res) => {
+        if (res.data) setPricing((prev) => ({ ...prev, ...res.data }));
+      })
+      .catch(() => {});
+  }, []);
 
-  // Fetch user & latest order
+  // Fetch user & latest orders
   useEffect(() => {
     const fetchUserAndOrder = async () => {
       const token = localStorage.getItem("token");
       if (!token) return;
 
       try {
-        // 1️⃣ Fetch authenticated user
         const resUser = await API.get("/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const currentUser = resUser.data;
-        setUser(currentUser);
+        setUser(resUser.data);
 
-        // 2️⃣ Fetch all recent orders (last 12 hours) for this user
         try {
           const resOrder = await API.get("/orders/latest", {
             headers: { Authorization: `Bearer ${token}` },
           });
-
           const orders = Array.isArray(resOrder.data)
             ? resOrder.data
             : resOrder.data
               ? [resOrder.data]
               : [];
           setLatestOrders(orders);
-        } catch (err) {
-          console.error("Failed to fetch latest orders:", err);
+        } catch {
           setLatestOrders([]);
         }
-      } catch (err) {
-        console.error("❌ Failed to fetch user or order:", err);
+      } catch {
         setUser(null);
         setLatestOrders([]);
       }
@@ -101,7 +150,6 @@ export default function Home() {
     fetchUserAndOrder();
   }, []);
 
-  // Updated handleTrackOrder for guests (today-only)
   const handleTrackOrder = async () => {
     const code = trackingCodeInput.trim();
     if (!code) {
@@ -115,28 +163,26 @@ export default function Home() {
       setTrackingError("");
 
       const res = await API.get(`/orders/track/${code}`);
-
       if (!res.data) {
         setTrackingResult(null);
-        setTrackingError("No order today with this tracking code.");
+        setTrackingError("No order found with this tracking code.");
         return;
       }
 
       setTrackingResult(res.data);
       setTrackingError("");
     } catch (err) {
-      console.error("❌ Tracking error:", err);
       setTrackingResult(null);
       if (err.response?.status === 404) {
-        setTrackingError("No order today with this tracking code.");
+        setTrackingError("No order found with this tracking code.");
       } else {
         setTrackingError("Server error. Please try again.");
       }
     }
   };
-  // Convert cutoff time to 12-hour format with AM/PM + EAT
+
   const formatCutoffTime = (hour, minute) => {
-    const h12 = hour % 12 || 12; // convert to 12-hour (0 → 12)
+    const h12 = hour % 12 || 12;
     const ampm = hour >= 12 ? "PM" : "AM";
     const paddedMin = minute.toString().padStart(2, "0");
     return `${h12}:${paddedMin} ${ampm} EAT`;
@@ -178,9 +224,8 @@ export default function Home() {
 
     const now = new Date(Date.now() + serverOffsetMs);
     const nowEAT = getEATNowParts(now);
-    const dayStr = nowEAT.dayStr;
 
-    const withinDays = weeklyDays.includes(dayStr);
+    const withinDays = weeklyDays.includes(nowEAT.dayStr);
     const [cutHour, cutMinute] = cutoffTime.split(":").map(Number);
 
     const beforeCutoff =
@@ -206,26 +251,16 @@ export default function Home() {
     } else if (!withinDays) {
       setServiceAvailable(false);
       setMessage(
-        <span className="flex flex-col gap-1">
-          ⚠️ Our service is not available today. We operate on the following
-          days: <strong>{sortedDays.join(", ")}</strong>.
+        <span>
+          ⚠️ Our service is not available today. We operate on:{" "}
+          <strong>{sortedDays.join(", ")}</strong>.
         </span>,
       );
     } else if (!beforeCutoff) {
       setServiceAvailable(false);
       setMessage(
-        <span className="flex flex-col gap-1">
-          ⏰ Ordering for today has ended. Please make sure to place your order
-          before {cutoffFormatted} on our service-available days. If there’s a
-          chance we might still be at the Ertib place, you may contact us
-          directly:
-          <a
-            href="tel:+251954724664"
-            className="flex items-center gap-2 underline text-blue-600 font-semibold mt-1"
-          >
-            <FiPhoneCall size={16} />
-            +251 95 472 4664
-          </a>
+        <span>
+          ⏰ Ordering for today has ended (cutoff was {cutoffFormatted}).
         </span>,
       );
     } else {
@@ -234,14 +269,12 @@ export default function Home() {
     }
   };
 
-  // Check service availability
   useEffect(() => {
     const fetchAvailability = async () => {
       try {
         const res = await API.get("/availability");
         applyAvailabilityState(res.data);
-      } catch (err) {
-        console.error("Failed to fetch availability:", err);
+      } catch {
         setServiceAvailable(true);
         setMessage(null);
       }
@@ -255,12 +288,10 @@ export default function Home() {
         applyAvailabilityState(payload);
         return;
       }
-
       fetchAvailability();
     };
 
     socket.on("availability:updated", handleAvailabilityUpdated);
-
     return () => {
       socket.off("availability:updated", handleAvailabilityUpdated);
     };
@@ -276,22 +307,17 @@ export default function Home() {
       user?.role !== "admin"
     ) {
       setToast({
-        message: `⚠️ ${MENU_ITEMS.find((item) => item.id === foodId)?.name || "This item"} is currently unavailable.`,
+        message: `⚠️ ${MENU_ITEMS.find((item) => item.id === foodId)?.name || "This item"} is currently sold out.`,
         type: "error",
       });
       return;
     }
 
     if (!serviceAvailable && user?.role !== "admin") {
-      let warningMessage = "";
-
+      let warningMessage =
+        "⚠️ Ordering is currently not available. Please check the schedule.";
       if (message) {
-        // If we already have a message from availability check
         warningMessage = message.props ? message.props.children : message;
-      } else {
-        // fallback
-        warningMessage =
-          "⚠️ Ordering is currently not available. Please check the availability schedule.";
       }
 
       setToast({
@@ -309,102 +335,8 @@ export default function Home() {
     setToast({ message: "Logged out successfully!", type: "success" });
   };
 
-  const refreshPushStatus = async () => {
-    try {
-      const status = await getPushNotificationStatus();
-      setPushSupported(status.supported);
-      const perm =
-        status.permission ||
-        (typeof Notification !== "undefined"
-          ? Notification.permission
-          : "default");
-      setPushPermission(perm);
-
-      if (perm === "granted") {
-        setPushEnabled(true);
-        if (!status.subscribed) {
-          enablePushNotificationsNow().catch(() => {});
-        }
-      } else {
-        setPushEnabled(false);
-      }
-    } catch {
-      setPushSupported(false);
-      setPushEnabled(false);
-    }
-  };
-
-  useEffect(() => {
-    refreshPushStatus().catch(() => {
-      setPushSupported(false);
-      setPushEnabled(false);
-    });
-
-    onMessageListener((payload) => {
-      const title =
-        payload.notification?.title ||
-        payload.data?.title ||
-        "New Notification";
-      const body =
-        payload.notification?.body ||
-        payload.data?.message ||
-        payload.data?.body ||
-        "";
-      setToast({
-        message: body ? `${title}: ${body}` : title,
-        type: "info",
-      });
-    });
-  }, []);
-
-  const handleEnableNotifications = async () => {
-    const currentPerm =
-      typeof Notification !== "undefined"
-        ? Notification.permission
-        : pushPermission;
-
-    if (currentPerm === "denied") {
-      setShowPermissionModal(true);
-      return;
-    }
-
-    setPushLoading(true);
-    try {
-      const result = await enablePushNotificationsNow();
-      await refreshPushStatus();
-
-      if (result?.enabled) {
-        setToast({
-          message:
-            "✅ Notifications enabled! You will receive live delivery alerts.",
-          type: "success",
-        });
-      } else if (
-        result?.reason === "permission-denied" ||
-        (typeof Notification !== "undefined" &&
-          Notification.permission === "denied")
-      ) {
-        setPushPermission("denied");
-        setShowPermissionModal(true);
-      } else {
-        setToast({
-          message: "⚠️ Could not enable notifications. Please try again.",
-          type: "error",
-        });
-      }
-    } catch (err) {
-      setToast({
-        message: "⚠️ Failed to enable notifications.",
-        type: "error",
-      });
-    } finally {
-      setPushLoading(false);
-    }
-  };
-
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-b from-amber-50 to-orange-100 p-6">
+    <div className="min-h-screen bg-gray-50/70 text-gray-900 flex flex-col justify-between selection:bg-amber-100 selection:text-amber-900">
       {/* Toast Notification */}
       {toast && (
         <Toast
@@ -413,522 +345,346 @@ export default function Home() {
           onClose={() => setToast(null)}
         />
       )}
-      {roleLower !== "admin" && (
-        <a
-          href="#menu"
-          className="group fixed top-2 left-2 z-50 inline-flex max-w-[calc(100vw-1rem)] items-center gap-2 overflow-hidden rounded-full px-2.5 py-1.5 text-[11px] font-semibold text-white shadow-[0_14px_35px_rgba(234,88,12,0.28)] transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] hover:shadow-[0_22px_50px_rgba(234,88,12,0.42)] focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 sm:top-4 sm:left-4 sm:max-w-none sm:px-4 sm:py-2.5 sm:text-sm"
-        >
-          <span
-            aria-hidden="true"
-            className="absolute -inset-2 rounded-full bg-linear-to-r from-amber-200/0 via-amber-200/35 to-pink-200/0 blur-xl opacity-80"
-          />
-          <span
-            aria-hidden="true"
-            className="absolute inset-0 rounded-full animate-spin blur-[1px]"
-            style={{
-              backgroundImage:
-                "conic-gradient(from 0deg, rgba(255,255,255,0) 0 58%, #fbbf24 62%, #fb923c 68%, #f97316 74%, #f472b6 80%, #fde68a 86%, #fbbf24 92%, rgba(255,255,255,0) 100%)",
-              animationDuration: "3.2s",
-            }}
-          />
-          <span
-            aria-hidden="true"
-            className="absolute inset-0.5 rounded-full bg-linear-to-r from-amber-500 via-orange-500 to-red-500 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
-          />
-          <span className="relative z-10 flex items-center gap-2">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm sm:h-7 sm:w-7">
-              <ArrowRight size={12} className="rotate-45 sm:text-[15px]" />
-            </span>
-            <span className="whitespace-nowrap leading-none">
-              Explore Our Menu
-            </span>
-          </span>
-        </a>
-      )}
-      {/* Top Right Auth & Notification Buttons */}
-      <div className="w-full flex items-center justify-end max-w-6xl mb-6 gap-3">
-        <NotificationBell />
 
-        {user?.role === "admin" ? (
-          <Link
-            to="/availability"
-            className="fixed top-4 left-4 z-50 inline-flex items-center gap-2 p-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-full shadow-lg transition-all duration-200"
-          >
-            {/* Icon goes here with a slight size adjustment if needed */}
-            <MdEventAvailable className="text-xl" />
+      {/* Modern Sticky Navigation Header */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          {/* Logo & Campus Pill */}
+          <Link to="/" className="flex items-center gap-2 group">
+            <span className="text-2xl">🍲</span>
+            <div className="flex flex-col">
+              <span className="font-extrabold text-base sm:text-lg tracking-tight text-gray-950 group-hover:text-amber-600 transition">
+                Fetan Delivery
+              </span>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-amber-700 leading-none">
+                AASTU Campus
+              </span>
+            </div>
           </Link>
-        ) : null}
-        {!user ? (
-          <Link
-            to="/login"
-            className="
-      relative inline-flex items-center justify-center px-6 py-2
-      font-semibold text-amber-800
-      bg-white/90 border border-white
-      rounded-full
-      shadow-md
-      transition-all duration-300
-      hover:bg-white
-      hover:shadow-lg
-      active:scale-95
-      focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-1
-    "
-          >
-            <span className="relative z-10">Login</span>
-            <span className="absolute inset-0 rounded-full bg-amber-200 opacity-10 blur-md pointer-events-none"></span>
-          </Link>
-        ) : (
-          <div className="flex items-center gap-3">
-            <span className="text-amber-800 font-medium text-sm sm:text-base">
-              Hi👋,{" "}
-              <span className="text-red-500 font-semibold">{user.name}</span>
-            </span>
+
+          {/* Right Header Navigation */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Admin Dashboard shortcut */}
+            {roleLower === "admin" && (
+              <Link
+                to="/admin"
+                className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1"
+              >
+                <span>Dashboard</span>
+              </Link>
+            )}
+
+            {/* Notification Bell with live count */}
+            <NotificationBell />
+
+            {/* Auth / Profile Pill */}
+            {!user ? (
+              <Link
+                to="/login"
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition active:scale-95"
+              >
+                Login
+              </Link>
+            ) : (
+              <div className="flex items-center gap-2 bg-gray-100/80 px-2.5 py-1.5 rounded-xl border border-gray-200/60">
+                <span className="text-xs font-semibold text-gray-700 hidden sm:inline">
+                  Hi, <strong className="text-amber-800">{user.name}</strong>
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="text-xs text-rose-600 hover:text-rose-800 font-semibold cursor-pointer pl-1"
+                  title="Logout"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-6 sm:pt-10 pb-16 space-y-12">
+        {/* Service Warning Banner (if closed) */}
+        {user?.role !== "admin" && !serviceAvailable && message && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <span className="text-lg">⏰</span>
+              <div>{message}</div>
+            </div>
             <button
-              onClick={handleLogout}
-              className="
-        relative inline-flex items-center justify-center px-4 py-2
-        bg-red-600 text-white font-semibold
-        rounded-full shadow-md
-        transition-all duration-300
-        hover:bg-red-700 hover:shadow-lg
-        active:scale-95
-        focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-1
-      "
+              onClick={() => setMessage(null)}
+              className="text-amber-700 hover:text-amber-900 p-1"
             >
-              Logout
-              <span className="absolute inset-0 rounded-full bg-red-200 opacity-10 blur-md pointer-events-none"></span>
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}
-      </div>
 
-      <div className="mt-4 flex justify-center">
-        <button
-          onClick={handleEnableNotifications}
-          disabled={!pushSupported || pushLoading || (pushEnabled && pushPermission === "granted")}
-          className={`px-5 py-2.5 rounded-full font-semibold shadow-md transition-all duration-200 flex items-center gap-2 ${
-            pushEnabled && pushPermission === "granted"
-              ? "bg-emerald-600 text-white cursor-default"
-              : pushPermission === "denied"
-                ? "bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 cursor-pointer"
-                : !pushSupported
-                  ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                  : pushLoading
-                    ? "bg-amber-300 text-white cursor-wait"
-                    : "bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white cursor-pointer active:scale-95"
-          }`}
-          title={
-            pushEnabled && pushPermission === "granted"
-              ? "Notifications are enabled"
-              : pushPermission === "denied"
-                ? "Notifications are blocked in your browser. Tap to see how to fix it."
-                : "Enable browser popup notifications"
-          }
-        >
-          {pushEnabled && pushPermission === "granted" ? (
-            <>
-              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              <span>🔔 Notifications Active</span>
-            </>
-          ) : pushPermission === "denied" ? (
-            <>
-              <span>🔒 Notifications Blocked (Tap to Fix)</span>
-            </>
-          ) : pushLoading ? (
-            <>
-              <span>Enabling...</span>
-            </>
-          ) : (
-            <>
-              <span>🔔 Enable Notifications</span>
-            </>
-          )}
-        </button>
-      </div>
-
-
-      {user?.role !== "admin" && !serviceAvailable && message && (
-        <div
-          className="fixed top-4 z-50 left-2 right-2 sm:left-1/2 sm:-translate-x-1/2
-               p-4 bg-red-100/50 backdrop-blur-sm text-red-800 border border-red-300/40
-               rounded-xl flex justify-between items-start max-w-md shadow-lg"
-        >
-          <div className="text-lg font-medium">{message}</div>
-          <button
-            onClick={() => setMessage(null)}
-            className="text-red-800 ml-4"
-          >
-            <AiOutlineClose size={20} />
-          </button>
-        </div>
-      )}
-
-      {/* Hero */}
-      <div className="text-center max-w-2xl mt-6">
-        <h1 className="text-3xl md:text-4xl font-bold mb-4 text-amber-700">
-          Welcome To Fetan Delivery Service!
-        </h1>
-        <p className="text-gray-700 mb-3 text-lg">
-          We deliver{" "}
-          <span className="font-semibold text-amber-700">Leyla’s Ertib</span>{" "}
-          straight from <span className="font-semibold">Tuludimtu</span> to your
-          dorm — exclusively for{" "}
-          <span className="font-semibold">AASTU students</span>! 🚴‍♂️
-        </p>
-
-        {/* Order + Dashboard buttons */}
-        <div className="flex flex-row items-center justify-center gap-4 mt-6 w-full">
-          {user?.role === "admin" ? (
-            <Link
-              to="/order"
-              title="Create New Order"
-              className="group relative inline-flex items-center justify-center overflow-hidden rounded-full p-3 text-white shadow-lg transition transform hover:-translate-y-0.5 hover:scale-105 hover:shadow-xl"
-            >
-              <span
-                aria-hidden="true"
-                className="absolute -inset-2 rounded-full bg-linear-to-r from-emerald-200/0 via-emerald-200/35 to-lime-200/0 blur-xl opacity-80"
-              />
-              <span
-                aria-hidden="true"
-                className="absolute inset-0 rounded-full animate-spin blur-[1px]"
-                style={{
-                  backgroundImage:
-                    "conic-gradient(from 0deg, rgba(255,255,255,0) 0 56%, #34d399 60%, #22c55e 66%, #facc15 72%, #f59e0b 78%, #34d399 84%, rgba(255,255,255,0) 100%)",
-                  animationDuration: "3.2s",
-                }}
-              />
-              <span className="absolute inset-0.5 rounded-full bg-linear-to-r from-emerald-500 via-green-500 to-lime-500 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]" />
-              <span className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm">
-                <FaPlus size={18} />
+        {/* Hero Section */}
+        <section className="text-center max-w-2xl mx-auto pt-2 sm:pt-4 space-y-4">
+          {/* Availability Status Pill */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-gray-200 text-xs shadow-xs">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                serviceAvailable
+                  ? "bg-emerald-500 animate-pulse"
+                  : "bg-amber-500"
+              }`}
+            />
+            {serviceAvailable ? (
+              <span className="font-semibold text-gray-700">
+                Accepting Orders • Cutoff:{" "}
+                <strong className="text-amber-700 font-bold">
+                  {formattedCutoff || "6:00 PM"}
+                </strong>
               </span>
-            </Link>
-          ) : (
-            <span className="relative group">
-              {serviceAvailable && formattedCutoff && (
-                <motion.div
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6 }}
-                  className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 text-blue-800 text-sm rounded-lg flex items-start gap-3 shadow-sm"
-                >
-                  <FiInfo className="text-blue-600 mt-1" size={20} />
-                  <div>
-                    <p className="font-semibold text-blue-800">
-                      🕒 Today's Ordering Cutoff:{" "}
-                      <strong>{formattedCutoff}</strong>
-                    </p>
-                    <p className="text-gray-700 mt-1">
-                      Kindly place your order before the cutoff to ensure timely
-                      delivery.
-                    </p>
-                  </div>
-                </motion.div>
-              )}
+            ) : (
+              <span className="font-semibold text-gray-600">
+                Ordering Currently Closed
+              </span>
+            )}
+          </div>
 
-              <button
-                onClick={handleOrderClick}
-                className={`group relative overflow-hidden rounded-full px-6 py-3 font-semibold transition transform shadow-lg ${
-                  serviceAvailable
-                    ? "text-white hover:-translate-y-0.5 hover:scale-105 hover:shadow-xl"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-70"
-                }`}
-              >
-                {serviceAvailable && (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="absolute -inset-2 rounded-full bg-linear-to-r from-emerald-200/0 via-emerald-200/35 to-lime-200/0 blur-xl opacity-80"
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-0 rounded-full animate-spin blur-[1px]"
-                      style={{
-                        backgroundImage:
-                          "conic-gradient(from 0deg, rgba(255,255,255,0) 0 56%, #34d399 60%, #22c55e 66%, #facc15 72%, #f59e0b 78%, #34d399 84%, rgba(255,255,255,0) 100%)",
-                        animationDuration: "3.2s",
-                      }}
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-0.5 rounded-full bg-linear-to-r from-emerald-500 via-green-500 to-lime-500 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]"
-                    />
-                  </>
-                )}
-                <span className="relative z-10">
-                  {serviceAvailable ? (
-                    <>{user ? "Place Your Order" : "Order Directly"}</>
-                  ) : (
-                    <span className="invisible">
-                      {user ? "Place Your Order" : "Order Directly"}
-                    </span>
-                  )}
-                </span>
-              </button>
-
-              {!serviceAvailable && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold bg-gray-300 text-gray-500 cursor-not-allowed opacity-70 bg-opacity-50 rounded-full pointer-events-none">
-                  ⚠️closed
-                </span>
-              )}
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-gray-950 tracking-tight leading-tight">
+            Hot & Fresh Food, <br className="hidden sm:inline" />
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-amber-600 to-orange-600">
+              Delivered To Your Dorm.
             </span>
-          )}
+          </h1>
 
-          {(roleLower === "admin" ||
-            roleLower === "employ" ||
-            roleLower === "employee" ||
-            roleLower === "supleyer") && (
-            <Link
-              to="/admin"
-              title="Admin Dashboard"
-              className="p-3 rounded-full bg-purple-600 text-white shadow-md transition transform flex items-center justify-center hover:bg-purple-700 hover:scale-105 hover:shadow-xl"
+          <p className="text-sm sm:text-base text-gray-600 max-w-lg mx-auto leading-relaxed">
+            Leyla's famous Tuludimtu Ertib, sweet Fetira, crispy Sambusa & donuts — delivered fast and hot straight to AASTU dorm blocks!
+          </p>
+
+          {/* Primary Call-to-Actions */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => handleOrderClick("ertib")}
+              className={`w-full sm:w-auto px-7 py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md ${
+                serviceAvailable || user?.role === "admin"
+                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-amber-200 hover:-translate-y-0.5 active:scale-98"
+                  : "bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300"
+              }`}
             >
-              <ArrowRight size={18} strokeWidth={2.5} />
-            </Link>
-          )}
-        </div>
-      </div>
-      {/* // Inside return(), below Hero section */}
-      <OrderingInfoCards serverOffsetMs={serverOffsetMs} />
+              <Utensils className="w-5 h-5" />
+              <span>{serviceAvailable ? "Place Your Order" : "Ordering Closed"}</span>
+              <ArrowRight className="w-4 h-4 ml-0.5" />
+            </button>
 
-      <div className="mt-4">
-        <span
-          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
-            pushEnabled && pushPermission === "granted"
-              ? "bg-green-100 text-green-700 border-green-300"
-              : pushPermission === "denied"
-                ? "bg-amber-100 text-amber-800 border-amber-300"
-                : "bg-gray-100 text-gray-600 border-gray-300"
-          }`}
-        >
-          {pushEnabled && pushPermission === "granted"
-            ? "🔔 Notification status: Enabled"
-            : pushPermission === "denied"
-              ? "🔒 Notification status: Blocked in Browser"
-              : "🔕 Notification status: Not enabled"}
-        </span>
-      </div>
+            <a
+              href="#menu"
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 font-bold text-sm sm:text-base shadow-xs transition hover:-translate-y-0.5"
+            >
+              Explore Menu
+            </a>
+          </div>
+        </section>
 
-
-      {/* Track Your Order */}
-      {user?.role !== "admin" && (
-        <div className="mt-10 max-w-md w-full mx-auto bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-3 text-amber-700">
-            Track Your Order
-          </h3>
-
-          {/* Authenticated users */}
-          {user ? (
-            <>
-              {latestOrders.length > 0 ? (
-                <div className="space-y-3">
-                  {latestOrders.map((orderItem, index) => {
-                    const label =
-                      index === 0
-                        ? "Most recent order"
-                        : `Recent order #${index + 1}`;
-
-                    return (
-                      <div
-                        key={orderItem.id || orderItem.trackingCode || index}
-                        className="text-left"
-                      >
-                        <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-1">
-                          {label}
-                        </p>
-                        <TrackingInfoCard order={orderItem} />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-amber-500 text-sm text-center py-3">
-                  You have no orders in the last 12 hours.
-                </div>
-              )}
-            </>
-          ) : (
-            /* Guest users: manual tracking */
-            <div className="flex flex-col gap-3 mb-3">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  placeholder="Enter your tracking code"
-                  value={trackingCodeInput}
-                  onChange={(e) => setTrackingCodeInput(e.target.value)}
-                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 min-w-0 text-center placeholder:text-center text-sm"
-                />
-                <button
-                  onClick={handleTrackOrder}
-                  className="w-full sm:w-auto px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm"
-                >
-                  Track
-                </button>
-              </div>
-
-              {trackingError && (
-                <div className="text-red-600 text-sm">{trackingError}</div>
-              )}
-
-              {trackingResult && (
-                <div className="mt-3">
-                  <TrackingInfoCard order={trackingResult} />
-                </div>
-              )}
+        {/* Active Orders Section (If logged-in and active orders exist) */}
+        {latestOrders.length > 0 && user?.role !== "admin" && (
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Your Active Orders</span>
+              </h2>
+              <span className="text-xs text-gray-500">Last 12 hours</span>
             </div>
-          )}
-        </div>
-      )}
+            <div className="space-y-4">
+              {latestOrders.map((orderItem) => (
+                <TrackingInfoCard
+                  key={orderItem.id || orderItem.trackingCode}
+                  order={orderItem}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
-      <div id="menu" className="mt-12 max-w-4xl w-full px-4 scroll-mt-28">
-        <h2 className="text-2xl md:text-3xl font-bold mb-6 text-center text-amber-700">
-          Explore Our Menu
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {MENU_ITEMS.map((food) => {
-            const isFoodAvailable = itemAvailability[food.id] !== false;
-            const isBlockedForCustomer =
-              !isFoodAvailable && user?.role !== "admin";
+        {/* Menu Showcase Section */}
+        <section id="menu" className="scroll-mt-24 space-y-5">
+          <div className="text-center space-y-1">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-gray-950 tracking-tight">
+              Today's Campus Menu
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-500">
+              Tap any item to customize and add to your dorm delivery order
+            </p>
+          </div>
 
-            return (
-              <div
-                key={food.id}
-                onClick={() => handleOrderClick(food.id)}
-                className={`bg-white p-5 rounded-2xl shadow-md transition-all duration-300 border border-amber-100 flex flex-col items-center justify-center gap-2 group ${
-                  isBlockedForCustomer
-                    ? "opacity-70 cursor-not-allowed"
-                    : "cursor-pointer hover:-translate-y-1.5 hover:shadow-[0_18px_40px_rgba(217,119,6,0.18)] hover:border-amber-200"
-                }`}
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-amber-100 via-white to-orange-100 text-4xl shadow-inner ring-1 ring-amber-100 transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6 group-hover:shadow-lg">
-                  {food.emoji}
-                </div>
-                <span className="font-semibold text-amber-900 text-sm md:text-base text-center transition-colors duration-300 group-hover:text-amber-700">
-                  {food.name}
-                </span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+            {MENU_ITEMS.map((item) => {
+              const isAvailable = itemAvailability[item.id] !== false;
+              const price = pricing[item.priceKey] || item.defaultPrice;
 
-                <span
-                  className={`text-[11px] px-3 py-1 rounded-full border backdrop-blur-sm transition-all duration-300 ${
-                    isFoodAvailable
-                      ? "bg-emerald-50/90 border-emerald-300 text-emerald-700 group-hover:bg-emerald-100"
-                      : "bg-red-50/90 border-red-300 text-red-700"
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => handleOrderClick(item.id)}
+                  className={`bg-white p-4 sm:p-5 rounded-3xl border transition-all flex flex-col items-center text-center justify-between group ${
+                    isAvailable
+                      ? "border-gray-200/80 hover:border-amber-300 hover:shadow-lg hover:shadow-amber-100 hover:-translate-y-1 cursor-pointer"
+                      : "border-gray-100 opacity-60 cursor-not-allowed bg-gray-50/50"
                   }`}
                 >
-                  {isFoodAvailable ? "Available" : "Unavailable"}
-                </span>
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-50 group-hover:bg-amber-100/80 text-3xl sm:text-4xl flex items-center justify-center transition-transform group-hover:scale-105 mb-3">
+                    {item.emoji}
+                  </div>
+
+                  <div className="w-full">
+                    <h3 className="font-bold text-sm sm:text-base text-gray-900 group-hover:text-amber-700 transition">
+                      {item.name}
+                    </h3>
+                    <p className="text-[11px] text-gray-500 line-clamp-2 mt-0.5 leading-snug">
+                      {item.desc}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-gray-100 w-full flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-900">
+                      {item.pricePrefix ? `${item.pricePrefix} ` : ""}
+                      {price}{" "}
+                      <span className="text-[10px] text-amber-700 font-normal">
+                        Birr
+                      </span>
+                    </span>
+
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isAvailable
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-rose-50 text-rose-700 border border-rose-200"
+                      }`}
+                    >
+                      {isAvailable ? "Available" : "Sold Out"}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Track Order By Code Section (For Guests or Quick Lookup) */}
+        {latestOrders.length === 0 && (
+          <section className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 sm:p-8 max-w-xl mx-auto text-center space-y-4">
+            <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto text-xl">
+              🔍
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-gray-950">
+                Track Existing Order
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                Have a tracking code? Enter it below to check delivery progress.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
+              <input
+                type="text"
+                placeholder="e.g. FD-523814"
+                value={trackingCodeInput}
+                onChange={(e) => setTrackingCodeInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleTrackOrder()}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-mono text-center sm:text-left uppercase placeholder:capitalize"
+              />
+              <button
+                type="button"
+                onClick={handleTrackOrder}
+                className="px-5 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white text-xs sm:text-sm font-bold transition cursor-pointer"
+              >
+                Track Order
+              </button>
+            </div>
+
+            {trackingError && (
+              <p className="text-xs font-semibold text-rose-600">
+                {trackingError}
+              </p>
+            )}
+
+            {trackingResult && (
+              <div className="pt-4 text-left">
+                <TrackingInfoCard order={trackingResult} />
               </div>
-            );
-          })}
-        </div>
-      </div>
+            )}
+          </section>
+        )}
 
-      {/* Features */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl">
-        <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1 text-amber-700">
-            Fetan Campus Delivery
-          </h3>
-          <p className="text-gray-600 text-sm">
-            We deliver your favorite Ertib quickly and fresh!
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1 text-amber-700">
-            Exclusive for AASTU
-          </h3>
-          <p className="text-gray-600 text-sm">
-            Only available for AASTU students.
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow text-center">
-          <h3 className="font-semibold text-lg mb-1 text-amber-700">
-            Easy Contact
-          </h3>
-          <p className="text-gray-600 text-sm flex items-center gap-1">
-            Call us anytime:{" "}
-            <a
-              href="tel:+251954724664"
-              className="text-amber-700 font-semibold hover:underline flex items-center gap-1"
-            >
-              <FiPhoneCall size={16} className="text-amber-700" />
-              +251 95 472 4664
-            </a>
-          </p>
-        </div>
-      </div>
+        {/* Why Choose Fetan Delivery (Trust Badges) */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <MapPin className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-gray-900">
+                Direct To Dorm Blocks
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                We deliver directly to AASTU student dorms without walking to the campus gate.
+              </p>
+            </div>
+          </div>
 
-      {/* Footer */}
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-gray-900">
+                Fresh & Made To Order
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                Prepared hot and fresh from Leyla’s Tuludimtu kitchen daily.
+              </p>
+            </div>
+          </div>
 
-      {/* Footer */}
-      <footer className="mt-12 text-gray-600 text-center flex flex-col items-center gap-2">
-        <div>
-          © {new Date().getFullYear()} Fetan Delivery Service — Exclusively for
-          AASTU Students.
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-xs flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <Phone className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-sm text-gray-900">
+                Instant Support
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                Call or Telegram us directly at{" "}
+                <a
+                  href="tel:+251954724664"
+                  className="font-semibold text-amber-700 hover:underline"
+                >
+                  +251 95 472 4664
+                </a>
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Clean Modern Footer */}
+      <footer className="border-t border-gray-200/80 bg-white py-6 text-center text-xs text-gray-500">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>
+            © {new Date().getFullYear()} Fetan Delivery Service — Exclusively for AASTU Students.
+          </p>
+          <a
+            href="https://abdurazakmohammed.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gray-600 hover:text-amber-700 font-medium transition flex items-center gap-1"
+          >
+            <span>Developed by Abdurazak</span>
+            <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
-        <a
-          href="https://abdurazakmohammed.vercel.app/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full shadow-sm hover:bg-amber-100 hover:text-amber-700 transition transform hover:scale-105"
-        >
-          <FaLaptopCode className="animate-bounce-slow" size={16} />
-          Developed by Abdurazak
-        </a>
       </footer>
 
       {/* Soft Push Notification Opt-in Prompt */}
-      <PushNotificationPrompt mode="soft-modal" onStatusChange={refreshPushStatus} />
-
-      {/* Visual Unblock Modal for Denied Permissions */}
-      {showPermissionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm mx-auto shadow-2xl relative">
-            <button
-              onClick={() => setShowPermissionModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full cursor-pointer"
-            >
-              ✕
-            </button>
-
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-3 text-2xl font-bold shadow-inner">
-              🔒
-            </div>
-
-            <h3 className="text-base font-bold text-gray-900 text-center mb-1">
-              Notifications are Blocked
-            </h3>
-            <p className="text-xs text-gray-500 text-center mb-4">
-              Your browser has notifications set to <b>Blocked</b>. Follow these 3 simple steps to unblock:
-            </p>
-
-            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 text-xs space-y-2.5 text-gray-700">
-              <div className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">1</span>
-                <span>Look at your browser's address bar at the top (next to <b>https://...</b>).</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">2</span>
-                <span>Tap the <b>🔒 Lock</b> or <b>Site Settings / Tune (⚙️)</b> icon.</span>
-              </div>
-              <div className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">3</span>
-                <span>Switch <b>Notifications</b> from <i>Blocked</i> to <b>Allow</b>, then refresh!</span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => {
-                setShowPermissionModal(false);
-                window.location.reload();
-              }}
-              className="w-full mt-4 bg-linear-to-r from-amber-500 to-orange-500 text-white font-semibold py-2.5 rounded-xl text-xs shadow hover:from-amber-600 hover:to-orange-600 transition cursor-pointer"
-            >
-              I Allowed It (Reload Page)
-            </button>
-          </div>
-        </div>
-      )}
+      <PushNotificationPrompt mode="soft-modal" />
     </div>
   );
 }
-
-

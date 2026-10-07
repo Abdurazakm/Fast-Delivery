@@ -1,15 +1,26 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { AiOutlineClose } from "react-icons/ai";
-import { FiCopy, FiArrowLeft } from "react-icons/fi";
-import { FaPaperPlane } from "react-icons/fa";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Bike,
+  Sparkles,
+  Plus,
+  Minus,
+  Trash2,
+  User,
+  Phone,
+  MapPin,
+  Receipt,
+  AlertCircle,
+  X,
+} from "lucide-react";
+import { FaPaperPlane as FaPaperPlaneIcon } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Bike, ArrowRight, Sparkles } from "lucide-react";
 import Toast from "./Toast";
 import API from "../api";
 import { getSocket } from "../socket";
-import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
-import PushNotificationPrompt from "../components/PushNotificationPrompt";
 import { maskTrackingCode } from "../notificationStore";
 
 const DEFAULT_PRICING = {
@@ -36,6 +47,7 @@ const FOOD_TYPE_LABELS = {
   sambusa: "Sambusa",
   boiled_egg: "Boiled Egg",
 };
+
 const DEFAULT_ITEM_AVAILABILITY = {
   ertib: true,
   fetira: true,
@@ -111,8 +123,7 @@ function OrderSuccessModal({
   const isAdmin = Boolean(order?.createdByAdmin);
   const [countdown, setCountdown] = useState(2);
 
-  // ONLY auto-redirect for regular customers.
-  // For admins, DO NOT auto-redirect so they can dispatch SMS or take the next phone order.
+  // Auto-redirect only for regular customers
   useEffect(() => {
     if (isAdmin) return;
 
@@ -217,7 +228,7 @@ function OrderSuccessModal({
           {isAdmin ? (
             /* ADMIN OPERATIONAL CONTROLS */
             <>
-              {/* 1. Send Order SMS with payment instructions */}
+              {/* 1. Send Order SMS */}
               {order.customerPhone && (
                 <button
                   type="button"
@@ -228,7 +239,7 @@ function OrderSuccessModal({
                   }}
                   className="w-full py-3 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm sm:text-base shadow-lg shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <FaPaperPlane className="text-sm" />
+                  <FaPaperPlaneIcon className="text-sm" />
                   <span>Send SMS to Customer ({order.customerPhone})</span>
                 </button>
               )}
@@ -342,198 +353,144 @@ export default function Order() {
   }, []);
 
   useEffect(() => {
-    const fetchPricing = async () => {
+    const fetchAvailabilityAndPricing = async () => {
       try {
-        const res = await API.get("/orders/pricing");
-        if (res.data) {
-          setPricing((prev) => ({ ...prev, ...res.data }));
-        }
-      } catch (err) {
-        console.error("❌ Failed to load pricing:", err);
-      }
-    };
+        const [availRes, pricingRes] = await Promise.all([
+          API.get("/availability"),
+          API.get("/orders/pricing"),
+        ]);
 
-    fetchPricing();
-  }, []);
-
-  useEffect(() => {
-    const fetchAvailability = async () => {
-      try {
-        const res = await API.get("/availability");
-        if (res.data) {
+        if (availRes.data?.itemAvailability) {
           setItemAvailability({
             ...DEFAULT_ITEM_AVAILABILITY,
-            ...(res.data.itemAvailability || {}),
+            ...availRes.data.itemAvailability,
           });
         }
-      } catch (err) {
-        console.error("❌ Failed to load item availability:", err);
-      }
-    };
 
-    fetchAvailability();
-  }, []);
-
-  useEffect(() => {
-    const socket = getSocket();
-
-    const handlePricingUpdated = async (payload) => {
-      if (payload && typeof payload === "object") {
-        setPricing((prev) => ({ ...prev, ...payload }));
-        return;
-      }
-
-      try {
-        const res = await API.get("/orders/pricing");
-        if (res.data) {
-          setPricing((prev) => ({ ...prev, ...res.data }));
+        if (pricingRes.data) {
+          setPricing((prev) => ({ ...prev, ...pricingRes.data }));
         }
       } catch (err) {
-        console.error("❌ Failed to refresh pricing:", err);
+        console.error("Failed to load availability/pricing:", err);
       }
     };
 
-    socket.on("pricing:updated", handlePricingUpdated);
+    fetchAvailabilityAndPricing();
 
+    const socket = getSocket();
     const handleAvailabilityUpdated = (payload) => {
-      if (payload && typeof payload === "object") {
-        setItemAvailability({
-          ...DEFAULT_ITEM_AVAILABILITY,
-          ...(payload.itemAvailability || {}),
-        });
-      }
+      if (!payload?.itemAvailability) return;
+      setItemAvailability({
+        ...DEFAULT_ITEM_AVAILABILITY,
+        ...payload.itemAvailability,
+      });
+    };
+
+    const handlePricingUpdated = (payload) => {
+      if (!payload) return;
+      setPricing((prev) => ({ ...prev, ...payload }));
     };
 
     socket.on("availability:updated", handleAvailabilityUpdated);
+    socket.on("pricing:updated", handlePricingUpdated);
 
     return () => {
-      socket.off("pricing:updated", handlePricingUpdated);
       socket.off("availability:updated", handleAvailabilityUpdated);
+      socket.off("pricing:updated", handlePricingUpdated);
     };
   }, []);
 
-  useEffect(() => {
-    if (user?.role === "admin") return;
-
-    const fallbackFoodType =
-      Object.keys(DEFAULT_ITEM_AVAILABILITY).find(
-        (foodType) => itemAvailability[foodType] !== false,
-      ) || "ertib";
-
-    let changed = false;
-    const nextItems = items.map((item) => {
-      const isAvailable = itemAvailability[item.foodType] !== false;
-      if (isAvailable) return item;
-      changed = true;
-      return buildDefaultItem(fallbackFoodType);
-    });
-
-    if (changed) {
-      setItems(nextItems);
-      setMessage(
-        "One or more items were unavailable and were replaced with available options.",
-      );
-    }
-  }, [itemAvailability, user?.role, items]);
-
-  // Prefill when editing
+  // Check URL edit param
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const code = params.get("edit");
     if (!code) return;
 
-    const fetchForEdit = async () => {
+    setEditCode(code);
+    setEditMode(true);
+
+    const fetchOrderForEdit = async () => {
       try {
         const res = await API.get(`/orders/track/${code}/edit`);
-        const o = res.data;
-        if (o) {
-          setCustomer({
-            customerName: o.customerName || "",
-            phone: o.phone || "",
-            location: o.location || "",
-          });
+        const order = res.data;
 
-          // Ensure each item has foodType (backwards compatibility)
-          const safeItems =
-            o.items && o.items.length
-              ? o.items.map((it) => ({
-                  ...buildDefaultItem(it.foodType || "ertib"),
-                  ...it,
-                  quantity:
-                    typeof it.quantity === "number"
-                      ? it.quantity
-                      : +it.quantity || 1,
-                  extraEggs:
-                    typeof it.extraEggs === "number"
-                      ? it.extraEggs
-                      : +it.extraEggs || 0,
-                  defaultEggs:
-                    typeof it.defaultEggs === "number"
-                      ? it.defaultEggs
-                      : FETIRA_DEFAULT_EGGS,
-                  donutPairsPerPackage:
-                    typeof it.donutPairsPerPackage === "number"
-                      ? it.donutPairsPerPackage
-                      : +it.donutPairsPerPackage || 1,
-                }))
-              : items;
+        setCustomer({
+          customerName: order.customerName || "",
+          phone: order.phone || "",
+          location: order.location || "",
+        });
 
-          setItems(safeItems);
-          setEditMode(true);
-          setEditCode(code);
-          setMessage("Editing existing order — update values and confirm.");
+        if (order.items && order.items.length > 0) {
+          setItems(
+            order.items.map((item) => ({
+              foodType: item.foodType || "ertib",
+              ertibType: item.ertibType || "normal",
+              Felafil: item.Felafil !== false,
+              ketchup: item.ketchup !== false,
+              spices: item.spices !== false,
+              extraKetchup: !!item.extraKetchup,
+              doubleFelafil: !!item.doubleFelafil,
+              quantity: item.quantity || 1,
+              defaultEggs:
+                item.foodType === "fetira"
+                  ? Number(item.defaultEggs) || FETIRA_DEFAULT_EGGS
+                  : undefined,
+              extraEggs:
+                item.foodType === "fetira"
+                  ? Number(item.extraEggs) || 0
+                  : undefined,
+              donutPairsPerPackage:
+                item.foodType === "donut"
+                  ? Number(item.donutPairsPerPackage) || 1
+                  : undefined,
+            })),
+          );
         }
       } catch (err) {
-        console.error("Failed to load order for edit:", err);
-        setMessage(
-          err.response?.data?.message || "Failed to load order for edit.",
-        );
+        console.error("Failed to fetch order for edit:", err);
+        setMessage("Could not load order for editing.");
       }
     };
 
-    fetchForEdit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchOrderForEdit();
   }, [location.search]);
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setUser(null);
-    setCustomer({ customerName: "", phone: "", location: "" });
-  };
-
-  // Pricing logic
   const getUnitPrice = (item) => {
-    if (item.foodType === "sambusa") return Number(pricing.sambusaPrice) || 0;
-    if (item.foodType === "boiled_egg") {
-      return (
-        Number(pricing.boiledEggPrice) || Number(pricing.sambusaPrice) || 0
-      );
+    if (item.foodType === "sambusa") {
+      return Number(pricing.sambusaPrice) || 0;
     }
+
+    if (item.foodType === "boiled_egg") {
+      return Number(pricing.boiledEggPrice) || 0;
+    }
+
     if (item.foodType === "fetira") {
       const base = Number(pricing.fetiraBasePrice) || 0;
-      const extraEggPrice = Number(pricing.fetiraExtraEggPrice) || 0;
       const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
-      return base + extraEggPrice * extraEggs;
+      const extraEggPrice = Number(pricing.fetiraExtraEggPrice) || 0;
+      return base + extraEggs * extraEggPrice;
     }
+
     if (item.foodType === "donut") {
       return getDonutPackageUnitPrice(item, pricing);
     }
+
     let base =
       item.ertibType === "special"
         ? Number(pricing.ertibSpecialPrice) || 0
         : Number(pricing.ertibNormalPrice) || 0;
+
     if (item.extraKetchup) base += Number(pricing.extraKetchupPrice) || 0;
     if (item.doubleFelafil) base += Number(pricing.doubleFelafilPrice) || 0;
+
     return base;
   };
 
-  // Handle customer input
   const handleCustomerChange = (e) => {
     const { name, value } = e.target;
     setCustomer((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle item changes robustly
   const handleItemChange = (index, e) => {
     const { name, value, type, checked } = e.target;
 
@@ -541,35 +498,39 @@ export default function Order() {
       prev.map((item, i) => {
         if (i !== index) return item;
 
-        // If changing the food type, reset ertib-specific fields when switching away from ertib
         if (name === "foodType") {
-          if (user?.role !== "admin" && itemAvailability[value] === false) {
-            setMessage(
-              `${FOOD_TYPE_LABELS[value] || "This item"} is currently unavailable.`,
-            );
-            return item;
-          }
-
-          const nextDefaults = buildDefaultItem(value);
-          return {
-            ...nextDefaults,
-            quantity: Number(item.quantity) || 1,
-          };
+          return buildDefaultItem(value);
         }
 
-        // Handle number input properly
-        if (type === "number") {
-          const num = Number(value || 0);
-          return { ...item, [name]: num };
+        if (name === "quantity") {
+          return { ...item, quantity: Math.max(1, Number(value) || 1) };
         }
 
-        // Handle checkbox
         if (type === "checkbox") {
           return { ...item, [name]: !!checked };
         }
 
-        // Normal text/select values
         return { ...item, [name]: value };
+      }),
+    );
+  };
+
+  const updateItemQuantity = (index, delta) => {
+    setItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        const currentQty = Number(item.quantity) || 1;
+        const newQty = Math.max(1, currentQty + delta);
+        return { ...item, quantity: newQty };
+      }),
+    );
+  };
+
+  const toggleItemField = (index, fieldName) => {
+    setItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        return { ...item, [fieldName]: !item[fieldName] };
       }),
     );
   };
@@ -606,39 +567,25 @@ export default function Order() {
     }
 
     if (item.foodType === "fetira") {
-      const defaultEggs = Number(item.defaultEggs) || FETIRA_DEFAULT_EGGS;
       const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
-      const extraLabel =
-        extraEggs > 0
-          ? ` + ${extraEggs} extra egg${extraEggs > 1 ? "s" : ""}`
-          : "";
-        if(!extraLabel) {
-          return `${item.quantity} × Fetira`;
-        }
-        else {
-          return `${item.quantity} × Fetira (${extraLabel})`;
-        }
+      return extraEggs > 0
+        ? `${item.quantity} × Fetira (+${extraEggs} extra egg${extraEggs > 1 ? "s" : ""})`
+        : `${item.quantity} × Fetira`;
     }
 
     if (item.foodType === "donut") {
       const pairs = Number(item.donutPairsPerPackage) || 1;
       const packages = Number(item.quantity) || 0;
-      const totalDonuts = pairs * packages * 2;
-      return `${packages} × Donut package (${pairs} pairs/package, total donuts: ${totalDonuts})`;
+      return `${packages} × Donut (${pairs} pair${pairs > 1 ? "s" : ""} / ${pairs * 2} donuts)`;
     }
 
     let desc = `${item.quantity} × ${item.ertibType} Ertib`;
+    if (item.spices && item.ketchup) desc += " (Spices & Ketchup)";
+    else if (item.spices && !item.ketchup) desc += " (Only Spices)";
+    else if (!item.spices && item.ketchup) desc += " (Only Ketchup)";
+    else desc += " (No spices/ketchup)";
 
-    // Spices and ketchup
-    if (item.spices && item.ketchup) desc += " with both spices and ketchup";
-    else if (item.spices && !item.ketchup) desc += " with only spices";
-    else if (!item.spices && item.ketchup) desc += " with only ketchup";
-    else desc += " without ketchup and spices";
-
-    // Extra ketchup
     if (item.extraKetchup) desc += " + extra ketchup";
-
-    // Felafil
     if (item.doubleFelafil) desc += " + double felafil";
     else if (item.Felafil === false) desc += " + no felafil";
 
@@ -647,6 +594,10 @@ export default function Order() {
 
   const handleReview = (e) => {
     e.preventDefault();
+    if (!customer.customerName.trim() || !customer.phone.trim() || !customer.location.trim()) {
+      setMessage("Please fill in all delivery details.");
+      return;
+    }
     setReviewMode(true);
   };
 
@@ -674,11 +625,10 @@ export default function Order() {
     setMessage("");
     setDuplicateOrderHint(null);
 
-    // ensure numeric quantities and compute line totals
     const itemList = items.map((item) => {
       const sanitized = {
         ...item,
-        quantity: Number(item.quantity) || 0,
+        quantity: Number(item.quantity) || 1,
       };
       const unitPrice = getUnitPrice(sanitized);
       const lineTotal = unitPrice * sanitized.quantity;
@@ -686,7 +636,6 @@ export default function Order() {
     });
 
     const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
-
     const fcmToken = localStorage.getItem("fcm_token");
     const payload = {
       ...customer,
@@ -695,7 +644,6 @@ export default function Order() {
       ...(fcmToken ? { fcmToken } : {}),
       ...(forceCreateDuplicate ? { forceCreateDuplicate: true } : {}),
     };
-
 
     try {
       if (editMode && editCode) {
@@ -707,18 +655,11 @@ export default function Order() {
         const updated = res.data.order || res.data;
         setMessage("Order updated successfully!");
 
-        setTracking({
-          trackingCode: updated.trackingCode || editCode,
-          trackingLink: updated.trackUrl,
-          createdByAdmin: updated.userRole === "admin",
-          customerPhone: updated.phone,
-          paymentStatus: updated.paymentStatus || "unpaid",
-          total: updated.total ?? total,
-        });
-
         setEditMode(false);
         setEditCode(null);
-        navigate(`/track/${updated.trackingCode || editCode}`);
+        navigate(`/track/${encodeURIComponent(updated.trackingCode || editCode)}`, {
+          replace: true,
+        });
       } else {
         let endpoint = "/orders";
         const headers = {};
@@ -771,7 +712,7 @@ export default function Order() {
         setTracking(orderSummary);
       }
 
-      // Reset form after success
+      // Reset form behind modal
       setCustomer({ customerName: "", phone: "", location: "" });
       setItems([buildDefaultItem("ertib")]);
       setReviewMode(false);
@@ -795,15 +736,6 @@ export default function Order() {
   };
 
   const handleBack = () => setReviewMode(false);
-
-  const handleEditPreviousOrder = (trackingCode) => {
-    if (!trackingCode) return;
-    setReviewMode(false);
-    setTracking(null);
-    setDuplicateOrderHint(null);
-    setMessage("Loading previous order for edit...");
-    navigate(`/order?edit=${trackingCode}`);
-  };
 
   const handleTrackNow = (targetCode = orderSuccessModal?.trackingCode) => {
     if (!targetCode) return;
@@ -829,448 +761,558 @@ export default function Order() {
     return `Hello, your order (Code: ${code}) has been created, but payment is still required.\n\nAmount to pay: ${amount} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\nCBE: 1000528463243 (Abdurazak Mohammed)\nTelebirr: 0954724664 (Nur Muhammed)\nCBEBirr: 0954724664 (Abdurazak Mohammed)\n\nAfter payment, send screenshot via Telegram: https://t.me/ABDURAZACQ\n\nTrack: ${trackLink}`;
   };
 
-  const getMessageMeta = (msg) => {
-    if (!msg) return { container: "", icon: "" };
-    const lower = msg.toLowerCase();
-    if (lower.includes("successfully")) {
-      return {
-        container: "bg-green-100 text-green-800 border border-green-300",
-        icon: "✅",
-      };
-    }
-
-    if (
-      lower.includes("failed") ||
-      lower.includes("error") ||
-      lower.includes("invalid") ||
-      lower.includes("not found")
-    ) {
-      return {
-        container: "bg-red-100 text-red-800 border border-red-300",
-        icon: "❌",
-      };
-    }
-
-    return {
-      container: "bg-amber-100 text-amber-800 border border-amber-300",
-      icon: "ℹ️",
-    };
-  };
-
-  const msgMeta = getMessageMeta(message);
+  const orderTotal = items.reduce(
+    (sum, item) => sum + getUnitPrice(item) * (Number(item.quantity) || 1),
+    0,
+  );
 
   return (
-    <div className="min-h-screen relative flex flex-col items-center justify-start p-6 bg-linear-to-br from-amber-600 via-orange-500 to-red-600">
-      {/* Header */}
-      <div className="w-full flex items-center justify-between mb-4 sm:mb-6">
-        <div>
-          {user?.role === "admin" ? (
-            <Link
-              to="/admin"
-              className="px-5 py-3 bg-white/20 backdrop-blur-md border border-white text-white rounded-full hover:bg-white/30 transition text-sm sm:text-base"
-            >
-              Dashboard
-            </Link>
-          ) : (
-            <Link
-              to="/"
-              className="fixed top-4 left-4 z-50 inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-full shadow-lg transition-all duration-200"
-            >
-              <FiArrowLeft className="text-lg" />
-              Back
-            </Link>
-          )}
-        </div>
+    <div className="min-h-screen bg-gray-50/70 text-gray-900 pb-20 selection:bg-amber-100 selection:text-amber-900">
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
 
-        <div className="flex items-center gap-3">
-          {/* {!user ? (
-            <Link
-              to="/login"
-              className="px-5 py-3 bg-white/20 backdrop-blur-md border border-white text-white rounded-full hover:bg-white/30 transition text-sm sm:text-base"
-            >
-              Login
-            </Link>
-          ) : (
-            <>
-              <span className="text-white font-medium text-sm sm:text-base">
-                Hi, {user.name}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition text-sm sm:text-base"
-              >
-                Logout
-              </button>
-            </>
-          )} */}
-        </div>
-      </div>
+      {/* Role-Aware Order Success Modal */}
+      <AnimatePresence>
+        {orderSuccessModal && (
+          <OrderSuccessModal
+            order={orderSuccessModal}
+            buildManualOrderSmsMessage={buildManualOrderSmsMessage}
+            onTrackNow={() => handleTrackNow(orderSuccessModal.trackingCode)}
+            onTakeNextOrder={() => setOrderSuccessModal(null)}
+            onGoDashboard={() => navigate("/admin")}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Order Form Card */}
-      <div className="flex-1 flex flex-col items-center justify-center w-full">
-        <div className="bg-white/90 backdrop-blur-lg shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-lg border border-white/30">
-          {/* Message */}
-          {message && (
-            <div
-              className={`mt-4 w-full max-w-lg mx-auto p-4 rounded-lg text-sm font-medium flex items-center justify-between gap-2 ${msgMeta.container}`}
-            >
-              <div className="flex items-center gap-2">
-                <span>{msgMeta.icon}</span>
-                <span>{message}</span>
-              </div>
-              <button
-                onClick={() => setMessage("")}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <AiOutlineClose size={18} />
-              </button>
-            </div>
-          )}
+      {/* Sticky Top Header Navigation */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
+        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-700 hover:text-amber-600 py-1.5 px-2.5 rounded-xl hover:bg-amber-50 transition"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Menu</span>
+          </Link>
 
-          {duplicateOrderHint?.trackingCode && (
-            <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 text-sm">
-              <div className="font-semibold mb-1">
-                Possible duplicate order detected
-              </div>
-              <p className="mb-3">
-                An active recent order already exists for this phone number. You
-                can edit that order instead of creating a new one.
-              </p>
-
-              <div className="mb-3">
-                <span className="font-medium">Tracking code:</span>{" "}
-                <span className="bg-amber-100 px-2 py-1 rounded">
-                  {duplicateOrderHint.trackingCode}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleEditPreviousOrder(duplicateOrderHint.trackingCode)
-                  }
-                  className="px-3 py-2 rounded-lg bg-amber-700 text-white hover:bg-amber-800 transition"
-                >
-                  Edit Previous Order
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate(`/track/${duplicateOrderHint.trackingCode}`)
-                  }
-                  className="px-3 py-2 rounded-lg border border-amber-700 text-amber-800 hover:bg-amber-100 transition"
-                >
-                  View Previous Order
-                </button>
-                {user?.role === "admin" && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleConfirmOrder({ forceCreateDuplicate: true })
-                    }
-                    disabled={loading}
-                    className="px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-60"
-                  >
-                    {loading ? "Creating..." : "Create Anyway (Admin)"}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Post-Order Celebratory Splash Modal */}
-          <AnimatePresence>
-            {orderSuccessModal && (
-              <OrderSuccessModal
-                order={orderSuccessModal}
-                buildManualOrderSmsMessage={buildManualOrderSmsMessage}
-                onTrackNow={() => handleTrackNow(orderSuccessModal.trackingCode)}
-                onTakeNextOrder={() => setOrderSuccessModal(null)}
-                onGoDashboard={() => navigate("/admin")}
-              />
-            )}
-          </AnimatePresence>
-
-          <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
-            Place Your Order
+          <h1 className="font-extrabold text-sm sm:text-base text-gray-950">
+            {editMode ? "Modify Your Order" : "Place Your Order"}
           </h1>
 
-          {!reviewMode ? (
-            <form onSubmit={handleReview} className="space-y-5">
-              <input
-                type="text"
-                name="customerName"
-                placeholder="Your Name"
-                value={customer.customerName}
-                onChange={handleCustomerChange}
-                className="w-full border p-2 rounded-lg"
-                required
-              />
+          <div className="flex items-center gap-2">
+            {user?.role === "admin" ? (
+              <Link
+                to="/admin"
+                className="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold transition"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 hidden sm:inline">
+                AASTU Dorm Delivery
+              </span>
+            )}
+          </div>
+        </div>
+      </header>
 
-              <input
-                type="text"
-                name="phone"
-                placeholder="Phone Number"
-                value={customer.phone}
-                onChange={handleCustomerChange}
-                className="w-full border p-2 rounded-lg"
-                required
-              />
+      {/* Main Container */}
+      <main className="max-w-xl mx-auto px-4 pt-6 space-y-5">
+        {/* Error / Status Alert */}
+        {message && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>{message}</div>
+            </div>
+            <button
+              onClick={() => setMessage("")}
+              className="text-amber-700 hover:text-amber-900"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
-              {/* Editable Location Input with Block 1–18 Options */}
-              <input
-                list="blockOptions"
-                type="text"
-                name="location"
-                placeholder="Delivery Location (e.g. Block14)"
-                value={customer.location}
-                onChange={handleCustomerChange}
-                className="w-full border p-2 rounded-lg"
-                required
-              />
+        {/* Possible Duplicate Order Notice */}
+        {duplicateOrderHint?.trackingCode && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm space-y-2.5 shadow-xs">
+            <div className="font-bold flex items-center gap-2">
+              <span>⚠️ Possible duplicate order detected</span>
+            </div>
+            <p className="text-gray-700 text-xs">
+              An order for this phone is already active today (Code:{" "}
+              <strong>{duplicateOrderHint.trackingCode}</strong>).
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/track/${duplicateOrderHint.trackingCode}`)
+                }
+                className="px-3 py-1.5 rounded-xl bg-white border border-amber-300 text-amber-900 font-semibold text-xs hover:bg-amber-100 transition"
+              >
+                View Existing Order
+              </button>
+              {user?.role === "admin" && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleConfirmOrder({ forceCreateDuplicate: true })
+                  }
+                  disabled={loading}
+                  className="px-3 py-1.5 rounded-xl bg-rose-600 text-white font-semibold text-xs hover:bg-rose-700 transition"
+                >
+                  Create Anyway (Admin)
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-              <datalist id="blockOptions">
-                {Array.from({ length: 28 }, (_, i) => (
-                  <option key={i + 1} value={`Block ${i + 1}`} />
-                ))}
-              </datalist>
-              <div className="border-t pt-4 space-y-4">
-                {items.map((item, index) => (
-                  <div key={index} className="border p-4 rounded-lg">
-                    <div className="flex justify-between items-center mb-2">
-                      <h2 className="font-semibold text-amber-700">
-                        Item #{index + 1}
-                      </h2>
+        {/* ORDER FORM VS REVIEW SCREEN */}
+        {!reviewMode ? (
+          <form onSubmit={handleReview} className="space-y-5">
+            {/* Delivery Information Card */}
+            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                <MapPin className="w-4 h-4 text-amber-600" />
+                <h2 className="font-bold text-sm sm:text-base text-gray-900">
+                  Delivery Details
+                </h2>
+              </div>
+
+              <div className="space-y-3">
+                {/* Name Input */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Your Name
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      name="customerName"
+                      placeholder="e.g. Dawit Kebede"
+                      value={customer.customerName}
+                      onChange={handleCustomerChange}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Phone Input */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="tel"
+                      name="phone"
+                      placeholder="0911 234 567"
+                      value={customer.phone}
+                      onChange={handleCustomerChange}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Location Input with Datalist */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    AASTU Dorm Block & Room
+                  </label>
+                  <div className="relative">
+                    <MapPin className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      list="blockOptions"
+                      type="text"
+                      name="location"
+                      placeholder="e.g. Block 14, Room 204"
+                      value={customer.location}
+                      onChange={handleCustomerChange}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium"
+                      required
+                    />
+                    <datalist id="blockOptions">
+                      {Array.from({ length: 28 }, (_, i) => (
+                        <option key={i + 1} value={`Block ${i + 1}`} />
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Food Items List */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="font-bold text-sm sm:text-base text-gray-900 flex items-center gap-2">
+                  <Receipt className="w-4 h-4 text-amber-600" />
+                  <span>Items Ordered ({items.length})</span>
+                </h2>
+                <span className="text-xs text-gray-500">Customize below</span>
+              </div>
+
+              {items.map((item, index) => {
+                const unitPrice = getUnitPrice(item);
+                const lineTotal = unitPrice * (Number(item.quantity) || 1);
+
+                return (
+                  <div
+                    key={index}
+                    className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4 relative"
+                  >
+                    {/* Top Row: Food Select & Remove */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1">
+                        <select
+                          name="foodType"
+                          value={item.foodType}
+                          onChange={(e) => handleItemChange(index, e)}
+                          className="w-full px-3 py-2 rounded-xl border border-gray-200 font-bold text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50/50"
+                        >
+                          {getSelectableFoodTypes().map((foodType) => (
+                            <option key={foodType} value={foodType}>
+                              {FOOD_TYPE_LABELS[foodType]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
                       {items.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeItem(index)}
-                          className="text-red-600 text-sm hover:underline"
+                          className="p-2 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          title="Remove item"
                         >
-                          Remove
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       )}
                     </div>
 
-                    {/* Food type selector (Option A) */}
-                    <select
-                      name="foodType"
-                      value={item.foodType}
-                      onChange={(e) => handleItemChange(index, e)}
-                      className="w-full border p-2 rounded-lg mb-3"
-                    >
-                      {getSelectableFoodTypes().map((foodType) => {
-                        const isAvailable =
-                          itemAvailability[foodType] !== false;
-                        return (
-                          <option key={foodType} value={foodType}>
-                            {FOOD_TYPE_LABELS[foodType]}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    {/* ERTIB CUSTOMIZATION */}
+                    {item.foodType === "ertib" && (
+                      <div className="space-y-3 pt-1">
+                        {/* Normal vs Special Pills */}
+                        <div>
+                          <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                            Ertib Type
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleItemChange(index, {
+                                  target: { name: "ertibType", value: "normal" },
+                                })
+                              }
+                              className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                                item.ertibType === "normal"
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                              }`}
+                            >
+                              Normal ({pricing.ertibNormalPrice} Birr)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleItemChange(index, {
+                                  target: { name: "ertibType", value: "special" },
+                                })
+                              }
+                              className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                                item.ertibType === "special"
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                              }`}
+                            >
+                              Special ({pricing.ertibSpecialPrice} Birr)
+                            </button>
+                          </div>
+                        </div>
 
-                    {itemAvailability[item.foodType] === false && (
-                      <div className="mb-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1">
-                        {FOOD_TYPE_LABELS[item.foodType] || "This item"} is
-                        currently unavailable.
+                        {/* Seasoning & Extras Pill Toggles */}
+                        <div>
+                          <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                            Seasoning & Extras
+                          </label>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => toggleItemField(index, "spices")}
+                              className={`px-3 py-1.5 rounded-xl font-semibold border transition cursor-pointer ${
+                                item.spices
+                                  ? "bg-amber-100 text-amber-800 border-amber-300"
+                                  : "bg-gray-50 text-gray-400 border-gray-200"
+                              }`}
+                            >
+                              {item.spices ? "✓ Spices" : "No Spices"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => toggleItemField(index, "ketchup")}
+                              className={`px-3 py-1.5 rounded-xl font-semibold border transition cursor-pointer ${
+                                item.ketchup
+                                  ? "bg-amber-100 text-amber-800 border-amber-300"
+                                  : "bg-gray-50 text-gray-400 border-gray-200"
+                              }`}
+                            >
+                              {item.ketchup ? "✓ Ketchup" : "No Ketchup"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => toggleItemField(index, "extraKetchup")}
+                              className={`px-3 py-1.5 rounded-xl font-semibold border transition cursor-pointer ${
+                                item.extraKetchup
+                                  ? "bg-amber-100 text-amber-800 border-amber-300"
+                                  : "bg-gray-50 text-gray-500 border-gray-200"
+                              }`}
+                            >
+                              + Extra Ketchup (+{pricing.extraKetchupPrice} Birr)
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => toggleItemField(index, "doubleFelafil")}
+                              className={`px-3 py-1.5 rounded-xl font-semibold border transition cursor-pointer ${
+                                item.doubleFelafil
+                                  ? "bg-amber-100 text-amber-800 border-amber-300"
+                                  : "bg-gray-50 text-gray-500 border-gray-200"
+                              }`}
+                            >
+                              + Double Felafil (+{pricing.doubleFelafilPrice} Birr)
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
 
-                    {/* Ertib options — only show when foodType === 'ertib' */}
-                    {item.foodType === "ertib" && (
-                      <>
-                        <select
-                          name="ertibType"
-                          value={item.ertibType}
-                          onChange={(e) => handleItemChange(index, e)}
-                          className="w-full border p-2 rounded-lg"
-                        >
-                          <option value="normal">Normal</option>
-                          <option value="special">Special</option>
-                        </select>
-
-                        <div className="grid grid-cols-2 gap-3 text-sm mt-3">
-                          {[
-                            "Felafil",
-                            "ketchup",
-                            "spices",
-                            "extraKetchup",
-                            "doubleFelafil",
-                          ].map((field) => (
-                            <label
-                              key={field}
-                              className="flex items-center space-x-2"
+                    {/* FETIRA CUSTOMIZATION */}
+                    {item.foodType === "fetira" && (
+                      <div className="space-y-2 pt-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                          Extra Eggs (+{pricing.fetiraExtraEggPrice} Birr / egg)
+                        </label>
+                        <div className="flex gap-2">
+                          {[0, 1, 2, 3].map((num) => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() =>
+                                handleItemChange(index, {
+                                  target: { name: "extraEggs", value: num },
+                                })
+                              }
+                              className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                                (Number(item.extraEggs) || 0) === num
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                              }`}
                             >
-                              <input
-                                type="checkbox"
-                                name={field}
-                                checked={!!item[field]}
-                                onChange={(e) => handleItemChange(index, e)}
-                              />
-                              <span>
-                                {field.replace(/([A-Z])/g, " $1").trim()}
-                              </span>
-                            </label>
+                              {num === 0 ? "Standard (3 eggs)" : `+${num} Egg${num > 1 ? "s" : ""}`}
+                            </button>
                           ))}
                         </div>
-                      </>
+                      </div>
                     )}
 
-                    {item.foodType === "fetira" && (
-                      <div className="mt-2 space-y-3">
-                        {/* <div className="text-sm text-gray-700">
-                          <strong>Default eggs included:</strong>{" "}
-                          {FETIRA_DEFAULT_EGGS}
-                        </div> */}
-                        <div>
-                          <label className="block font-medium">
-                            Extra Eggs:
-                          </label>
-                          <input
-                            type="number"
-                            name="extraEggs"
-                            min="0"
-                            value={item.extraEggs ?? 0}
-                            onChange={(e) => handleItemChange(index, e)}
-                            className="w-full border p-2 rounded-lg"
-                          />
+                    {/* DONUT CUSTOMIZATION */}
+                    {item.foodType === "donut" && (
+                      <div className="space-y-2 pt-1">
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                          Package Size
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {DONUT_PACKAGE_OPTIONS.map((pairs) => (
+                            <button
+                              key={pairs}
+                              type="button"
+                              onClick={() =>
+                                handleItemChange(index, {
+                                  target: { name: "donutPairsPerPackage", value: pairs },
+                                })
+                              }
+                              className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                                (Number(item.donutPairsPerPackage) || 1) === pairs
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                              }`}
+                            >
+                              {pairs} Pair{pairs > 1 ? "s" : ""} ({pairs * 2} donuts)
+                            </button>
+                          ))}
                         </div>
                       </div>
                     )}
 
-                    {item.foodType === "donut" && (
-                      <div className="mt-2 space-y-3">
-                        <div>
-                          <label className="block font-medium">
-                            Package Size (pairs):
-                          </label>
-                          <select
-                            name="donutPairsPerPackage"
-                            value={item.donutPairsPerPackage ?? 1}
-                            onChange={(e) => handleItemChange(index, e)}
-                            className="w-full border p-2 rounded-lg"
-                          >
-                            {DONUT_PACKAGE_OPTIONS.map((pairs) => (
-                              <option key={pairs} value={pairs}>
-                                {pairs} pairs per package
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                    {/* Quantity Stepper & Line Price */}
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                      {/* Modern Stepper */}
+                      <div className="flex items-center gap-3 bg-gray-50 p-1 rounded-2xl border border-gray-200">
+                        <button
+                          type="button"
+                          onClick={() => updateItemQuantity(index, -1)}
+                          className="w-8 h-8 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 text-gray-800 flex items-center justify-center transition cursor-pointer shadow-xs active:scale-95"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="font-bold text-sm min-w-[20px] text-center">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateItemQuantity(index, 1)}
+                          className="w-8 h-8 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 text-gray-800 flex items-center justify-center transition cursor-pointer shadow-xs active:scale-95"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    )}
 
-                    {/* Quantity — always visible for both food types */}
-                    <div className="mt-3">
-                      <label className="block font-medium">
-                        {item.foodType === "donut"
-                          ? "Quantity (packages):"
-                          : "Quantity:"}
-                      </label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(index, e)}
-                        className="w-full border p-2 rounded-lg"
-                      />
-                    </div>
-
-                    <div className="flex justify-between text-sm mt-2">
-                      <span>Unit: {getUnitPrice(item)} Birr</span>
-                      <span>
-                        Line Total: {getUnitPrice(item) * item.quantity} Birr
-                      </span>
-                    </div>
-
-                    {item.foodType === "donut" && (
-                      <div className="text-sm mt-2 text-gray-700">
-                        Total donuts:{" "}
-                        {(Number(item.donutPairsPerPackage) || 1) *
-                          (Number(item.quantity) || 0) *
-                          2}
+                      {/* Line Total */}
+                      <div className="text-right">
+                        <span className="text-[11px] text-gray-400 block">
+                          Unit: {unitPrice} Birr
+                        </span>
+                        <span className="text-sm font-extrabold text-amber-900">
+                          {lineTotal} Birr
+                        </span>
                       </div>
-                    )}
+                    </div>
                   </div>
-                ))}
+                );
+              })}
 
-                <button
-                  type="button"
-                  onClick={addItem}
-                  className="w-full border border-amber-700 text-amber-700 py-2 rounded-lg hover:bg-amber-700 hover:text-white transition"
-                >
-                  + Add Another Item
-                </button>
-              </div>
+              {/* Add Another Item Button */}
+              <button
+                type="button"
+                onClick={addItem}
+                className="w-full py-3.5 border-2 border-dashed border-amber-200 hover:border-amber-400 rounded-3xl text-amber-800 hover:bg-amber-50/50 font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+              >
+                <Plus className="w-4 h-4 text-amber-600" />
+                <span>Add Another Food Item</span>
+              </button>
+            </div>
 
-              <div className="text-right text-sm font-semibold text-gray-700">
-                Total:{" "}
-                {items.reduce(
-                  (sum, item) =>
-                    sum + getUnitPrice(item) * Number(item.quantity || 0),
-                  0,
-                )}{" "}
-                Birr
+            {/* Total & Review CTA Bar */}
+            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-sm text-gray-600">
+                  Total Order Amount
+                </span>
+                <span className="text-xl sm:text-2xl font-extrabold text-amber-950">
+                  {orderTotal}{" "}
+                  <span className="text-sm text-amber-700 font-bold">Birr</span>
+                </span>
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-amber-700 text-white py-2 rounded-lg hover:bg-amber-800 transition"
+                className="w-full py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm sm:text-base shadow-md shadow-amber-200 transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
               >
-                Review Order
+                <span>Review Order Details</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
-            </form>
-          ) : (
+            </div>
+          </form>
+        ) : (
+          /* REVIEW MODE SCREEN */
+          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-gray-100 shadow-sm space-y-6">
             <div>
-              <h2 className="text-lg font-semibold mb-4 text-gray-700">
+              <h2 className="text-lg sm:text-xl font-extrabold text-gray-950">
                 Review Your Order
               </h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                Please verify your delivery location and items before confirming
+              </p>
+            </div>
 
-              <div className="space-y-3">
+            {/* Delivery Recipient Summary */}
+            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 text-xs sm:text-sm space-y-1.5">
+              <p className="font-bold text-gray-900">
+                Recipient: {customer.customerName}
+              </p>
+              <p className="text-gray-600">Phone: {customer.phone}</p>
+              <p className="text-gray-600">
+                Dorm Location: <strong>{customer.location}</strong>
+              </p>
+            </div>
+
+            {/* Itemized Breakdown */}
+            <div className="space-y-2.5">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-gray-400">
+                Itemized Summary
+              </h3>
+              <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl p-4">
                 {items.map((item, i) => (
-                  <p key={i} className="border p-2 rounded-lg text-sm">
-                    {describeItem(item)} —{" "}
-                    <strong>{getUnitPrice(item) * item.quantity} Birr</strong>
-                  </p>
+                  <div
+                    key={i}
+                    className="py-2.5 flex items-center justify-between text-xs sm:text-sm"
+                  >
+                    <span className="font-medium text-gray-800">
+                      {describeItem(item)}
+                    </span>
+                    <span className="font-bold text-gray-900 shrink-0 ml-3">
+                      {getUnitPrice(item) * item.quantity} Birr
+                    </span>
+                  </div>
                 ))}
               </div>
-
-              <div className="text-right mt-4 font-semibold text-gray-700">
-                Total:{" "}
-                {items.reduce(
-                  (sum, item) =>
-                    sum + getUnitPrice(item) * Number(item.quantity || 0),
-                  0,
-                )}{" "}
-                Birr
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={handleBack}
-                  className="flex-1 border border-gray-400 py-2 rounded-lg hover:bg-gray-100"
-                >
-                  Back & Edit
-                </button>
-                <button
-                  onClick={handleConfirmOrder}
-                  disabled={loading}
-                  className="flex-1 bg-amber-700 text-white py-2 rounded-lg hover:bg-amber-800 transition"
-                >
-                  {loading
-                    ? "Placing..."
-                    : editMode
-                      ? "Update Order"
-                      : "Confirm Order"}
-                </button>
-              </div>
             </div>
-          )}
-        </div>
-      </div>
+
+            {/* Grand Total */}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <span className="font-bold text-sm text-gray-600">
+                Total to Pay
+              </span>
+              <span className="text-xl sm:text-2xl font-extrabold text-amber-950">
+                {orderTotal} Birr
+              </span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleBack}
+                className="flex-1 py-3 px-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs sm:text-sm transition cursor-pointer"
+              >
+                Back & Edit
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmOrder}
+                disabled={loading}
+                className="flex-1 py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm shadow-md shadow-amber-200 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
+              >
+                {loading ? (
+                  <span>Placing Order...</span>
+                ) : (
+                  <>
+                    <span>Confirm Order</span>
+                    <CheckCircle2 className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
