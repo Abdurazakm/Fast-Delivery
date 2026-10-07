@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
-import { ArrowLeft, Check, Share2 } from "lucide-react";
+import { ArrowLeft, Check, Share2, Sparkles } from "lucide-react";
 import { getSocket } from "../socket";
 import PushNotificationPrompt from "../components/PushNotificationPrompt";
 
 export default function TrackOrder() {
   const { code } = useParams();
+  const [searchParams] = useSearchParams();
+  const justPlaced = searchParams.get("justPlaced") === "1";
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState(null);
   const [error, setError] = useState("");
@@ -176,6 +178,25 @@ export default function TrackOrder() {
 
       {/* Main Content Area */}
       <main className="max-w-3xl mx-auto px-4 pt-4 sm:pt-6 space-y-4 sm:space-y-6">
+        {/* Celebratory Post-Order Welcome Banner */}
+        {justPlaced && (
+          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Check className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-emerald-950 flex items-center gap-1.5">
+                  <span>🎉 Order Placed Successfully!</span>
+                </p>
+                <p className="text-[11px] sm:text-xs text-emerald-700 mt-0.5">
+                  We've received your order and sent it to the kitchen. Please complete your payment below to confirm preparation.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Live Delivery Push Alerts Prompt */}
         <PushNotificationPrompt order={order} mode="inline" />
 

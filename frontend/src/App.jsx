@@ -565,6 +565,7 @@ function App() {
           }
         />
         <Route path="/track/:code" element={<TrackOrder />} />
+        <Route path="/orders/track/:code" element={<TrackOrder />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

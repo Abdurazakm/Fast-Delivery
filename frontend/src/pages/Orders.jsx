@@ -3,11 +3,14 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AiOutlineClose } from "react-icons/ai";
 import { FiCopy, FiArrowLeft } from "react-icons/fi";
 import { FaPaperPlane } from "react-icons/fa";
+import { motion, AnimatePresence } from "framer-motion";
+import { CheckCircle2, Bike, ArrowRight, Sparkles } from "lucide-react";
 import Toast from "./Toast";
 import API from "../api";
 import { getSocket } from "../socket";
 import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
 import PushNotificationPrompt from "../components/PushNotificationPrompt";
+import { maskTrackingCode } from "../notificationStore";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -97,6 +100,132 @@ function getDonutPackageUnitPrice(item, pricing) {
   return Math.max(0, pairs * perPairRate);
 }
 
+// Post-Order Celebratory Splash Modal with Auto-Transition
+function OrderSuccessModal({ order, onTrackNow, buildManualOrderSmsMessage }) {
+  const [countdown, setCountdown] = useState(2);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          onTrackNow();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 900);
+
+    return () => clearInterval(timer);
+  }, [onTrackNow]);
+
+  const maskedCode = maskTrackingCode(order.trackingCode);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.85, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 text-center border border-gray-100 overflow-hidden"
+      >
+        {/* Animated Celebration Icon */}
+        <div className="relative mx-auto mb-4 w-20 h-20 flex items-center justify-center">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", delay: 0.1, damping: 15 }}
+            className="w-20 h-20 rounded-full bg-linear-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-lg shadow-emerald-200"
+          >
+            <CheckCircle2 className="w-10 h-10" />
+          </motion.div>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+            className="absolute -top-1 -right-1 text-amber-500"
+          >
+            <Sparkles className="w-6 h-6" />
+          </motion.div>
+        </div>
+
+        {/* Heading & Subtitle */}
+        <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
+          Order Placed Successfully!
+        </h2>
+        <p className="text-xs sm:text-sm text-gray-600 mt-1">
+          We've received your order and sent it to the kitchen.
+        </p>
+
+        {/* Order Details Strip */}
+        <div className="mt-5 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between">
+          <div className="text-left">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block">
+              Tracking Code
+            </span>
+            <span className="font-mono text-sm sm:text-base font-bold text-gray-900">
+              {maskedCode}
+            </span>
+          </div>
+          <div className="text-right">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block">
+              Total Amount
+            </span>
+            <span className="text-sm sm:text-base font-extrabold text-amber-900">
+              {order.total} <span className="text-xs text-amber-700">Birr</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Auto-redirect progress bar & indicator */}
+        <div className="mt-5">
+          <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5 font-medium">
+            <span>Redirecting to live tracking...</span>
+            <span className="font-bold text-amber-800">{countdown}s</span>
+          </div>
+          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: "0%" }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 1.8, ease: "linear" }}
+              className="h-full bg-linear-to-r from-amber-500 to-emerald-500 rounded-full"
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-6 space-y-2.5">
+          <button
+            type="button"
+            onClick={onTrackNow}
+            className="w-full py-3 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm sm:text-base shadow-lg shadow-amber-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Bike className="w-5 h-5" />
+            <span>Track Your Order Now</span>
+            <ArrowRight className="w-4 h-4 ml-0.5" />
+          </button>
+
+          {/* Admin SMS Quick Trigger */}
+          {order.createdByAdmin && order.customerPhone && (
+            <button
+              type="button"
+              onClick={() => {
+                const messageToSend = buildManualOrderSmsMessage(order);
+                const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
+                window.location.href = smsUrl;
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <FaPaperPlane className="text-xs" />
+              <span>Send Order SMS to Customer</span>
+            </button>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function Order() {
   const [customer, setCustomer] = useState({
     customerName: "",
@@ -104,6 +233,7 @@ export default function Order() {
     location: "",
   });
   const [tracking, setTracking] = useState(null);
+  const [orderSuccessModal, setOrderSuccessModal] = useState(null);
   const [user, setUser] = useState(null);
   const [items, setItems] = useState(() => {
     if (typeof window !== "undefined") {
@@ -574,14 +704,17 @@ export default function Order() {
           }).catch(() => {});
         }
 
-        setTracking({
+        const orderSummary = {
           trackingCode: finalTrackingCode,
           trackingLink: orderData.trackUrl,
           createdByAdmin: user?.role === "admin",
           customerPhone: finalPhone,
           paymentStatus: orderData.paymentStatus || "unpaid",
           total: orderData.total ?? total,
-        });
+        };
+
+        setOrderSuccessModal(orderSummary);
+        setTracking(orderSummary);
       }
 
       // Reset form after success
@@ -618,15 +751,22 @@ export default function Order() {
     navigate(`/order?edit=${trackingCode}`);
   };
 
-  const buildManualOrderSmsMessage = () => {
-    if (!tracking) return "";
+  const handleTrackNow = (targetCode = orderSuccessModal?.trackingCode) => {
+    if (!targetCode) return;
+    navigate(`/track/${encodeURIComponent(targetCode)}?justPlaced=1`, {
+      replace: true,
+    });
+  };
 
-    const code = tracking.trackingCode || "--";
-    const trackLink = tracking.trackingLink || "";
+  const buildManualOrderSmsMessage = (orderObj = orderSuccessModal || tracking) => {
+    if (!orderObj) return "";
+
+    const code = orderObj.trackingCode || "--";
+    const trackLink = orderObj.trackingLink || "";
     const paymentStatus = String(
-      tracking.paymentStatus || "unpaid",
+      orderObj.paymentStatus || "unpaid",
     ).toLowerCase();
-    const amount = Number(tracking.total || 0).toFixed(2);
+    const amount = Number(orderObj.total || 0).toFixed(2);
 
     if (paymentStatus === "paid") {
       return `Hello, we received your payment for order (Code: ${code}). Your order is confirmed and being prepared. Track: ${trackLink}`;
@@ -785,122 +925,16 @@ export default function Order() {
             </div>
           )}
 
-          {/* Tracking card */}
-          {tracking && (
-            <>
-              {toast && (
-                <Toast
-                  message={toast.message}
-                  type={toast.type}
-                  onClose={() => setToast(null)}
-                />
-              )}
-
-              {/* Post-Order Live Delivery Alert Prompt */}
-              <PushNotificationPrompt
-                order={{
-                  trackingCode: tracking.trackingCode,
-                  phone: tracking.customerPhone,
-                }}
-                mode="inline"
+          {/* Post-Order Celebratory Splash Modal */}
+          <AnimatePresence>
+            {orderSuccessModal && (
+              <OrderSuccessModal
+                order={orderSuccessModal}
+                buildManualOrderSmsMessage={buildManualOrderSmsMessage}
+                onTrackNow={() => handleTrackNow(orderSuccessModal.trackingCode)}
               />
-
-              <div className="mt-3 w-full max-w-lg mx-auto p-4 rounded-lg bg-blue-50 border border-blue-300 text-blue-800 text-sm relative">
-                <button
-                  onClick={() => setTracking(null)}
-                  className="absolute top-3 right-3 text-xs text-gray-500 hover:text-gray-800"
-                  title="Hide tracking info"
-                >
-                  ✖
-                </button>
-
-                {tracking.createdByAdmin && tracking.customerPhone && (
-                  <button
-                    title="Send order SMS"
-                    onClick={() => {
-                      const messageToSend = buildManualOrderSmsMessage();
-                      const smsUrl = `sms:${
-                        tracking.customerPhone
-                      }?body=${encodeURIComponent(messageToSend)}`;
-                      window.location.href = smsUrl;
-                    }}
-                    className="absolute top-2 right-12 text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
-                  >
-                    <FaPaperPlane className="text-md" />
-                  </button>
-                )}
-
-                {tracking.trackingCode && tracking.trackingLink && (
-                  <>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-semibold text-sm">
-                        📦 Order Tracking Details
-                      </div>
-                    </div>
-
-                    <div className="mb-2 flex items-center">
-                      <strong>Tracking Code:</strong>{" "}
-                      <span className="bg-gray-200 px-2 py-1 rounded ml-1">
-                        {tracking.trackingCode}
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(tracking.trackingCode);
-                          setToast({
-                            message: "✅ Tracking code copied!",
-                            type: "success",
-                          });
-                        }}
-                        className="ml-2 text-blue-700 hover:text-blue-900"
-                        title="Copy tracking code"
-                      >
-                        <FiCopy />
-                      </button>
-                    </div>
-
-                    <div className="mb-2 flex items-center">
-                      <strong>Tracking Link:</strong>{" "}
-                      <a
-                        href={tracking.trackingLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-1 inline-flex items-center px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-medium shadow-md transition-all duration-200 hover:shadow-lg"
-                      >
-                        View Order
-                      </a>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(tracking.trackingLink);
-                          setToast({
-                            message: "✅ Tracking link copied!",
-                            type: "success",
-                          });
-                        }}
-                        className="ml-2 text-blue-700 hover:text-blue-900"
-                        title="Copy tracking link"
-                      >
-                        <FiCopy />
-                      </button>
-                    </div>
-
-                    {(tracking.paymentStatus || "unpaid").toLowerCase() ===
-                      "unpaid" && (
-                      <PaymentInstructionsCard
-                        amount={tracking.total}
-                        trackingCode={tracking.trackingCode}
-                        trackingLink={
-                          tracking.trackingLink || tracking.trackUrl
-                        }
-                        onCopy={(copyMessage) =>
-                          setToast({ message: copyMessage, type: "success" })
-                        }
-                      />
-                    )}
-                  </>
-                )}
-              </div>
-            </>
-          )}
+            )}
+          </AnimatePresence>
 
           <h1 className="text-2xl font-bold mb-6 text-center text-amber-700">
             Place Your Order
