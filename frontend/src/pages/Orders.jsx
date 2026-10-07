@@ -150,7 +150,7 @@ function OrderSuccessModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.85, y: 20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 text-center border border-gray-100 overflow-hidden"
+        className="relative bg-white rounded-3xl shadow-2xl max-w-sm sm:max-w-md w-full p-5 sm:p-8 text-center border border-gray-100 overflow-hidden max-h-[92vh] overflow-y-auto"
       >
         {/* Animated Celebration Icon */}
         <div className="relative mx-auto mb-4 w-20 h-20 flex items-center justify-center">
@@ -176,31 +176,31 @@ function OrderSuccessModal({
         </div>
 
         {/* Heading & Subtitle */}
-        <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
+        <h2 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">
           {isAdmin ? "Manual Order Created!" : "Order Placed Successfully!"}
         </h2>
-        <p className="text-xs sm:text-sm text-gray-600 mt-1">
+        <p className="text-xs sm:text-sm text-gray-700 font-medium mt-1 leading-relaxed">
           {isAdmin
             ? "Order has been logged in the system and kitchen queue."
             : "We've received your order and sent it to the kitchen."}
         </p>
 
         {/* Order Details Strip */}
-        <div className="mt-5 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between text-left">
+        <div className="mt-5 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between text-left">
           <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-700 block">
               {isAdmin ? "Full Tracking Code" : "Tracking Code"}
             </span>
-            <span className="font-mono text-sm sm:text-base font-bold text-gray-900">
+            <span className="font-mono text-base font-black text-gray-950 mt-0.5 block">
               {isAdmin ? order.trackingCode : maskedCode}
             </span>
           </div>
           <div className="text-right">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-700 block">
               Total Amount
             </span>
-            <span className="text-sm sm:text-base font-extrabold text-amber-900">
-              {order.total} <span className="text-xs text-amber-700">Birr</span>
+            <span className="text-base font-black text-amber-950 mt-0.5 block">
+              {order.total} <span className="text-xs text-amber-800 font-bold">Birr</span>
             </span>
           </div>
         </div>
@@ -208,11 +208,11 @@ function OrderSuccessModal({
         {/* For Customer: Auto-redirect countdown bar */}
         {!isAdmin && (
           <div className="mt-5">
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5 font-medium">
+            <div className="flex items-center justify-between text-xs sm:text-sm text-gray-700 mb-1.5 font-bold">
               <span>Redirecting to live tracking...</span>
-              <span className="font-bold text-amber-800">{countdown}s</span>
+              <span className="text-amber-800 font-black">{countdown}s</span>
             </div>
-            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-200/60">
               <motion.div
                 initial={{ width: "0%" }}
                 animate={{ width: "100%" }}
@@ -237,7 +237,7 @@ function OrderSuccessModal({
                     const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
                     window.location.href = smsUrl;
                   }}
-                  className="w-full py-3 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm sm:text-base shadow-lg shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full min-h-[48px] py-3 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-sm sm:text-base shadow-md shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <FaPaperPlaneIcon className="text-sm" />
                   <span>Send SMS to Customer ({order.customerPhone})</span>
@@ -249,7 +249,7 @@ function OrderSuccessModal({
                 <button
                   type="button"
                   onClick={onTakeNextOrder}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-amber-200"
+                  className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-amber-200 active:scale-98"
                 >
                   <span>+ Next Order</span>
                 </button>
@@ -257,7 +257,7 @@ function OrderSuccessModal({
                 <button
                   type="button"
                   onClick={onGoDashboard}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
                 >
                   <span>📊 Dashboard</span>
                 </button>
@@ -267,7 +267,7 @@ function OrderSuccessModal({
               <button
                 type="button"
                 onClick={onTrackNow}
-                className="w-full py-2 text-xs font-semibold text-gray-500 hover:text-amber-700 transition flex items-center justify-center gap-1 cursor-pointer"
+                className="w-full min-h-[40px] py-2 text-xs sm:text-sm font-bold text-gray-600 hover:text-amber-800 transition flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Bike className="w-4 h-4" />
                 <span>View Order Tracking Page →</span>
@@ -278,11 +278,11 @@ function OrderSuccessModal({
             <button
               type="button"
               onClick={onTrackNow}
-              className="w-full py-3 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm sm:text-base shadow-lg shadow-amber-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full min-h-[50px] py-3.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm sm:text-base shadow-md shadow-amber-200/60 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Bike className="w-5 h-5" />
+              <Bike className="w-5 h-5 shrink-0" />
               <span>Track Your Order Now</span>
-              <ArrowRight className="w-4 h-4 ml-0.5" />
+              <ArrowRight className="w-4 h-4 ml-0.5 shrink-0" />
             </button>
           )}
         </div>
@@ -883,26 +883,26 @@ export default function Order() {
             <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-sm space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
                 <MapPin className="w-4 h-4 text-amber-600" />
-                <h2 className="font-bold text-sm sm:text-base text-gray-900">
+                <h2 className="font-extrabold text-base text-gray-950">
                   Delivery Details
                 </h2>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 {/* Name Input */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
                     Your Name
                   </label>
                   <div className="relative">
-                    <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <User className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       name="customerName"
                       placeholder="e.g. Dawit Kebede"
                       value={customer.customerName}
                       onChange={handleCustomerChange}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium"
+                      className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
                       required
                     />
                   </div>
@@ -910,18 +910,18 @@ export default function Order() {
 
                 {/* Phone Input */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
                     Phone Number
                   </label>
                   <div className="relative">
-                    <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <Phone className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="tel"
                       name="phone"
                       placeholder="0911 234 567"
                       value={customer.phone}
                       onChange={handleCustomerChange}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium"
+                      className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
                       required
                     />
                   </div>
@@ -929,11 +929,11 @@ export default function Order() {
 
                 {/* Location Input with Datalist */}
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
                     AASTU Dorm Block & Room
                   </label>
                   <div className="relative">
-                    <MapPin className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <MapPin className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
                       list="blockOptions"
                       type="text"
@@ -941,7 +941,7 @@ export default function Order() {
                       placeholder="e.g. Block 14, Room 204"
                       value={customer.location}
                       onChange={handleCustomerChange}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm font-medium"
+                      className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
                       required
                     />
                     <datalist id="blockOptions">
@@ -957,11 +957,11 @@ export default function Order() {
             {/* Food Items List */}
             <div className="space-y-4">
               <div className="flex items-center justify-between px-1">
-                <h2 className="font-bold text-sm sm:text-base text-gray-900 flex items-center gap-2">
+                <h2 className="font-extrabold text-base text-gray-950 flex items-center gap-2">
                   <Receipt className="w-4 h-4 text-amber-600" />
                   <span>Items Ordered ({items.length})</span>
                 </h2>
-                <span className="text-xs text-gray-500">Customize below</span>
+                <span className="text-xs font-semibold text-gray-600">Customize below</span>
               </div>
 
               {items.map((item, index) => {
@@ -980,7 +980,7 @@ export default function Order() {
                           name="foodType"
                           value={item.foodType}
                           onChange={(e) => handleItemChange(index, e)}
-                          className="w-full px-3 py-2 rounded-xl border border-gray-200 font-bold text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-gray-50/50"
+                          className="w-full px-3.5 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 font-extrabold text-base sm:text-sm text-gray-950 bg-gray-50/70 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition cursor-pointer"
                         >
                           {getSelectableFoodTypes().map((foodType) => (
                             <option key={foodType} value={foodType}>
@@ -994,7 +994,7 @@ export default function Order() {
                         <button
                           type="button"
                           onClick={() => removeItem(index)}
-                          className="p-2 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          className="w-11 h-11 rounded-xl text-gray-500 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition cursor-pointer shrink-0"
                           title="Remove item"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1007,7 +1007,7 @@ export default function Order() {
                       <div className="space-y-3 pt-1">
                         {/* Normal vs Special Pills */}
                         <div>
-                          <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             Ertib Type
                           </label>
                           <div className="grid grid-cols-2 gap-2">
@@ -1018,10 +1018,10 @@ export default function Order() {
                                   target: { name: "ertibType", value: "normal" },
                                 })
                               }
-                              className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                              className={`py-2.5 sm:py-3 px-3 min-h-[46px] rounded-xl text-xs sm:text-sm font-extrabold border-2 transition cursor-pointer active:scale-98 ${
                                 item.ertibType === "normal"
                                   ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                                  : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
                               Normal ({pricing.ertibNormalPrice} Birr)
@@ -1033,10 +1033,10 @@ export default function Order() {
                                   target: { name: "ertibType", value: "special" },
                                 })
                               }
-                              className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                              className={`py-2.5 sm:py-3 px-3 min-h-[46px] rounded-xl text-xs sm:text-sm font-extrabold border-2 transition cursor-pointer active:scale-98 ${
                                 item.ertibType === "special"
                                   ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                                  : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
                               Special ({pricing.ertibSpecialPrice} Birr)
@@ -1046,17 +1046,17 @@ export default function Order() {
 
                         {/* Seasoning & Extras Pill Toggles */}
                         <div>
-                          <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">
+                          <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
                             Seasoning & Extras
                           </label>
-                          <div className="flex flex-wrap gap-2 text-xs">
+                          <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
                             <button
                               type="button"
                               onClick={() => toggleItemField(index, "spices")}
-                              className={`px-3 py-1.5 rounded-xl font-semibold border transition cursor-pointer ${
+                              className={`py-2.5 px-3 min-h-[42px] rounded-xl font-extrabold border-2 transition cursor-pointer active:scale-98 ${
                                 item.spices
-                                  ? "bg-amber-100 text-amber-800 border-amber-300"
-                                  : "bg-gray-50 text-gray-400 border-gray-200"
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
                               {item.spices ? "✓ Spices" : "No Spices"}
@@ -1065,10 +1065,10 @@ export default function Order() {
                             <button
                               type="button"
                               onClick={() => toggleItemField(index, "ketchup")}
-                              className={`px-3 py-1.5 rounded-xl font-semibold border transition cursor-pointer ${
+                              className={`py-2.5 px-3 min-h-[42px] rounded-xl font-extrabold border-2 transition cursor-pointer active:scale-98 ${
                                 item.ketchup
-                                  ? "bg-amber-100 text-amber-800 border-amber-300"
-                                  : "bg-gray-50 text-gray-400 border-gray-200"
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
                               {item.ketchup ? "✓ Ketchup" : "No Ketchup"}
@@ -1077,10 +1077,10 @@ export default function Order() {
                             <button
                               type="button"
                               onClick={() => toggleItemField(index, "extraKetchup")}
-                              className={`px-3 py-1.5 rounded-xl font-semibold border transition cursor-pointer ${
+                              className={`py-2.5 px-3 min-h-[42px] rounded-xl font-extrabold border-2 transition cursor-pointer active:scale-98 ${
                                 item.extraKetchup
-                                  ? "bg-amber-100 text-amber-800 border-amber-300"
-                                  : "bg-gray-50 text-gray-500 border-gray-200"
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
                               + Extra Ketchup (+{pricing.extraKetchupPrice} Birr)
@@ -1089,10 +1089,10 @@ export default function Order() {
                             <button
                               type="button"
                               onClick={() => toggleItemField(index, "doubleFelafil")}
-                              className={`px-3 py-1.5 rounded-xl font-semibold border transition cursor-pointer ${
+                              className={`py-2.5 px-3 min-h-[42px] rounded-xl font-extrabold border-2 transition cursor-pointer active:scale-98 ${
                                 item.doubleFelafil
-                                  ? "bg-amber-100 text-amber-800 border-amber-300"
-                                  : "bg-gray-50 text-gray-500 border-gray-200"
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
                               + Double Felafil (+{pricing.doubleFelafilPrice} Birr)
@@ -1105,7 +1105,7 @@ export default function Order() {
                     {/* FETIRA CUSTOMIZATION */}
                     {item.foodType === "fetira" && (
                       <div className="space-y-2 pt-1">
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
                           Extra Eggs (+{pricing.fetiraExtraEggPrice} Birr / egg)
                         </label>
                         <div className="flex gap-2">
@@ -1118,13 +1118,13 @@ export default function Order() {
                                   target: { name: "extraEggs", value: num },
                                 })
                               }
-                              className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                              className={`flex-1 py-2.5 px-2 min-h-[44px] rounded-xl text-xs sm:text-sm font-extrabold border-2 transition cursor-pointer active:scale-98 ${
                                 (Number(item.extraEggs) || 0) === num
                                   ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                                  : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
-                              {num === 0 ? "Standard (3 eggs)" : `+${num} Egg${num > 1 ? "s" : ""}`}
+                              {num === 0 ? "Standard (3)" : `+${num} Egg${num > 1 ? "s" : ""}`}
                             </button>
                           ))}
                         </div>
@@ -1134,7 +1134,7 @@ export default function Order() {
                     {/* DONUT CUSTOMIZATION */}
                     {item.foodType === "donut" && (
                       <div className="space-y-2 pt-1">
-                        <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                        <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
                           Package Size
                         </label>
                         <div className="grid grid-cols-2 gap-2">
@@ -1147,10 +1147,10 @@ export default function Order() {
                                   target: { name: "donutPairsPerPackage", value: pairs },
                                 })
                               }
-                              className={`py-2 px-3 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                              className={`py-2.5 sm:py-3 px-3 min-h-[46px] rounded-xl text-xs sm:text-sm font-extrabold border-2 transition cursor-pointer active:scale-98 ${
                                 (Number(item.donutPairsPerPackage) || 1) === pairs
                                   ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                                  : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                                  : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
                               {pairs} Pair{pairs > 1 ? "s" : ""} ({pairs * 2} donuts)
@@ -1162,33 +1162,35 @@ export default function Order() {
 
                     {/* Quantity Stepper & Line Price */}
                     <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                      {/* Modern Stepper */}
-                      <div className="flex items-center gap-3 bg-gray-50 p-1 rounded-2xl border border-gray-200">
+                      {/* Touch-Friendly Stepper (44px target) */}
+                      <div className="flex items-center gap-3 bg-gray-50/80 p-1.5 rounded-2xl border-2 border-gray-200">
                         <button
                           type="button"
                           onClick={() => updateItemQuantity(index, -1)}
-                          className="w-8 h-8 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 text-gray-800 flex items-center justify-center transition cursor-pointer shadow-xs active:scale-95"
+                          className="w-11 h-11 rounded-xl bg-white border-2 border-gray-200 hover:border-amber-400 hover:bg-amber-50 text-gray-900 flex items-center justify-center transition cursor-pointer shadow-xs active:scale-95 font-bold"
+                          title="Decrease quantity"
                         >
-                          <Minus className="w-3.5 h-3.5" />
+                          <Minus className="w-4 h-4" />
                         </button>
-                        <span className="font-bold text-sm min-w-[20px] text-center">
+                        <span className="font-black text-base sm:text-lg min-w-[32px] text-center text-gray-950">
                           {item.quantity}
                         </span>
                         <button
                           type="button"
                           onClick={() => updateItemQuantity(index, 1)}
-                          className="w-8 h-8 rounded-xl bg-white border border-gray-200 hover:bg-gray-100 text-gray-800 flex items-center justify-center transition cursor-pointer shadow-xs active:scale-95"
+                          className="w-11 h-11 rounded-xl bg-white border-2 border-gray-200 hover:border-amber-400 hover:bg-amber-50 text-gray-900 flex items-center justify-center transition cursor-pointer shadow-xs active:scale-95 font-bold"
+                          title="Increase quantity"
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          <Plus className="w-4 h-4" />
                         </button>
                       </div>
 
                       {/* Line Total */}
                       <div className="text-right">
-                        <span className="text-[11px] text-gray-400 block">
+                        <span className="text-xs font-semibold text-gray-600 block">
                           Unit: {unitPrice} Birr
                         </span>
-                        <span className="text-sm font-extrabold text-amber-900">
+                        <span className="text-base sm:text-lg font-black text-amber-950">
                           {lineTotal} Birr
                         </span>
                       </div>
@@ -1201,72 +1203,74 @@ export default function Order() {
               <button
                 type="button"
                 onClick={addItem}
-                className="w-full py-3.5 border-2 border-dashed border-amber-200 hover:border-amber-400 rounded-3xl text-amber-800 hover:bg-amber-50/50 font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                className="w-full min-h-[50px] py-3.5 border-2 border-dashed border-amber-300 hover:border-amber-500 bg-amber-50/60 hover:bg-amber-100/60 rounded-2xl text-amber-900 font-extrabold text-sm sm:text-base transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98"
               >
                 <Plus className="w-4 h-4 text-amber-600" />
                 <span>Add Another Food Item</span>
               </button>
             </div>
 
-            {/* Total & Review CTA Bar */}
-            <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-sm text-gray-600">
-                  Total Order Amount
-                </span>
-                <span className="text-xl sm:text-2xl font-extrabold text-amber-950">
-                  {orderTotal}{" "}
-                  <span className="text-sm text-amber-700 font-bold">Birr</span>
-                </span>
-              </div>
+            {/* Total & Review CTA Bar (Mobile First: Sticky bar on mobile, card on desktop) */}
+            <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl -mx-4 px-4 py-3.5 sm:static sm:mx-0 sm:p-5 sm:rounded-3xl sm:border sm:border-gray-100 sm:shadow-sm space-y-3 sm:space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-gray-600 block">
+                    Total Amount
+                  </span>
+                  <span className="text-xl sm:text-2xl font-black text-amber-950 leading-none">
+                    {orderTotal}{" "}
+                    <span className="text-xs sm:text-sm text-amber-800 font-bold">Birr</span>
+                  </span>
+                </div>
 
-              <button
-                type="submit"
-                className="w-full py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm sm:text-base shadow-md shadow-amber-200 transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Review Order Details</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+                <button
+                  type="submit"
+                  className="min-h-[48px] py-3 px-5 sm:px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm sm:text-base shadow-md shadow-amber-200/60 transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer ml-auto"
+                >
+                  <span>Review Order</span>
+                  <ArrowRight className="w-4 h-4 shrink-0" />
+                </button>
+              </div>
             </div>
           </form>
         ) : (
           /* REVIEW MODE SCREEN */
-          <div className="bg-white rounded-3xl p-6 sm:p-7 border border-gray-100 shadow-sm space-y-6">
+          <div className="bg-white rounded-3xl p-5 sm:p-7 border border-gray-100 shadow-sm space-y-6">
             <div>
-              <h2 className="text-lg sm:text-xl font-extrabold text-gray-950">
+              <h2 className="text-xl sm:text-2xl font-black text-gray-950">
                 Review Your Order
               </h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+              <p className="text-xs sm:text-sm text-gray-600 font-medium mt-0.5">
                 Please verify your delivery location and items before confirming
               </p>
             </div>
 
             {/* Delivery Recipient Summary */}
-            <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100 text-xs sm:text-sm space-y-1.5">
-              <p className="font-bold text-gray-900">
+            <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-xs sm:text-sm space-y-1.5">
+              <p className="font-black text-gray-950 text-sm sm:text-base">
                 Recipient: {customer.customerName}
               </p>
-              <p className="text-gray-600">Phone: {customer.phone}</p>
-              <p className="text-gray-600">
-                Dorm Location: <strong>{customer.location}</strong>
+              <p className="text-gray-800 font-semibold">Phone: {customer.phone}</p>
+              <p className="text-gray-800 font-bold">
+                Dorm Location: <span className="text-amber-900">{customer.location}</span>
               </p>
             </div>
 
             {/* Itemized Breakdown */}
             <div className="space-y-2.5">
-              <h3 className="font-bold text-xs uppercase tracking-wider text-gray-400">
+              <h3 className="font-extrabold text-xs uppercase tracking-wider text-gray-700">
                 Itemized Summary
               </h3>
-              <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl p-4">
+              <div className="divide-y divide-gray-100 border-2 border-gray-100 rounded-2xl p-4">
                 {items.map((item, i) => (
                   <div
                     key={i}
-                    className="py-2.5 flex items-center justify-between text-xs sm:text-sm"
+                    className="py-3 flex items-center justify-between text-xs sm:text-sm gap-3"
                   >
-                    <span className="font-medium text-gray-800">
+                    <span className="font-bold text-gray-900 leading-snug">
                       {describeItem(item)}
                     </span>
-                    <span className="font-bold text-gray-900 shrink-0 ml-3">
+                    <span className="font-black text-gray-950 shrink-0 ml-3 text-sm sm:text-base">
                       {getUnitPrice(item) * item.quantity} Birr
                     </span>
                   </div>
@@ -1275,21 +1279,21 @@ export default function Order() {
             </div>
 
             {/* Grand Total */}
-            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-              <span className="font-bold text-sm text-gray-600">
+            <div className="flex items-center justify-between pt-2 border-t-2 border-gray-100">
+              <span className="font-bold text-sm text-gray-700">
                 Total to Pay
               </span>
-              <span className="text-xl sm:text-2xl font-extrabold text-amber-950">
+              <span className="text-2xl sm:text-3xl font-black text-amber-950">
                 {orderTotal} Birr
               </span>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 type="button"
                 onClick={handleBack}
-                className="flex-1 py-3 px-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs sm:text-sm transition cursor-pointer"
+                className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 font-extrabold text-sm transition cursor-pointer active:scale-98 flex items-center justify-center"
               >
                 Back & Edit
               </button>
@@ -1298,14 +1302,14 @@ export default function Order() {
                 type="button"
                 onClick={handleConfirmOrder}
                 disabled={loading}
-                className="flex-1 py-3 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs sm:text-sm shadow-md shadow-amber-200 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
+                className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
               >
                 {loading ? (
                   <span>Placing Order...</span>
                 ) : (
                   <>
                     <span>Confirm Order</span>
-                    <CheckCircle2 className="w-4 h-4" />
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
                   </>
                 )}
               </button>

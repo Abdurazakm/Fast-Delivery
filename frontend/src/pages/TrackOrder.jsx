@@ -108,16 +108,16 @@ export default function TrackOrder() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/70 px-4">
         <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-gray-100">
-          <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+          <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4 text-2xl font-black">
             !
           </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">
+          <h2 className="text-xl font-black text-gray-950 mb-2">
             Order Unavailable
           </h2>
-          <p className="text-gray-600 text-sm mb-6 leading-relaxed">{error}</p>
+          <p className="text-gray-700 text-sm mb-6 leading-relaxed font-medium">{error}</p>
           <Link
             to="/"
-            className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition shadow-md shadow-amber-200"
+            className="inline-flex items-center justify-center gap-2 w-full min-h-[48px] py-3 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm sm:text-base rounded-2xl transition shadow-md shadow-amber-200/60 active:scale-98"
           >
             <ArrowLeft className="w-4 h-4" /> Return to Menu
           </Link>
@@ -134,7 +134,7 @@ export default function TrackOrder() {
           {/* Back to Home Button */}
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-700 hover:text-amber-600 transition-colors py-1.5 px-2.5 rounded-xl hover:bg-amber-50 shrink-0"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-gray-800 hover:text-amber-700 transition py-2 px-3 rounded-xl hover:bg-amber-50 shrink-0 active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Menu</span>
@@ -142,11 +142,11 @@ export default function TrackOrder() {
 
           {/* Center Title & Live Pulse */}
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs sm:text-sm font-bold text-gray-900 truncate">
+            <span className="text-sm font-black text-gray-950 truncate">
               Order Tracking
             </span>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Live
             </span>
           </div>
@@ -155,13 +155,13 @@ export default function TrackOrder() {
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={handleCopyShare}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-800 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer active:scale-95"
               title="Share or copy tracking link"
             >
               {copiedLink ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-emerald-700 hidden sm:inline">
+                  <span className="text-emerald-800 hidden sm:inline">
                     Copied
                   </span>
                 </>

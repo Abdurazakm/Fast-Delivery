@@ -218,34 +218,34 @@ export default function PushNotificationPrompt({
       <div className="bg-white rounded-3xl p-6 w-full max-w-[calc(100vw-2rem)] sm:max-w-sm mx-auto shadow-2xl border border-gray-100 relative">
         <button
           onClick={handleDismiss}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full cursor-pointer"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-1.5 rounded-full cursor-pointer"
           aria-label="Close"
         >
           <X className="w-5 h-5" />
         </button>
 
-        <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-inner">
+        <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-xs">
           <Bell className="w-7 h-7" />
         </div>
 
-        <h3 className="text-lg font-bold text-gray-900 text-center mb-1">
+        <h3 className="text-xl font-black text-gray-950 text-center mb-1">
           Stay Updated on Your Food!
         </h3>
-        <p className="text-xs text-gray-500 text-center leading-relaxed mb-6">
+        <p className="text-xs sm:text-sm text-gray-700 font-medium text-center leading-relaxed mb-6">
           Never miss an order update. We will send you instant alerts when your food is being prepared and when the courier is nearby.
         </p>
 
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <button
             onClick={handleEnable}
             disabled={loading}
-            className="w-full bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold py-3 rounded-xl text-sm shadow-md transition-all duration-150 disabled:opacity-50 cursor-pointer"
+            className="w-full min-h-[48px] bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold py-3.5 rounded-2xl text-sm sm:text-base shadow-md shadow-amber-200/60 transition active:scale-98 disabled:opacity-50 cursor-pointer"
           >
             {loading ? "Enabling Alerts..." : "Enable Notifications"}
           </button>
           <button
             onClick={handleDismiss}
-            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-medium py-2.5 rounded-xl text-xs transition cursor-pointer"
+            className="w-full min-h-[46px] bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 font-extrabold py-3 rounded-2xl text-xs sm:text-sm transition cursor-pointer active:scale-98"
           >
             Maybe Later
           </button>

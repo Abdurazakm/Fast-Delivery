@@ -77,23 +77,23 @@ export default function PaymentInstructionsCard({
         </p> */}
 
         {Number.isFinite(Number(amount)) && (
-          <div className="rounded-xl border border-rose-200 bg-rose-100 p-3 text-rose-900">
-            <p className="text-xs font-semibold uppercase tracking-wide">
+          <div className="rounded-2xl border-2 border-rose-200 bg-rose-100/80 p-4 text-rose-950 shadow-xs">
+            <p className="text-xs font-black uppercase tracking-wider text-rose-800">
               Amount To Pay
             </p>
-            <p className="mt-1 text-xl font-extrabold">
+            <p className="mt-1 text-2xl font-black text-rose-950">
               {Number(amount).toFixed(2)} Birr
             </p>
           </div>
         )}
 
         {trackingCode && (
-          <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sky-900">
-            <p className="text-xs font-semibold uppercase tracking-wide">
+          <div className="rounded-2xl border-2 border-sky-200 bg-sky-50/80 p-4 text-sky-950 shadow-xs">
+            <p className="text-xs font-black uppercase tracking-wider text-sky-800">
               Tracking Code
             </p>
             <div className="mt-1 flex items-center justify-between gap-2">
-              <p className="font-mono text-base font-bold tracking-wide">
+              <p className="font-mono text-base font-black tracking-wide text-sky-950">
                 {trackingCode}
               </p>
               <button
@@ -105,45 +105,45 @@ export default function PaymentInstructionsCard({
                     "Could not copy tracking code. Please copy it manually.",
                   )
                 }
-                className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                className="inline-flex items-center gap-1.5 rounded-xl border-2 border-sky-300 bg-white px-3.5 py-2 min-h-[40px] text-xs font-bold text-sky-900 hover:bg-sky-100 transition active:scale-95 cursor-pointer"
               >
                 <FiCopy />
-                Copy code
+                <span>Copy code</span>
               </button>
             </div>
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {PAYMENT_METHODS.map((method) => (
             <div
               key={method.key}
-              className="rounded-xl border border-slate-200 bg-white p-3"
+              className="rounded-2xl border-2 border-gray-200 bg-white p-3.5 shadow-xs"
             >
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div className="mb-1 text-xs font-black uppercase tracking-wider text-gray-800">
                 {method.label}
               </div>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="font-mono text-base font-bold tracking-wide text-slate-900">
+                  <p className="font-mono text-base font-black tracking-wide text-gray-950">
                     {method.accountNumber}
                   </p>
-                  <p className="text-xs text-slate-600">{method.accountName}</p>
+                  <p className="text-xs font-bold text-gray-700">{method.accountName}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => handleCopy(method)}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                  className="inline-flex items-center gap-1.5 rounded-xl border-2 border-gray-200 bg-gray-50 px-3.5 py-2 min-h-[40px] text-xs font-extrabold text-gray-800 hover:bg-amber-50 hover:border-amber-300 active:scale-95 transition cursor-pointer"
                 >
                   {copiedKey === method.key ? (
                     <>
-                      <FiCheck />
-                      Copied
+                      <FiCheck className="text-emerald-600" />
+                      <span className="text-emerald-700">Copied</span>
                     </>
                   ) : (
                     <>
                       <FiCopy />
-                      Copy
+                      <span>Copy</span>
                     </>
                   )}
                 </button>

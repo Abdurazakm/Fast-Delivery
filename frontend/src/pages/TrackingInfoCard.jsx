@@ -86,16 +86,16 @@ function CancelModal({ onConfirm, onCancel }) {
         exit={{ scale: 0.9, opacity: 0 }}
         className="bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full text-center border border-gray-100"
       >
-        <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
-          <AlertCircle className="w-6 h-6" />
+        <div className="w-14 h-14 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3 shadow-xs">
+          <AlertCircle className="w-7 h-7" />
         </div>
-        <h3 className="font-bold text-lg text-gray-900 mb-1">
+        <h3 className="font-black text-xl text-gray-950 mb-1">
           Cancel Your Order?
         </h3>
-        <p className="text-xs sm:text-sm text-gray-600 mb-4 leading-relaxed">
+        <p className="text-xs sm:text-sm text-gray-700 font-medium mb-4 leading-relaxed">
           This action <span className="font-bold text-rose-600">cannot be undone</span>.
           To confirm cancellation, please type{" "}
-          <span className="font-bold font-mono px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+          <span className="font-bold font-mono px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200">
             cancel
           </span>{" "}
           below.
@@ -109,20 +109,20 @@ function CancelModal({ onConfirm, onCancel }) {
             onChange={(e) => setInputValue(e.target.value)}
             animate={shake ? { x: [-6, 6, -6, 6, 0] } : { x: 0 }}
             transition={{ duration: 0.3 }}
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-rose-400 text-center text-sm font-medium transition"
+            className="w-full px-4 py-3 min-h-[48px] border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-rose-400 text-center text-base font-bold text-gray-950 transition"
             autoFocus
           />
           {isReadyToConfirm && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600">
+            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-emerald-600">
               <Check className="w-5 h-5" />
             </div>
           )}
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs sm:text-sm font-semibold rounded-xl transition cursor-pointer"
+            className="flex-1 min-h-[46px] px-4 py-3 bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 text-xs sm:text-sm font-extrabold rounded-xl transition cursor-pointer"
           >
             Keep Order
           </button>
@@ -134,9 +134,9 @@ function CancelModal({ onConfirm, onCancel }) {
               duration: 0.5,
               repeat: isReadyToConfirm ? Infinity : 0,
             }}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition cursor-pointer ${
+            className={`flex-1 min-h-[46px] flex items-center justify-center gap-1.5 px-4 py-3 text-xs sm:text-sm font-extrabold rounded-xl transition cursor-pointer ${
               isReadyToConfirm
-                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-200"
+                ? "bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white shadow-md shadow-rose-200"
                 : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }`}
           >
@@ -548,23 +548,23 @@ export default function TrackingInfoCard({
                           ? "bg-emerald-500 text-white shadow-md shadow-emerald-200"
                           : isCurrent
                             ? "bg-amber-500 text-white ring-4 ring-amber-100 shadow-lg scale-105"
-                            : "bg-white text-gray-400 border-2 border-gray-200"
+                            : "bg-white text-gray-500 border-2 border-gray-300"
                       }`}
                     >
                       <StepIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
                     <span
-                      className={`mt-2 text-xs sm:text-sm font-semibold transition-colors ${
+                      className={`mt-2 text-xs sm:text-sm transition-colors ${
                         isCompleted
-                          ? "text-emerald-700"
+                          ? "text-emerald-800 font-bold"
                           : isCurrent
-                            ? "text-amber-800 font-bold"
-                            : "text-gray-400"
+                            ? "text-amber-900 font-extrabold"
+                            : "text-gray-600 font-semibold"
                       }`}
                     >
                       {step.label}
                     </span>
-                    <span className="hidden sm:block text-[11px] text-gray-500 mt-0.5 leading-tight">
+                    <span className="hidden sm:block text-xs text-gray-600 mt-0.5 leading-tight font-medium">
                       {step.desc}
                     </span>
                   </div>
@@ -581,21 +581,21 @@ export default function TrackingInfoCard({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
             {/* Tracking Code with Mask & Copy */}
             <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                 <Receipt className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
+                <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider block">
                   Tracking Code
                 </span>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="font-mono font-bold text-gray-900 truncate">
+                  <span className="font-mono text-base font-black text-gray-950 truncate">
                     {maskTrackingCode(currentOrder.trackingCode)}
                   </span>
                   <button
                     type="button"
                     onClick={handleCopyCode}
-                    className="p-1 rounded-md text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition cursor-pointer"
+                    className="p-1 rounded-md text-gray-500 hover:text-amber-700 hover:bg-amber-50 transition cursor-pointer"
                     title="Copy full tracking code"
                   >
                     {copiedCode ? (
@@ -611,14 +611,14 @@ export default function TrackingInfoCard({
             {/* Customer Name */}
             {(!isManual || !hideCustomerWhenManual) && currentOrder.customerName && (
               <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                   <User className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
+                  <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider block">
                     Recipient
                   </span>
-                  <p className="font-semibold text-gray-900 truncate mt-0.5">
+                  <p className="font-bold text-gray-950 truncate mt-0.5 text-sm">
                     {currentOrder.customerName}
                   </p>
                 </div>
@@ -628,14 +628,14 @@ export default function TrackingInfoCard({
             {/* Delivery Location */}
             {currentOrder.location && (
               <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                   <MapPin className="w-4 h-4" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
+                  <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider block">
                     Location
                   </span>
-                  <p className="font-semibold text-gray-900 truncate mt-0.5">
+                  <p className="font-bold text-gray-950 truncate mt-0.5 text-sm">
                     {currentOrder.location}
                   </p>
                 </div>
@@ -644,14 +644,14 @@ export default function TrackingInfoCard({
 
             {/* Placed Date & Source */}
             <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
                 <Calendar className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
+                <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider block">
                   Order Placed
                 </span>
-                <p className="font-semibold text-gray-900 truncate mt-0.5">
+                <p className="font-bold text-gray-950 truncate mt-0.5 text-sm">
                   {currentOrder.createdAt
                     ? new Date(currentOrder.createdAt).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -659,7 +659,7 @@ export default function TrackingInfoCard({
                       })
                     : "Recently"}{" "}
                   •{" "}
-                  <span className="capitalize text-gray-500 font-normal">
+                  <span className="capitalize text-gray-600 font-semibold">
                     {(currentOrder.source || "online").toString().replace("_", " ")}
                   </span>
                 </p>
@@ -782,15 +782,15 @@ export default function TrackingInfoCard({
         )}
 
         {/* Action Buttons: Edit, Cancel, Full Page Link */}
-        <div className="flex flex-wrap items-center gap-2 pt-2">
+        <div className="flex flex-wrap items-center gap-2.5 pt-2">
           {/* Edit Order */}
           {isOrderActive && (
             <button
               onClick={handleEdit}
               disabled={!canEdit}
-              className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 min-w-[130px] min-h-[46px] px-4 py-3 rounded-xl font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 canEdit
-                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-200 active:scale-98"
+                  ? "bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white shadow-md shadow-amber-200/60 active:scale-98"
                   : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
               }`}
               title={canEdit ? "Edit order" : "Cannot edit after cutoff"}
@@ -813,9 +813,9 @@ export default function TrackingInfoCard({
                   });
               }}
               disabled={!canCancel}
-              className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 min-w-[130px] min-h-[46px] px-4 py-3 rounded-xl font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 canCancel
-                  ? "bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 active:scale-98"
+                  ? "bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-700 border border-rose-300 active:scale-98"
                   : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
               }`}
               title={canCancel ? "Cancel order" : "Cannot cancel after cutoff"}
@@ -828,7 +828,7 @@ export default function TrackingInfoCard({
           {!isDedicatedPage && currentOrder.trackingCode && (
             <Link
               to={`/orders/track/${encodeURIComponent(currentOrder.trackingCode)}`}
-              className="w-full sm:w-auto px-4 py-2.5 bg-gray-900 hover:bg-black text-white text-xs sm:text-sm font-semibold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm active:scale-98"
+              className="w-full sm:w-auto min-h-[46px] px-4 py-3 bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 text-xs sm:text-sm font-extrabold rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs active:scale-98"
             >
               <span>Dedicated Tracking Page</span>
               <ExternalLink className="w-4 h-4" />
