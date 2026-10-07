@@ -256,6 +256,11 @@ function App() {
       const url =
         payload.url ||
         (payload.trackingCode ? `/track/${payload.trackingCode}` : "/");
+      const unifiedTag = payload.orderId
+        ? `order-${payload.orderId}`
+        : payload.trackingCode
+          ? `order-${payload.trackingCode}`
+          : "fetan-update";
 
       try {
         if ("serviceWorker" in navigator) {
@@ -263,9 +268,9 @@ function App() {
           if (registration) {
             await registration.showNotification(title, {
               body,
-              icon: "/favicon.ico",
-              badge: "/favicon.ico",
-              tag: payload.type || "notification",
+              icon: "/favicon.png",
+              badge: "/favicon.png",
+              tag: unifiedTag,
               renotify: true,
               requireInteraction: true,
               data: { url },
@@ -276,8 +281,8 @@ function App() {
 
         new Notification(title, {
           body,
-          icon: "/favicon.ico",
-          tag: payload.type || "notification",
+          icon: "/favicon.png",
+          tag: unifiedTag,
           renotify: true,
           requireInteraction: true,
           data: { url },
@@ -297,15 +302,18 @@ function App() {
       // 1. Save directly into notification collection for top-right bell dropdown
       saveNotificationToCollection(payload);
 
-      // 2. Keep popup toast and system notification
-      const shownAsPopup = await showNativeNotification(payload);
-      if (shownAsPopup) return;
+      // 2. If the user is currently viewing the website, show the in-app interactive toast
+      if (typeof document !== "undefined" && !document.hidden) {
+        const title = payload.title ? `${payload.title}: ` : "";
+        setNotificationToast({
+          type: payload.type === "status" ? "success" : "info",
+          message: `${title}${payload.message}`,
+        });
+        return;
+      }
 
-      const title = payload.title ? `${payload.title}: ` : "";
-      setNotificationToast({
-        type: payload.type === "status" ? "success" : "info",
-        message: `${title}${payload.message}`,
-      });
+      // 3. If tab is in background or minimized, trigger native OS notification
+      await showNativeNotification(payload);
     };
 
     const handleBroadcast = (payload) => {
@@ -320,14 +328,16 @@ function App() {
       handleNotification(payload);
     };
 
-    // Firebase foreground push listener
-    onMessageListener((fcmPayload) => {
+    // Firebase foreground push listener with cleanup
+    const unsubscribeFCM = onMessageListener((fcmPayload) => {
       const data = {
-        title: fcmPayload.notification?.title || fcmPayload.data?.title || "Fetan Delivery",
-        message: fcmPayload.notification?.body || fcmPayload.data?.message || fcmPayload.data?.body,
+        title: fcmPayload.data?.title || fcmPayload.notification?.title || "Fetan Delivery",
+        message: fcmPayload.data?.message || fcmPayload.data?.body || fcmPayload.notification?.body,
         url: fcmPayload.data?.url || fcmPayload.data?.click_action || "/",
         type: fcmPayload.data?.type || "status",
+        orderId: fcmPayload.data?.orderId,
         trackingCode: fcmPayload.data?.trackingCode,
+        status: fcmPayload.data?.status,
       };
       if (data.message) {
         handleNotification(data);
@@ -341,6 +351,7 @@ function App() {
     }
 
     return () => {
+      if (typeof unsubscribeFCM === "function") unsubscribeFCM();
       socket.off("notification:broadcast", handleBroadcast);
       socket.off("order:notification", handleOrderNotification);
       socket.off("admin:order-notification", handleOrderNotification);

@@ -20,18 +20,24 @@ async function sendNotificationToTokens(tokens, { title, body, data = {}, url = 
     return { sent: 0, failed: 0, skipped: true };
   }
 
-  // Payload for Firebase Cloud Messaging
+  const unifiedTag = data?.orderId
+    ? `order-${data.orderId}`
+    : data?.trackingCode
+      ? `order-${data.trackingCode}`
+      : "fetan-update";
+
+  // Data-only payload prevents FCM SDK from auto-displaying a duplicate notification in the background
   const message = {
-    notification: {
-      title: title || "Fetan Delivery",
-      body: body || "You have a new update.",
-    },
     data: {
       ...Object.fromEntries(
         Object.entries(data).map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)])
       ),
+      title: title || "Fetan Delivery",
+      body: body || "You have a new update.",
+      message: body || "You have a new update.",
       url: url || "/",
       click_action: url || "/",
+      tag: unifiedTag,
     },
     webpush: {
       headers: {
@@ -40,15 +46,6 @@ async function sendNotificationToTokens(tokens, { title, body, data = {}, url = 
       },
       fcmOptions: {
         link: url || "/",
-      },
-      notification: {
-        title: title || "Fetan Delivery",
-        body: body || "You have a new update.",
-        icon: "/favicon.png",
-        badge: "/favicon.png",
-        renotify: true,
-        requireInteraction: true,
-        tag: data?.type ? `${data.type}-${data.orderId || data.trackingCode || ""}` : "order-update",
       },
     },
     tokens: uniqueTokens,

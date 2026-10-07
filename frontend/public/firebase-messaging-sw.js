@@ -28,17 +28,25 @@ function shouldDisplayNotification(tag) {
 }
 
 messaging.onBackgroundMessage((payload) => {
-  const tag = payload.data?.orderId
-    ? `order-${payload.data.orderId}-${payload.data.status || ""}`
-    : payload.data?.trackingCode
-      ? `order-${payload.data.trackingCode}-${payload.data.status || ""}`
-      : "fetan-update";
+  const data = payload.data || {};
+  const tag =
+    data.tag ||
+    (data.orderId
+      ? `order-${data.orderId}`
+      : data.trackingCode
+        ? `order-${data.trackingCode}`
+        : "fetan-update");
 
   if (!shouldDisplayNotification(tag)) return;
 
-  const notificationTitle = payload.notification?.title || payload.data?.title || "Fetan Delivery";
+  const notificationTitle =
+    data.title || payload.notification?.title || "Fetan Delivery";
   const notificationOptions = {
-    body: payload.notification?.body || payload.data?.message || payload.data?.body || "You have a new update.",
+    body:
+      data.message ||
+      data.body ||
+      payload.notification?.body ||
+      "You have a new update.",
     icon: "/favicon.png",
     badge: "/favicon.png",
     vibrate: [200, 100, 200],
@@ -46,62 +54,12 @@ messaging.onBackgroundMessage((payload) => {
     tag,
     renotify: true,
     data: {
-      url: payload.data?.url || payload.data?.click_action || "/",
-      ...payload.data,
+      url: data.url || data.click_action || "/",
+      ...data,
     },
   };
 
   self.registration.showNotification(notificationTitle, notificationOptions);
-});
-
-// Native push listener: guarantees delivery on inactive/sleeping devices & closed browsers
-self.addEventListener("push", (event) => {
-  if (!event.data) return;
-
-  let payload = {};
-  try {
-    payload = event.data.json();
-  } catch (err) {
-    try {
-      payload = { notification: { body: event.data.text() } };
-    } catch {}
-  }
-
-  const tag = payload.data?.orderId
-    ? `order-${payload.data.orderId}-${payload.data.status || ""}`
-    : payload.data?.trackingCode
-      ? `order-${payload.data.trackingCode}-${payload.data.status || ""}`
-      : "fetan-update";
-
-  if (!shouldDisplayNotification(tag)) return;
-
-  const title = payload.notification?.title || payload.data?.title || "Fetan Delivery";
-  const body =
-    payload.notification?.body ||
-    payload.data?.message ||
-    payload.data?.body ||
-    "You have a new order update.";
-  const url =
-    payload.data?.url ||
-    payload.data?.click_action ||
-    payload.fcmOptions?.link ||
-    "/";
-
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: "/favicon.png",
-      badge: "/favicon.png",
-      vibrate: [200, 100, 200],
-      requireInteraction: true,
-      tag,
-      renotify: true,
-      data: {
-        url,
-        ...payload.data,
-      },
-    })
-  );
 });
 
 self.addEventListener("notificationclick", (event) => {

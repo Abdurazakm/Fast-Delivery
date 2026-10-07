@@ -72,13 +72,23 @@ export const requestFirebaseToken = async () => {
 
 
 export const onMessageListener = (callback) => {
+  let unsubscribe = null;
+  let active = true;
+
   getFirebaseMessaging().then((messaging) => {
-    if (messaging) {
-      onMessage(messaging, (payload) => {
-        if (callback) callback(payload);
+    if (messaging && active) {
+      unsubscribe = onMessage(messaging, (payload) => {
+        if (callback && active) callback(payload);
       });
     }
   });
+
+  return () => {
+    active = false;
+    if (typeof unsubscribe === "function") {
+      unsubscribe();
+    }
+  };
 };
 
 export default app;

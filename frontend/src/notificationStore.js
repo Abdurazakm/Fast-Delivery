@@ -30,9 +30,17 @@ export function isDuplicateNotification(notif) {
     if (now - time > 15000) recentSignatures.delete(key);
   }
 
-  const sig =
-    notif.id ||
-    `${notif.trackingCode || notif.orderId || "order"}-${notif.status || ""}-${notif.title || ""}-${notif.message || notif.body || ""}`;
+  // Build content-based signature so Socket.IO and FCM produce matching keys
+  const identifier =
+    notif.orderId ||
+    notif.data?.orderId ||
+    notif.trackingCode ||
+    notif.data?.trackingCode ||
+    "order";
+  const status = notif.status || notif.data?.status || "";
+  const title = (notif.title || notif.notification?.title || "").trim();
+  const msg = (notif.message || notif.body || notif.notification?.body || "").trim();
+  const sig = `${identifier}-${status}-${title}-${msg}`;
 
   if (recentSignatures.has(sig)) {
     return true; // Already processed recently!
