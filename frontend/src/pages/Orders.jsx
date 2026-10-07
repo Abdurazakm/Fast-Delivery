@@ -100,11 +100,22 @@ function getDonutPackageUnitPrice(item, pricing) {
   return Math.max(0, pairs * perPairRate);
 }
 
-// Post-Order Celebratory Splash Modal with Auto-Transition
-function OrderSuccessModal({ order, onTrackNow, buildManualOrderSmsMessage }) {
+// Post-Order Celebratory Splash Modal with Role-Aware Experience
+function OrderSuccessModal({
+  order,
+  onTrackNow,
+  onTakeNextOrder,
+  onGoDashboard,
+  buildManualOrderSmsMessage,
+}) {
+  const isAdmin = Boolean(order?.createdByAdmin);
   const [countdown, setCountdown] = useState(2);
 
+  // ONLY auto-redirect for regular customers.
+  // For admins, DO NOT auto-redirect so they can dispatch SMS or take the next phone order.
   useEffect(() => {
+    if (isAdmin) return;
+
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -117,9 +128,9 @@ function OrderSuccessModal({ order, onTrackNow, buildManualOrderSmsMessage }) {
     }, 900);
 
     return () => clearInterval(timer);
-  }, [onTrackNow]);
+  }, [isAdmin, onTrackNow]);
 
-  const maskedCode = maskTrackingCode(order.trackingCode);
+  const maskedCode = maskTrackingCode(order?.trackingCode);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -136,7 +147,11 @@ function OrderSuccessModal({ order, onTrackNow, buildManualOrderSmsMessage }) {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", delay: 0.1, damping: 15 }}
-            className="w-20 h-20 rounded-full bg-linear-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shadow-lg shadow-emerald-200"
+            className={`w-20 h-20 rounded-full text-white flex items-center justify-center shadow-lg ${
+              isAdmin
+                ? "bg-linear-to-tr from-blue-600 to-indigo-500 shadow-blue-200"
+                : "bg-linear-to-tr from-emerald-500 to-teal-400 shadow-emerald-200"
+            }`}
           >
             <CheckCircle2 className="w-10 h-10" />
           </motion.div>
@@ -151,20 +166,22 @@ function OrderSuccessModal({ order, onTrackNow, buildManualOrderSmsMessage }) {
 
         {/* Heading & Subtitle */}
         <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
-          Order Placed Successfully!
+          {isAdmin ? "Manual Order Created!" : "Order Placed Successfully!"}
         </h2>
         <p className="text-xs sm:text-sm text-gray-600 mt-1">
-          We've received your order and sent it to the kitchen.
+          {isAdmin
+            ? "Order has been logged in the system and kitchen queue."
+            : "We've received your order and sent it to the kitchen."}
         </p>
 
         {/* Order Details Strip */}
-        <div className="mt-5 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between">
-          <div className="text-left">
+        <div className="mt-5 p-3.5 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between text-left">
+          <div>
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 block">
-              Tracking Code
+              {isAdmin ? "Full Tracking Code" : "Tracking Code"}
             </span>
             <span className="font-mono text-sm sm:text-base font-bold text-gray-900">
-              {maskedCode}
+              {isAdmin ? order.trackingCode : maskedCode}
             </span>
           </div>
           <div className="text-right">
@@ -177,47 +194,84 @@ function OrderSuccessModal({ order, onTrackNow, buildManualOrderSmsMessage }) {
           </div>
         </div>
 
-        {/* Auto-redirect progress bar & indicator */}
-        <div className="mt-5">
-          <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5 font-medium">
-            <span>Redirecting to live tracking...</span>
-            <span className="font-bold text-amber-800">{countdown}s</span>
+        {/* For Customer: Auto-redirect countdown bar */}
+        {!isAdmin && (
+          <div className="mt-5">
+            <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5 font-medium">
+              <span>Redirecting to live tracking...</span>
+              <span className="font-bold text-amber-800">{countdown}s</span>
+            </div>
+            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 1.8, ease: "linear" }}
+                className="h-full bg-linear-to-r from-amber-500 to-emerald-500 rounded-full"
+              />
+            </div>
           </div>
-          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-            <motion.div
-              initial={{ width: "0%" }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 1.8, ease: "linear" }}
-              className="h-full bg-linear-to-r from-amber-500 to-emerald-500 rounded-full"
-            />
-          </div>
-        </div>
+        )}
 
         {/* Action Buttons */}
         <div className="mt-6 space-y-2.5">
-          <button
-            type="button"
-            onClick={onTrackNow}
-            className="w-full py-3 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm sm:text-base shadow-lg shadow-amber-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Bike className="w-5 h-5" />
-            <span>Track Your Order Now</span>
-            <ArrowRight className="w-4 h-4 ml-0.5" />
-          </button>
+          {isAdmin ? (
+            /* ADMIN OPERATIONAL CONTROLS */
+            <>
+              {/* 1. Send Order SMS with payment instructions */}
+              {order.customerPhone && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const messageToSend = buildManualOrderSmsMessage(order);
+                    const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
+                    window.location.href = smsUrl;
+                  }}
+                  className="w-full py-3 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm sm:text-base shadow-lg shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <FaPaperPlane className="text-sm" />
+                  <span>Send SMS to Customer ({order.customerPhone})</span>
+                </button>
+              )}
 
-          {/* Admin SMS Quick Trigger */}
-          {order.createdByAdmin && order.customerPhone && (
+              {/* 2. Take Next Phone Order & Admin Dashboard */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={onTakeNextOrder}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-amber-200"
+                >
+                  <span>+ Next Order</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onGoDashboard}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span>📊 Dashboard</span>
+                </button>
+              </div>
+
+              {/* 3. View Customer Tracking View */}
+              <button
+                type="button"
+                onClick={onTrackNow}
+                className="w-full py-2 text-xs font-semibold text-gray-500 hover:text-amber-700 transition flex items-center justify-center gap-1 cursor-pointer"
+              >
+                <Bike className="w-4 h-4" />
+                <span>View Order Tracking Page →</span>
+              </button>
+            </>
+          ) : (
+            /* REGULAR CUSTOMER ACTIONS */
             <button
               type="button"
-              onClick={() => {
-                const messageToSend = buildManualOrderSmsMessage(order);
-                const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
-                window.location.href = smsUrl;
-              }}
-              className="w-full py-2.5 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2 cursor-pointer"
+              onClick={onTrackNow}
+              className="w-full py-3 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm sm:text-base shadow-lg shadow-amber-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
             >
-              <FaPaperPlane className="text-xs" />
-              <span>Send Order SMS to Customer</span>
+              <Bike className="w-5 h-5" />
+              <span>Track Your Order Now</span>
+              <ArrowRight className="w-4 h-4 ml-0.5" />
             </button>
           )}
         </div>
@@ -932,6 +986,8 @@ export default function Order() {
                 order={orderSuccessModal}
                 buildManualOrderSmsMessage={buildManualOrderSmsMessage}
                 onTrackNow={() => handleTrackNow(orderSuccessModal.trackingCode)}
+                onTakeNextOrder={() => setOrderSuccessModal(null)}
+                onGoDashboard={() => navigate("/admin")}
               />
             )}
           </AnimatePresence>
