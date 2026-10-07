@@ -1,6 +1,7 @@
 export const STORAGE_KEY = "fcm_notifications_history";
 export const NOTIFICATIONS_UPDATED_EVENT = "notifications_updated";
-const MAX_NOTIFICATIONS = 25;
+export const NOTIFICATION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours retention window
+const MAX_NOTIFICATIONS = 50;
 
 /**
  * Mask tracking code (e.g. FD-523814 -> FD-52***4)
@@ -18,7 +19,7 @@ export function maskTrackingCode(code) {
   return s;
 }
 
-// In-memory set to prevent duplicate popups and duplicate storage within 10 seconds
+// In-memory set to prevent duplicate popups and duplicate storage within 15 seconds
 const recentSignatures = new Map();
 
 export function isDuplicateNotification(notif) {
@@ -50,21 +51,94 @@ export function isDuplicateNotification(notif) {
   return false;
 }
 
+/**
+ * Filter out any notifications older than 24 hours
+ */
+export function pruneExpiredNotifications(list) {
+  if (!Array.isArray(list)) return [];
+  const now = Date.now();
+  return list.filter((n) => {
+    if (!n || !n.timestamp) return false;
+    const time = new Date(n.timestamp).getTime();
+    if (isNaN(time)) return false;
+    return now - time < NOTIFICATION_TTL_MS;
+  });
+}
+
+/**
+ * Get stored notifications with automatic 24-hour expiration pruning
+ */
 export function getStoredNotifications() {
   if (typeof window === "undefined") return [];
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    const valid = pruneExpiredNotifications(parsed);
+    // If expired notifications were dropped, persist clean list back to localStorage
+    if (valid.length !== parsed.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+    }
+    return valid;
   } catch {
     return [];
   }
 }
 
+/**
+ * Get count of unread notifications from active 24-hour pool
+ */
 export function getUnreadCount() {
   const list = getStoredNotifications();
   return list.filter((n) => !n.read).length;
 }
 
+/**
+ * Save/replace notification list with automatic 24-hour pruning and event dispatch
+ */
+export function saveNotificationsList(newList) {
+  if (typeof window === "undefined") return [];
+  try {
+    const pruned = pruneExpiredNotifications(newList).slice(0, MAX_NOTIFICATIONS);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pruned));
+    window.dispatchEvent(
+      new CustomEvent(NOTIFICATIONS_UPDATED_EVENT, { detail: pruned })
+    );
+    return pruned;
+  } catch (err) {
+    console.warn("Failed to persist notifications list:", err);
+    return [];
+  }
+}
+
+/**
+ * Mark a single notification as read
+ */
+export function markNotificationAsRead(id) {
+  const list = getStoredNotifications();
+  const updated = list.map((n) => (n.id === id ? { ...n, read: true } : n));
+  return saveNotificationsList(updated);
+}
+
+/**
+ * Mark all notifications as read
+ */
+export function markAllNotificationsAsRead() {
+  const list = getStoredNotifications();
+  const updated = list.map((n) => ({ ...n, read: true }));
+  return saveNotificationsList(updated);
+}
+
+/**
+ * Clear all notifications
+ */
+export function clearAllNotifications() {
+  return saveNotificationsList([]);
+}
+
+/**
+ * Save newly arrived notification into the collection
+ */
 export function saveNotificationToCollection(notif) {
   if (typeof window === "undefined" || !notif) return;
   try {
@@ -95,13 +169,8 @@ export function saveNotificationToCollection(notif) {
       return;
     }
 
-    const updated = [newEntry, ...list].slice(0, MAX_NOTIFICATIONS);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-
-    // Notify any mounted components (like NotificationBell on Home page)
-    window.dispatchEvent(
-      new CustomEvent(NOTIFICATIONS_UPDATED_EVENT, { detail: updated })
-    );
+    const updated = [newEntry, ...list];
+    saveNotificationsList(updated);
   } catch (err) {
     console.warn("Failed to persist notification into collection:", err);
   }
