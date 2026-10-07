@@ -1,20 +1,33 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
-  FiInfo,
-  FiEdit,
-  FiTrash2,
-  FiCheckCircle,
-  FiXCircle,
-  FiCheck,
-  FiX,
-} from "react-icons/fi";
+  Clock,
+  ChefHat,
+  Bike,
+  PackageCheck,
+  Check,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  X,
+  Copy,
+  Share2,
+  ExternalLink,
+  Edit3,
+  Trash2,
+  Info,
+  ChevronDown,
+  User,
+  MapPin,
+  Calendar,
+  Receipt,
+} from "lucide-react";
 import API from "../api";
 import { motion, AnimatePresence } from "framer-motion";
 import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
-import OrderingInfoCards from "./OrderingInfoCards";
+import { maskTrackingCode } from "../notificationStore";
 
-// Toast component
+// Toast component for instant feedback
 function Toast({ message, type = "success", onClose, duration = 3000 }) {
   useEffect(() => {
     const timer = setTimeout(onClose, duration);
@@ -22,33 +35,35 @@ function Toast({ message, type = "success", onClose, duration = 3000 }) {
   }, [duration, onClose]);
 
   const colors = {
-    success: "bg-green-500 text-white",
-    error: "bg-red-500 text-white",
+    success: "bg-emerald-600 text-white shadow-emerald-200",
+    error: "bg-rose-600 text-white shadow-rose-200",
   };
+
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.3 }}
-        className={`fixed top-5 right-4 left-4 sm:left-auto sm:right-5 max-w-[calc(100vw-2rem)] sm:max-w-md px-4 py-2.5 rounded-xl shadow-xl ${colors[type]} z-50`}
+        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+        transition={{ duration: 0.25 }}
+        className={`fixed top-5 right-4 left-4 sm:left-auto sm:right-5 max-w-[calc(100vw-2rem)] sm:max-w-md px-4 py-3 rounded-2xl shadow-xl ${colors[type] || colors.success} z-50 flex items-center justify-between gap-3`}
       >
-        <div className="flex justify-between items-center gap-2">
-          <span className="text-sm font-medium break-words leading-tight">{message}</span>
-          <button
-            onClick={onClose}
-            className="shrink-0 ml-2 p-1 rounded hover:bg-white/20 transition cursor-pointer"
-          >
-            <FiX className="text-sm" />
-          </button>
-        </div>
+        <span className="text-xs sm:text-sm font-medium break-words leading-tight">
+          {message}
+        </span>
+        <button
+          onClick={onClose}
+          className="shrink-0 p-1 rounded-full hover:bg-white/20 transition cursor-pointer"
+          aria-label="Close"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </motion.div>
     </AnimatePresence>
   );
 }
 
-// Cancel Confirmation Modal
+// Cancel Confirmation Modal with 'cancel' text safety
 function CancelModal({ onConfirm, onCancel }) {
   const [inputValue, setInputValue] = useState("");
   const [shake, setShake] = useState(false);
@@ -64,98 +79,161 @@ function CancelModal({ onConfirm, onCancel }) {
   const isReadyToConfirm = inputValue.trim().toLowerCase() === "cancel";
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex justify-center items-center z-50 p-4">
       <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        exit={{ scale: 0 }}
-        className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full text-center"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full text-center border border-gray-100"
       >
-        <h3 className="font-semibold text-lg mb-4 text-red-600">
-          Cancel Your Order
+        <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-3">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h3 className="font-bold text-lg text-gray-900 mb-1">
+          Cancel Your Order?
         </h3>
-        <p className="text-gray-700 mb-4">
-          You are about to{" "}
-          <span className="font-bold text-red-500">cancel your order</span>.
-          This action{" "}
-          <span className="font-bold text-red-500">cannot be undone</span>. To
-          confirm, type <span className="font-bold text-red-500">'cancel'</span>{" "}
+        <p className="text-xs sm:text-sm text-gray-600 mb-4 leading-relaxed">
+          This action <span className="font-bold text-rose-600">cannot be undone</span>.
+          To confirm cancellation, please type{" "}
+          <span className="font-bold font-mono px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+            cancel
+          </span>{" "}
           below.
         </p>
+
         <div className="relative w-full mb-4">
           <motion.input
             type="text"
             placeholder="Type 'cancel' to confirm"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            animate={shake ? { x: [-5, 5, -5, 5, 0] } : { x: 0 }}
-            transition={{ duration: 0.4 }}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-center"
+            animate={shake ? { x: [-6, 6, -6, 6, 0] } : { x: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-400 focus:border-rose-400 text-center text-sm font-medium transition"
+            autoFocus
           />
           {isReadyToConfirm && (
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500"
-            >
-              <FiCheck className="text-lg" />
-            </motion.div>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600">
+              <Check className="w-5 h-5" />
+            </div>
           )}
         </div>
+
         <div className="flex gap-2">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs sm:text-sm font-semibold rounded-xl transition cursor-pointer"
+          >
+            Keep Order
+          </button>
           <motion.button
             onClick={handleConfirm}
-            animate={isReadyToConfirm ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+            disabled={!isReadyToConfirm}
+            animate={isReadyToConfirm ? { scale: [1, 1.02, 1] } : { scale: 1 }}
             transition={{
               duration: 0.5,
               repeat: isReadyToConfirm ? Infinity : 0,
             }}
-            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
+            className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition cursor-pointer ${
+              isReadyToConfirm
+                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-200"
+                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+            }`}
           >
-            <FiCheckCircle className="text-sm" /> Confirm
+            <Trash2 className="w-4 h-4" /> Confirm Cancel
           </motion.button>
-          <button
-            onClick={onCancel}
-            className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-black rounded-lg transition"
-          >
-            <FiXCircle className="text-sm" /> Cancel
-          </button>
         </div>
       </motion.div>
     </div>
   );
 }
 
-export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
+export default function TrackingInfoCard({
+  order,
+  hideCustomerWhenManual = false,
+  isDedicatedPage = false,
+}) {
   const navigate = useNavigate();
   const [toast, setToast] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [serverOffsetMs, setServerOffsetMs] = useState(0);
   const [currentOrder, setCurrentOrder] = useState(order);
   const [isTemporarilyClosed, setIsTemporarilyClosed] = useState(false);
   const [serviceDays, setServiceDays] = useState([]);
-  const [cutoffHour, setCutoffHour] = useState(18); // default cutoff hour
+  const [cutoffHour, setCutoffHour] = useState(18);
+  const [cutoffTime, setCutoffTime] = useState("18:00");
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
-  const statusSteps = ["pending", "in_progress", "arrived", "delivered"];
-  const currentIndex = statusSteps.indexOf(currentOrder.status);
+  const statusSteps = [
+    { key: "pending", label: "Received", desc: "Order confirmed", icon: Clock },
+    { key: "in_progress", label: "Preparing", desc: "In kitchen", icon: ChefHat },
+    { key: "arrived", label: "On The Way", desc: "Rider dispatched", icon: Bike },
+    { key: "delivered", label: "Delivered", desc: "At your door", icon: PackageCheck },
+  ];
+
+  const currentStatus = (currentOrder?.status || "pending").toLowerCase();
+  const currentIndex = statusSteps.findIndex((s) => s.key === currentStatus);
+  const isCanceled = currentStatus === "canceled" || currentStatus === "no_show";
+
   const isManual =
     (currentOrder?.source || "").toString().trim().toLowerCase() === "manual";
   const paymentStatus = (currentOrder?.paymentStatus || "unpaid")
     .toString()
     .toLowerCase();
 
-  const statusMessages = {
-    pending: "✅ Your order has been received.",
-    in_progress: "👩‍🍳 Your order is being prepared.",
-    arrived: "🚴‍♂️ Your order is on the way!",
-    delivered: "🎉 Your order has been delivered.",
+  const statusConfig = {
+    pending: {
+      label: "Order Received",
+      headline: "Order received & confirmed",
+      subtext: "We've accepted your order and sent it to the kitchen queue.",
+      accentBg: "bg-amber-500",
+      pillBg: "bg-amber-100 text-amber-800 border-amber-200",
+      gradient: "from-amber-500/10 via-amber-500/5 to-transparent",
+      icon: Clock,
+    },
+    in_progress: {
+      label: "Preparing Food",
+      headline: "Kitchen is preparing your order",
+      subtext: "Your delicious food is being freshly made with care.",
+      accentBg: "bg-orange-500",
+      pillBg: "bg-orange-100 text-orange-800 border-orange-200",
+      gradient: "from-orange-500/10 via-orange-500/5 to-transparent",
+      icon: ChefHat,
+    },
+    arrived: {
+      label: "On The Way",
+      headline: "Your order is on the way!",
+      subtext: "Our delivery rider is en route to your specified location.",
+      accentBg: "bg-sky-500",
+      pillBg: "bg-sky-100 text-sky-800 border-sky-200",
+      gradient: "from-sky-500/10 via-sky-500/5 to-transparent",
+      icon: Bike,
+    },
+    delivered: {
+      label: "Delivered",
+      headline: "Delivered! Enjoy your meal 🎉",
+      subtext: "Thank you for choosing Ertib Delivery. We hope you love it!",
+      accentBg: "bg-emerald-500",
+      pillBg: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      gradient: "from-emerald-500/10 via-emerald-500/5 to-transparent",
+      icon: PackageCheck,
+    },
+    canceled: {
+      label: "Canceled",
+      headline: "Order was canceled",
+      subtext: "This order has been canceled and will not be prepared.",
+      accentBg: "bg-rose-500",
+      pillBg: "bg-rose-100 text-rose-800 border-rose-200",
+      gradient: "from-rose-500/10 via-rose-500/5 to-transparent",
+      icon: XCircle,
+    },
   };
+
+  const activeConfig = statusConfig[currentStatus] || statusConfig.pending;
 
   const getUnitPrice = (item) => {
     if (typeof item?.unitPrice === "number") return item.unitPrice;
-
     if (item?.foodType === "sambusa") return 30;
     if (item?.foodType === "boiled_egg") return 30;
 
@@ -179,66 +257,59 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
     return price;
   };
 
-  const describeItem = (item) => {
+  const getItemLineTotal = (item) => {
+    const qty = Number(item?.quantity) || 1;
+    const lineTotal = Number(item?.lineTotal);
+    if (Number.isFinite(lineTotal)) return lineTotal;
+    return getUnitPrice(item) * qty;
+  };
+
+  const getItemDetails = (item) => {
+    let name = "";
+    const tags = [];
+
     if (item.foodType === "sambusa") {
-      return `${item.quantity} × Sambusa`;
-    }
-
-    if (item.foodType === "boiled_egg") {
-      return `${item.quantity} × Boiled Egg`;
-    }
-
-    if (item.foodType === "fetira") {
+      name = "Sambusa";
+    } else if (item.foodType === "boiled_egg") {
+      name = "Boiled Egg";
+    } else if (item.foodType === "fetira") {
+      name = "Fetira";
       const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
-      const baseText = !extraEggs
-        ? `${item.quantity} × Fetira`
-        : `${item.quantity} × Fetira(`;
-
       if (extraEggs > 0) {
-        return `${baseText}+${extraEggs} extra egg${extraEggs > 1 ? "s" : ""})`;
+        tags.push(`+${extraEggs} extra egg${extraEggs > 1 ? "s" : ""}`);
       }
-      return !extraEggs ? baseText : `${baseText})`;
-    }
-
-    if (item.foodType === "donut") {
+    } else if (item.foodType === "donut") {
+      name = "Donut Package";
       const pairs = Number(item.donutPairsPerPackage) || 1;
-      const qty = Number(item.quantity) || 0;
-      const totalDonuts = pairs * qty * 2;
-      return `${qty} × Donut package (${pairs} pairs/package, total donuts: ${totalDonuts})`;
+      tags.push(`${pairs} pair${pairs > 1 ? "s" : ""} (${pairs * 2} donuts)`);
+    } else {
+      const type = item.ertibType === "special" ? "Special Ertib" : "Normal Ertib";
+      name = type;
+
+      if (item.spices && item.ketchup) tags.push("Spices & Ketchup");
+      else if (item.spices && !item.ketchup) tags.push("Only Spices");
+      else if (!item.spices && item.ketchup) tags.push("Only Ketchup");
+      else if (!item.spices && !item.ketchup) tags.push("No Spices & Ketchup");
+
+      if (item.extraKetchup) tags.push("+ Extra Ketchup");
+      if (item.doubleFelafil || item.extraFelafil) tags.push("+ Double Felafil");
+      else if (item.Felafil === false) tags.push("No Felafil");
     }
 
-    let desc = `${item.quantity} × ${item.ertibType} Ertib`;
-
-    // Spices and ketchup
-    if (item.spices && item.ketchup) desc += " with both spices and ketchup";
-    else if (item.spices && !item.ketchup) desc += " with only spices";
-    else if (!item.spices && item.ketchup) desc += " with only ketchup";
-    else desc += " without ketchup and spices";
-
-    // Extra ketchup
-    if (item.extraKetchup) desc += " + extra ketchup";
-
-    // Felafil
-    if (item.doubleFelafil) desc += " + double felafil";
-    else if (item.Felafil === false) desc += " + no felafil";
-
-    return desc;
+    return { name, tags };
   };
 
   const totalPrice =
     currentOrder.total ??
-    currentOrder.items.reduce((sum, item) => {
-      const qty = Number(item?.quantity) || 1;
-      const lineTotal = Number(item?.lineTotal);
-      if (Number.isFinite(lineTotal)) return sum + lineTotal;
-      return sum + getUnitPrice(item) * qty;
+    (currentOrder.items || []).reduce((sum, item) => {
+      return sum + getItemLineTotal(item);
     }, 0);
 
   useEffect(() => {
     setCurrentOrder(order);
   }, [order]);
 
-  // Server time offset
+  // Fetch availability to calculate cutoff and estimated delivery
   useEffect(() => {
     const fetchAvailability = async () => {
       try {
@@ -253,9 +324,12 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
           Fri: 5,
           Sat: 6,
         };
-        setServiceDays(data.weeklyDays.map((d) => dayMap[d]));
-        setCutoffHour(Number(data.cutoffTime.split(":")[0]));
-        setIsTemporarilyClosed(data.isTemporarilyClosed); // ⚡ important
+        setServiceDays((data.weeklyDays || []).map((d) => dayMap[d]));
+        if (data.cutoffTime) {
+          setCutoffTime(data.cutoffTime);
+          setCutoffHour(Number(data.cutoffTime.split(":")[0]));
+        }
+        setIsTemporarilyClosed(Boolean(data.isTemporarilyClosed));
       } catch (err) {
         console.error("Failed to fetch availability:", err);
       }
@@ -270,34 +344,65 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         setIsAdmin(false);
         return;
       }
-
       try {
         const res = await API.get("/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setIsAdmin(res.data?.role === "admin");
-      } catch (err) {
+      } catch {
         setIsAdmin(false);
       }
     };
-
     fetchCurrentUser();
   }, []);
 
-  const now = new Date(Date.now() + serverOffsetMs);
+  const now = new Date();
   const today = now.getDay();
 
   const isBeforeCutoff = () => {
     if (isTemporarilyClosed) return false;
-    if (!serviceDays.includes(today)) return false;
+    if (serviceDays.length > 0 && !serviceDays.includes(today)) return false;
 
     const hrs = now.getHours();
     const mins = now.getMinutes();
     return !(hrs > cutoffHour || (hrs === cutoffHour && mins > 0));
   };
 
-  const canEdit = isAdmin || isBeforeCutoff();
-  const canCancel = isAdmin || isBeforeCutoff();
+  const isOrderActive = currentStatus !== "delivered" && !isCanceled;
+  const canEdit = isOrderActive && (isAdmin || isBeforeCutoff());
+  const canCancel = isOrderActive && (isAdmin || isBeforeCutoff());
+
+  const getEstimatedDeliveryString = () => {
+    if (!cutoffTime) return null;
+    const [cHour, cMinute] = cutoffTime.split(":").map(Number);
+    if (Number.isNaN(cHour)) return null;
+
+    const formatHour = (h, m) => {
+      const ampm = h >= 12 ? "PM" : "AM";
+      const displayH = h % 12 || 12;
+      const displayM = m.toString().padStart(2, "0");
+      return `${displayH}:${displayM} ${ampm}`;
+    };
+
+    const startH = (cHour + 1) % 24;
+    const endH = (cHour + 2) % 24;
+    return `${formatHour(startH, cMinute || 0)} – ${formatHour(endH, cMinute || 0)}`;
+  };
+
+  const handleCopyCode = async () => {
+    if (!currentOrder.trackingCode) return;
+    try {
+      await navigator.clipboard.writeText(currentOrder.trackingCode);
+      setCopiedCode(true);
+      setToast({
+        message: "Full tracking code copied to clipboard!",
+        type: "success",
+      });
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch {
+      setToast({ message: "Failed to copy code.", type: "error" });
+    }
+  };
 
   const handleEdit = () => {
     if (!canEdit) {
@@ -329,14 +434,17 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
     }
   };
 
+  const estimatedDelivery = getEstimatedDeliveryString();
+  const HeroIcon = activeConfig.icon;
+
   return (
     <motion.div
-      className="mt-3 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-white border border-blue-300 text-blue-800 shadow-lg"
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.4 }}
+      className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden"
     >
-      {/* TOAST */}
+      {/* Toast Notification */}
       <AnimatePresence>
         {toast && (
           <Toast
@@ -347,7 +455,7 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         )}
       </AnimatePresence>
 
-      {/* Cancel Modal */}
+      {/* Cancel Confirmation Modal */}
       <AnimatePresence>
         {showCancelModal && (
           <CancelModal
@@ -357,195 +465,474 @@ export default function TrackingInfoCard({ order, hideCustomerWhenManual }) {
         )}
       </AnimatePresence>
 
-      {/* Order Info */}
-      <div className="font-semibold mb-3 text-lg">📦 Order Details</div>
-      {!isManual && !hideCustomerWhenManual && currentOrder.customerName && (
-        <div className="mb-1">
-          <strong>Customer:</strong> {currentOrder.customerName}
-        </div>
-      )}
-
-      <OrderingInfoCards
-        serverOffsetMs={serverOffsetMs}
-        showOnlyEstimatedDelivery
-      />
-      {isManual && currentOrder.location && (
-        <div className="mb-1">
-          <strong>Location:</strong> {currentOrder.location}
-        </div>
-      )}
-
-      {order.items?.length > 0 && (
-        <div className="mt-3 p-3 bg-white rounded border border-gray-200 text-gray-800">
-          <div className="font-semibold mb-2">🧾 Items Ordered</div>
-          <div className="space-y-2">
-            {order.items.map((item, idx) => (
-              <div key={idx}>{describeItem(item)}</div>
-            ))}
+      {/* Hero Header Banner */}
+      <div
+        className={`relative p-5 sm:p-7 bg-linear-to-b ${activeConfig.gradient} border-b border-gray-100`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* Status Badge */}
+          <div className="flex items-center gap-2.5">
+            <div
+              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl ${activeConfig.accentBg} text-white flex items-center justify-center shadow-md`}
+            >
+              <HeroIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${activeConfig.pillBg}`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                  {activeConfig.label}
+                </span>
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mt-0.5 leading-snug">
+                {activeConfig.headline}
+              </h2>
+            </div>
           </div>
-          <div className="mt-3 text-right font-semibold text-gray-700">
-            Total: {totalPrice} Birr
-          </div>
-        </div>
-      )}
 
-      {/* Status & Track Link */}
-      <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <div>
-          <strong>Status:</strong> {order.status.replace("_", " ")}
+          {/* Estimated Delivery Window Pill */}
+          {estimatedDelivery && !isCanceled && currentStatus !== "delivered" && (
+            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white border border-gray-200/80 shadow-xs self-start sm:self-auto">
+              <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+              <div className="text-left">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 leading-none">
+                  Estimated Delivery
+                </p>
+                <p className="text-xs sm:text-sm font-bold text-gray-900 mt-0.5 leading-none">
+                  {estimatedDelivery}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-        <div>
-          <span
-            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${
-              paymentStatus === "paid"
-                ? "bg-green-100 text-green-700 border-green-300"
-                : "bg-red-100 text-red-700 border-red-300"
-            }`}
-          >
-            {paymentStatus === "paid"
-              ? "Payment: paid"
-              : "Payment: unpaid (not confirmed yet)"}
-          </span>
-        </div>
-        {order.trackUrl && (
-          <a
-            href={order.trackUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-600 text-white text-xs sm:text-sm font-medium rounded hover:bg-blue-700 transition w-full sm:w-auto text-center"
-          >
-            🔗 Track Order
-          </a>
+
+        <p className="text-xs sm:text-sm text-gray-600 mt-3 max-w-xl">
+          {activeConfig.subtext}
+        </p>
+
+        {/* 4-Stage Stepper (Only active for non-canceled orders) */}
+        {!isCanceled && (
+          <div className="mt-6 pt-5 border-t border-gray-200/60">
+            <div className="relative flex items-center justify-between w-full">
+              {/* Background connecting track */}
+              <div className="absolute top-5 sm:top-6 left-6 right-6 h-1 bg-gray-200 -z-0" />
+
+              {/* Dynamic filled track */}
+              <div
+                className="absolute top-5 sm:top-6 left-6 h-1 bg-linear-to-r from-amber-500 to-emerald-500 transition-all duration-700 -z-0"
+                style={{
+                  width:
+                    currentIndex <= 0
+                      ? "0%"
+                      : `${(currentIndex / (statusSteps.length - 1)) * 100}%`,
+                  maxWidth: "calc(100% - 3rem)",
+                }}
+              />
+
+              {/* Step Nodes */}
+              {statusSteps.map((step, idx) => {
+                const isCompleted = idx < currentIndex;
+                const isCurrent = idx === currentIndex;
+                const StepIcon = isCompleted ? Check : step.icon;
+
+                return (
+                  <div
+                    key={step.key}
+                    className="flex flex-col items-center text-center z-10 flex-1 px-1"
+                  >
+                    <div
+                      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                        isCompleted
+                          ? "bg-emerald-500 text-white shadow-md shadow-emerald-200"
+                          : isCurrent
+                            ? "bg-amber-500 text-white ring-4 ring-amber-100 shadow-lg scale-105"
+                            : "bg-white text-gray-400 border-2 border-gray-200"
+                      }`}
+                    >
+                      <StepIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </div>
+                    <span
+                      className={`mt-2 text-xs sm:text-sm font-semibold transition-colors ${
+                        isCompleted
+                          ? "text-emerald-700"
+                          : isCurrent
+                            ? "text-amber-800 font-bold"
+                            : "text-gray-400"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                    <span className="hidden sm:block text-[11px] text-gray-500 mt-0.5 leading-tight">
+                      {step.desc}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 
-      {paymentStatus === "unpaid" && (
-        <PaymentInstructionsCard
-          amount={totalPrice}
-          trackingCode={order.trackingCode}
-          trackingLink={order.trackUrl}
-          onCopy={(copyMessage) =>
-            setToast({ message: copyMessage, type: "success" })
-          }
-        />
-      )}
-
-      {/* Horizontal Scrollable Progress Bar */}
-      <div className="mt-4 overflow-x-auto py-2">
-        <div className="inline-flex items-center gap-4 min-w-max">
-          {statusSteps.map((step, idx) => {
-            const completed = idx < currentIndex;
-            const current = idx === currentIndex;
-            return (
-              <div
-                key={step}
-                className="flex flex-col items-center relative min-w-[60px]"
-              >
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.3, delay: idx * 0.1 }}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-white z-10
-                    ${
-                      completed
-                        ? "bg-green-500"
-                        : current
-                          ? "bg-green-500 animate-pulse"
-                          : "bg-gray-300"
-                    }`}
-                >
-                  {idx + 1}
-                </motion.div>
-                <span className="mt-1 text-xs text-center capitalize w-full">
-                  {step.replace("_", " ")}
-                </span>
-                {idx < statusSteps.length - 1 && (
-                  <div
-                    className={`absolute top-4 left-1/2 w-full h-1 -translate-x-1/2 ${
-                      completed ? "bg-green-500" : "bg-gray-300"
-                    }`}
-                  />
-                )}
+      <div className="p-5 sm:p-7 space-y-5">
+        {/* Order Details Metadata Strip */}
+        <div className="rounded-2xl bg-gray-50/80 border border-gray-100 p-4 sm:p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
+            {/* Tracking Code with Mask & Copy */}
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                <Receipt className="w-4 h-4" />
               </div>
-            );
-          })}
+              <div className="min-w-0">
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
+                  Tracking Code
+                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="font-mono font-bold text-gray-900 truncate">
+                    {maskTrackingCode(currentOrder.trackingCode)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    className="p-1 rounded-md text-gray-400 hover:text-amber-600 hover:bg-amber-50 transition cursor-pointer"
+                    title="Copy full tracking code"
+                  >
+                    {copiedCode ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Customer Name */}
+            {(!isManual || !hideCustomerWhenManual) && currentOrder.customerName && (
+              <div className="flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5">
+                  <User className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
+                    Recipient
+                  </span>
+                  <p className="font-semibold text-gray-900 truncate mt-0.5">
+                    {currentOrder.customerName}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Delivery Location */}
+            {currentOrder.location && (
+              <div className="flex items-start gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
+                    Location
+                  </span>
+                  <p className="font-semibold text-gray-900 truncate mt-0.5">
+                    {currentOrder.location}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Placed Date & Source */}
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 mt-0.5">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider block">
+                  Order Placed
+                </span>
+                <p className="font-semibold text-gray-900 truncate mt-0.5">
+                  {currentOrder.createdAt
+                    ? new Date(currentOrder.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Recently"}{" "}
+                  •{" "}
+                  <span className="capitalize text-gray-500 font-normal">
+                    {(currentOrder.source || "online").toString().replace("_", " ")}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="relative h-1 bg-gray-300 rounded mt-3 w-full">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{
-              width: `${((currentIndex + 1) / statusSteps.length) * 100}%`,
-            }}
-            transition={{ duration: 0.8 }}
-            className="absolute h-1 bg-green-500 rounded"
+
+        {/* Itemized Receipt Ticket */}
+        {currentOrder.items?.length > 0 && (
+          <div className="rounded-2xl border border-gray-100 bg-gray-50/40 p-4 sm:p-5">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-200/80 mb-3">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-amber-600" />
+                <h3 className="text-sm sm:text-base font-bold text-gray-900">
+                  Order Items ({currentOrder.items.length})
+                </h3>
+              </div>
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  paymentStatus === "paid"
+                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                    : "bg-amber-100 text-amber-800 border border-amber-200"
+                }`}
+              >
+                {paymentStatus === "paid"
+                  ? "✓ Paid & Confirmed"
+                  : "⚠ Payment Pending"}
+              </span>
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {currentOrder.items.map((item, idx) => {
+                const { name, tags } = getItemDetails(item);
+                const lineTotal = getItemLineTotal(item);
+                const qty = Number(item.quantity) || 1;
+
+                return (
+                  <div
+                    key={idx}
+                    className="py-2.5 flex items-start justify-between gap-3"
+                  >
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold mt-0.5">
+                        {qty}×
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 leading-tight">
+                          {name}
+                        </p>
+                        {tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {tags.map((t, tIdx) => (
+                              <span
+                                key={tIdx}
+                                className="inline-block text-[11px] px-1.5 py-0.5 rounded bg-white border border-gray-200 text-gray-600 leading-none"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-bold text-gray-900">
+                        {lineTotal}{" "}
+                        <span className="text-xs font-normal text-gray-500">
+                          Birr
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Receipt Grand Total */}
+            <div className="pt-3 mt-3 border-t-2 border-dashed border-gray-200 flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-600">
+                Total Amount
+              </span>
+              <div className="text-right">
+                <span className="text-lg sm:text-xl font-extrabold text-amber-900">
+                  {totalPrice}{" "}
+                  <span className="text-xs font-bold text-amber-700">Birr</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Instructions (If unpaid) */}
+        {paymentStatus === "unpaid" && !isCanceled && (
+          <PaymentInstructionsCard
+            amount={totalPrice}
+            trackingCode={currentOrder.trackingCode}
+            trackingLink={currentOrder.trackUrl}
+            onCopy={(copyMessage) =>
+              setToast({ message: copyMessage, type: "success" })
+            }
           />
+        )}
+
+        {/* Cutoff Policy Notice Banner */}
+        {isOrderActive && (
+          <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-amber-900 text-xs sm:text-sm flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="font-semibold">Order modification policy: </span>
+              {isAdmin
+                ? "As admin, you may edit or cancel this order at any time."
+                : isTemporarilyClosed
+                  ? "Service is temporarily closed. Orders cannot be edited or canceled."
+                  : isBeforeCutoff()
+                    ? `You can edit or cancel your order before today's cutoff time (${cutoffTime}).`
+                    : `Cutoff time (${cutoffTime}) has passed. Modifications are locked as food is currently being prepared.`}
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons: Edit, Cancel, Full Page Link */}
+        <div className="flex flex-wrap items-center gap-2 pt-2">
+          {/* Edit Order */}
+          {isOrderActive && (
+            <button
+              onClick={handleEdit}
+              disabled={!canEdit}
+              className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                canEdit
+                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-200 active:scale-98"
+                  : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+              }`}
+              title={canEdit ? "Edit order" : "Cannot edit after cutoff"}
+            >
+              <Edit3 className="w-4 h-4" /> Edit Order
+            </button>
+          )}
+
+          {/* Cancel Order */}
+          {isOrderActive && (
+            <button
+              onClick={() => {
+                if (canCancel) setShowCancelModal(true);
+                else
+                  setToast({
+                    message: isTemporarilyClosed
+                      ? "Service is temporarily closed"
+                      : "Cancelling is only allowed before cutoff",
+                    type: "error",
+                  });
+              }}
+              disabled={!canCancel}
+              className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-xl font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                canCancel
+                  ? "bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 active:scale-98"
+                  : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+              }`}
+              title={canCancel ? "Cancel order" : "Cannot cancel after cutoff"}
+            >
+              <Trash2 className="w-4 h-4" /> Cancel Order
+            </button>
+          )}
+
+          {/* If viewed in Homepage, provide button to open Dedicated Tracking Page */}
+          {!isDedicatedPage && currentOrder.trackingCode && (
+            <Link
+              to={`/orders/track/${encodeURIComponent(currentOrder.trackingCode)}`}
+              className="w-full sm:w-auto px-4 py-2.5 bg-gray-900 hover:bg-black text-white text-xs sm:text-sm font-semibold rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm active:scale-98"
+            >
+              <span>Dedicated Tracking Page</span>
+              <ExternalLink className="w-4 h-4" />
+            </Link>
+          )}
+        </div>
+
+        {/* Collapsible Status Timeline & Activity */}
+        <div className="pt-4 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={() => setShowTimeline((prev) => !prev)}
+            className="w-full flex items-center justify-between py-1 text-left group cursor-pointer focus:outline-none"
+            aria-expanded={showTimeline}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-bold text-gray-800 group-hover:text-amber-600 transition-colors">
+                Status Timeline & Activity
+              </span>
+              {currentOrder.statusHistory?.length > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-600 group-hover:bg-amber-100 group-hover:text-amber-700 transition-colors">
+                  {currentOrder.statusHistory.length} update
+                  {currentOrder.statusHistory.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1 text-xs text-gray-400 group-hover:text-amber-600 transition-colors">
+              <span>{showTimeline ? "Hide sequence" : "View sequence"}</span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${
+                  showTimeline ? "rotate-180 text-amber-600" : ""
+                }`}
+              />
+            </div>
+          </button>
+
+          {showTimeline && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="mt-3 pt-2"
+            >
+              {!currentOrder.statusHistory ||
+              currentOrder.statusHistory.length === 0 ? (
+                <p className="text-xs text-gray-500 italic py-2">
+                  No previous status updates recorded yet. Live updates will
+                  appear here as your order progresses.
+                </p>
+              ) : (
+                <div className="relative border-l-2 border-gray-200 ml-3.5 space-y-4 my-2">
+                  {currentOrder.statusHistory.map((h, hIdx) => {
+                    const isCurrent = h.status === currentStatus;
+                    const statusTitle =
+                      statusConfig[h.status]?.label ||
+                      h.status.replace("_", " ");
+                    const formattedTime = new Date(h.at).toLocaleTimeString(
+                      [],
+                      {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      },
+                    );
+                    const formattedDate = new Date(h.at).toLocaleDateString(
+                      [],
+                      {
+                        month: "short",
+                        day: "numeric",
+                      },
+                    );
+
+                    return (
+                      <div key={hIdx} className="relative pl-6">
+                        <span
+                          className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-white transition-colors ${
+                            isCurrent
+                              ? "bg-emerald-500 ring-4 ring-emerald-100"
+                              : "bg-gray-300"
+                          }`}
+                        />
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5">
+                          <span
+                            className={`text-xs sm:text-sm font-semibold capitalize ${
+                              isCurrent
+                                ? "text-emerald-700 font-bold"
+                                : "text-gray-700"
+                            }`}
+                          >
+                            {statusTitle}
+                          </span>
+                          <span className="text-[11px] text-gray-400">
+                            {formattedDate} at {formattedTime}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
       </div>
-
-      {/* Status Message */}
-      <motion.div
-        key={order.status}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="mt-3 p-2 bg-green-50 text-green-700 border border-green-100 rounded text-xs"
-      >
-        {statusMessages[order.status] || "Tracking your order..."}
-      </motion.div>
-
-      {/* <div className="mt-2 text-xs text-gray-500">
-        Placed on: {new Date(order.createdAt).toLocaleString()}
-      </div> */}
-
-      {/* Edit / Cancel Info Highlighted */}
-      <motion.div
-        initial={{ opacity: 0, y: -5 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, repeat: 1 }}
-        className="mt-2 p-2 bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 text-xs rounded flex items-center gap-2"
-      >
-        <FiInfo className="text-yellow-600" />
-        {isAdmin
-          ? "As admin, you can edit this order any time."
-          : isTemporarilyClosed
-            ? "Service is temporarily closed. You cannot edit or cancel orders."
-            : "You can edit or cancel your order before the cutoff time."}
-      </motion.div>
-
-      {/* Edit / Cancel Buttons */}
-      <div className="mt-4 flex gap-2 flex-wrap">
-        <button
-          onClick={handleEdit}
-          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
-            canEdit
-              ? "bg-yellow-400 hover:bg-yellow-500 text-black"
-              : "bg-gray-200 text-gray-500 border border-gray-400 cursor-not-allowed"
-          }`}
-        >
-          <FiEdit className="text-sm" /> Edit
-        </button>
-        <button
-          onClick={() => {
-            if (canCancel) setShowCancelModal(true);
-            else
-              setToast({
-                message: isTemporarilyClosed
-                  ? "Service is temporarily closed"
-                  : "Cancelling is only allowed before cutoff",
-                type: "error",
-              });
-          }}
-          className={`flex-1 min-w-[80px] px-3 py-1 text-xs font-medium rounded transition flex items-center justify-center gap-1 ${
-            canCancel
-              ? "bg-red-500 hover:bg-red-600 text-white"
-              : "bg-gray-200 text-gray-500 border border-gray-400 cursor-not-allowed"
-          }`}
-        >
-          <FiTrash2 className="text-sm" /> Cancel
-        </button>
-      </div>
-
-      {/* Rest of your order details UI remains as it was */}
     </motion.div>
   );
 }

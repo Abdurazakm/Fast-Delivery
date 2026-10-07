@@ -1,20 +1,17 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import dayjs from "dayjs";
 import API from "../api";
 import TrackingInfoCard from "./TrackingInfoCard";
-import { FiArrowLeft, FiChevronDown } from "react-icons/fi";
+import { ArrowLeft, Check, Share2 } from "lucide-react";
 import { getSocket } from "../socket";
-import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
 import PushNotificationPrompt from "../components/PushNotificationPrompt";
-
 
 export default function TrackOrder() {
   const { code } = useParams();
   const [loading, setLoading] = useState(true);
   const [order, setOrder] = useState(null);
   const [error, setError] = useState("");
-  const [showTimeline, setShowTimeline] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     const fetchTrack = async () => {
@@ -72,170 +69,123 @@ export default function TrackOrder() {
     };
   }, [code]);
 
-  if (loading)
+  const handleCopyShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Track Order - Ertib Delivery",
+          text: `Track order ${order?.trackingCode || code} on Ertib Delivery:`,
+          url,
+        });
+        return;
+      } catch (err) {
+        // Fall back to clipboard if user dismissed or cancelled share
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {}
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500 text-lg">Loading...</div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/70 px-4">
+        <div className="w-12 h-12 rounded-full border-4 border-amber-200 border-t-amber-500 animate-spin mb-4" />
+        <p className="text-gray-600 font-medium text-sm">
+          Loading live tracking...
+        </p>
       </div>
     );
+  }
 
-  if (error)
+  if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-red-600 text-lg">{error}</div>
-      </div>
-    );
-
-  const isManual =
-    (order?.source || "").toString().trim().toLowerCase() === "manual";
-
-  const paymentStatus = (order?.paymentStatus || "unpaid").toLowerCase();
-  const paymentBadgeClass =
-    paymentStatus === "paid"
-      ? "bg-green-100 text-green-700 border-green-300"
-      : "bg-red-100 text-red-700 border-red-300";
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4">
-      {/* Back to Home Button */}
-      <Link
-        to="/"
-        className="fixed top-4 left-4 z-50 inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-full shadow-lg transition-all duration-200"
-      >
-        <FiArrowLeft className="text-lg" />
-        Back
-      </Link>
-
-      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 break-words">
-            Tracking Order —{" "}
-            <span className="text-amber-700">{order.trackingCode}</span>
-          </h1>
-
-          <p className="text-xs sm:text-sm text-gray-600 break-words">
-            {!isManual && order.customerName ? (
-              <>
-                Customer:{" "}
-                <span className="font-medium">{order.customerName}</span> •{" "}
-              </>
-            ) : null}
-            Location: <span className="font-medium">{order.location}</span>
-          </p>
-
-          <div className="mt-2 sm:mt-3 text-[10px] sm:text-xs text-gray-500">
-            <span>Source: </span>
-            <strong className="capitalize">
-              {(order.source || "online").toString().replace("_", " ")}
-            </strong>
-            <span className="ml-2 sm:ml-4">
-              Placed on: {new Date(order.createdAt).toLocaleString()}
-            </span>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/70 px-4">
+        <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-xl max-w-md w-full text-center border border-gray-100">
+          <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+            !
           </div>
-
-          <div className="mt-3">
-            <span
-              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wide ${paymentBadgeClass}`}
-            >
-              {paymentStatus === "paid"
-                ? "Payment: paid"
-                : "Payment: unpaid (not confirmed yet)"}
-            </span>
-          </div>
-
-          {/* {paymentStatus === "unpaid" && (
-            <PaymentInstructionsCard amount={order?.total} />
-          )} */}
+          <h2 className="text-lg font-bold text-gray-900 mb-2">
+            Order Unavailable
+          </h2>
+          <p className="text-gray-600 text-sm mb-6 leading-relaxed">{error}</p>
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-xl transition shadow-md shadow-amber-200"
+          >
+            <ArrowLeft className="w-4 h-4" /> Return to Menu
+          </Link>
         </div>
       </div>
-      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6 px-4 sm:px-0 mt-4 sm:mt-6">
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50/70 pb-16">
+      {/* Sticky Top Navigation */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
+        <div className="max-w-3xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-3">
+          {/* Back to Home Button */}
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-700 hover:text-amber-600 transition-colors py-1.5 px-2.5 rounded-xl hover:bg-amber-50 shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Menu</span>
+          </Link>
+
+          {/* Center Title & Live Pulse */}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs sm:text-sm font-bold text-gray-900 truncate">
+              Order Tracking
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live
+            </span>
+          </div>
+
+          {/* Share / Copy Link Action */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={handleCopyShare}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 hover:bg-amber-100 text-gray-700 hover:text-amber-800 transition cursor-pointer"
+              title="Share or copy tracking link"
+            >
+              {copiedLink ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-700 hidden sm:inline">
+                    Copied
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Share</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="max-w-3xl mx-auto px-4 pt-4 sm:pt-6 space-y-4 sm:space-y-6">
         {/* Live Delivery Push Alerts Prompt */}
         <PushNotificationPrompt order={order} mode="inline" />
 
-        {/* Tracking Info Card */}
-        <TrackingInfoCard order={order} hideCustomerWhenManual />
-
-
-        {/* Status Timeline */}
-        <div className="bg-white rounded-lg shadow p-4 sm:p-6 transition-all duration-200">
-          <div
-            onClick={() => setShowTimeline((prev) => !prev)}
-            className="flex items-center justify-between cursor-pointer select-none group"
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setShowTimeline((prev) => !prev);
-              }
-            }}
-            aria-expanded={showTimeline}
-          >
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-800 group-hover:text-amber-600 transition-colors">
-                Status Timeline
-              </h2>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowTimeline((prev) => !prev);
-                }}
-                className={`p-1 rounded-full text-gray-500 hover:text-amber-600 hover:bg-amber-50 transition-all duration-200 cursor-pointer ${
-                  showTimeline ? "rotate-180 text-amber-600 bg-amber-50" : ""
-                }`}
-                title={showTimeline ? "Hide timeline sequence" : "Show timeline sequence"}
-                aria-label="Toggle timeline sequence"
-              >
-                <FiChevronDown className="text-xl" />
-              </button>
-            </div>
-
-            <span className="text-xs text-gray-400 group-hover:text-amber-600 transition-colors">
-              {showTimeline ? "Hide sequence" : "View sequence"}
-            </span>
-          </div>
-
-          {showTimeline && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              {!order.statusHistory || order.statusHistory.length === 0 ? (
-                <p className="text-gray-500 text-sm">No status updates yet.</p>
-              ) : (
-                <div className="relative border-l border-gray-200 ml-4 mt-2">
-                  {order.statusHistory.map((h) => {
-                    const isCurrent = h.status === order.status;
-                    return (
-                      <div
-                        key={h.id || `${h.status}-${h.at}`}
-                        className="mb-6 ml-6 relative"
-                      >
-                        <span
-                          className={`absolute -left-5 w-4 h-4 rounded-full top-1 ${
-                            isCurrent ? "bg-green-500" : "bg-gray-300"
-                          }`}
-                        />
-                        <div className="flex justify-between items-center">
-                          <div
-                            className={`text-gray-800 font-medium capitalize ${
-                              isCurrent ? "text-green-600" : ""
-                            }`}
-                          >
-                            {h.status.replace("_", " ")}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {new Date(h.at).toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+        {/* Unified Tracking Card */}
+        <TrackingInfoCard
+          order={order}
+          isDedicatedPage={true}
+          hideCustomerWhenManual
+        />
+      </main>
     </div>
   );
 }
