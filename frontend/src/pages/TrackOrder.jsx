@@ -18,6 +18,7 @@ export default function TrackOrder() {
   useEffect(() => {
     const fetchTrack = async () => {
       try {
+        const res = await API.get(`/orders/track/${code}`);
         const orderData = res.data;
         setOrder(orderData);
         if (orderData?.trackingCode) {

@@ -8,50 +8,45 @@ import { getSocket } from "../socket";
 
 dayjs.extend(relativeTime);
 
-const STORAGE_KEY = "fcm_notifications_history";
-const MAX_NOTIFICATIONS = 20;
+import {
+  STORAGE_KEY,
+  NOTIFICATIONS_UPDATED_EVENT,
+  getStoredNotifications,
+  saveNotificationToCollection,
+} from "../notificationStore";
 
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Load notifications from localStorage
+  // Sync notifications with central store across all pages and tabs
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        setNotifications(JSON.parse(stored));
-      }
-    } catch {
-      setNotifications([]);
-    }
+    const sync = () => {
+      setNotifications(getStoredNotifications());
+    };
+    sync();
+
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, sync);
+    window.addEventListener("storage", sync);
+
+    return () => {
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
   // Save to localStorage when notifications change
   const saveNotifications = (newList) => {
     setNotifications(newList);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newList));
+    window.dispatchEvent(
+      new CustomEvent(NOTIFICATIONS_UPDATED_EVENT, { detail: newList })
+    );
   };
 
   const addNotification = (notif) => {
-    const newEntry = {
-      id: notif.id || `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      title: notif.title || "Notification",
-      message: notif.body || notif.message || "",
-      url: notif.url || notif.data?.url || "/",
-      type: notif.type || notif.data?.type || "info",
-      timestamp: notif.at || notif.timestamp || new Date().toISOString(),
-      read: false,
-    };
-
-    setNotifications((prev) => {
-      // Avoid duplicate by id or exact title+timestamp
-      if (prev.some((n) => n.id === newEntry.id)) return prev;
-      const updated = [newEntry, ...prev].slice(0, MAX_NOTIFICATIONS);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
+    saveNotificationToCollection(notif);
   };
 
   // Listen for real-time messages from Firebase and Socket.IO

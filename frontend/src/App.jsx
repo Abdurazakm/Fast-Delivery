@@ -19,6 +19,8 @@ import AdminAvailability from "./pages/admin/AdminAvailability";
 import Toast from "./pages/Toast";
 import { getSocket } from "./socket";
 import { initPushNotifications } from "./pushNotifications";
+import { onMessageListener } from "./firebase";
+import { saveNotificationToCollection } from "./notificationStore";
 import InstallPwaBanner from "./components/InstallPwaBanner";
 
 
@@ -286,6 +288,10 @@ function App() {
     const handleNotification = async (payload) => {
       if (!payload?.message) return;
 
+      // 1. Save directly into notification collection for top-right bell dropdown
+      saveNotificationToCollection(payload);
+
+      // 2. Keep popup toast and system notification
       const shownAsPopup = await showNativeNotification(payload);
       if (shownAsPopup) return;
 
@@ -307,6 +313,20 @@ function App() {
       // Targeted for this user's specific order
       handleNotification(payload);
     };
+
+    // Firebase foreground push listener
+    onMessageListener((fcmPayload) => {
+      const data = {
+        title: fcmPayload.notification?.title || fcmPayload.data?.title || "Fetan Delivery",
+        message: fcmPayload.notification?.body || fcmPayload.data?.message || fcmPayload.data?.body,
+        url: fcmPayload.data?.url || fcmPayload.data?.click_action || "/",
+        type: fcmPayload.data?.type || "status",
+        trackingCode: fcmPayload.data?.trackingCode,
+      };
+      if (data.message) {
+        handleNotification(data);
+      }
+    });
 
     socket.on("notification:broadcast", handleBroadcast);
     socket.on("order:notification", handleOrderNotification);
