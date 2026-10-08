@@ -375,10 +375,23 @@ export default function Order() {
 
         if (isMounted) {
           if (availRes.data?.itemAvailability) {
+            const avail = availRes.data.itemAvailability;
             setItemAvailability({
               ...DEFAULT_ITEM_AVAILABILITY,
-              ...availRes.data.itemAvailability,
+              ...avail,
             });
+            setItems((prev) =>
+              prev.map((it) => {
+                if (avail[it.foodType] === false) {
+                  const firstAvail =
+                    Object.keys(DEFAULT_ITEM_AVAILABILITY).find(
+                      (f) => avail[f] !== false,
+                    ) || "ertib";
+                  return buildDefaultItem(firstAvail);
+                }
+                return it;
+              }),
+            );
           }
 
           if (pricingRes.data) {
@@ -397,10 +410,23 @@ export default function Order() {
     const socket = getSocket();
     const handleAvailabilityUpdated = (payload) => {
       if (!payload?.itemAvailability || !isMounted) return;
+      const avail = payload.itemAvailability;
       setItemAvailability({
         ...DEFAULT_ITEM_AVAILABILITY,
-        ...payload.itemAvailability,
+        ...avail,
       });
+      setItems((prev) =>
+        prev.map((it) => {
+          if (avail[it.foodType] === false) {
+            const firstAvail =
+              Object.keys(DEFAULT_ITEM_AVAILABILITY).find(
+                (f) => avail[f] !== false,
+              ) || "ertib";
+            return buildDefaultItem(firstAvail);
+          }
+          return it;
+        }),
+      );
     };
 
     const handlePricingUpdated = (payload) => {
@@ -519,6 +545,23 @@ export default function Order() {
     return base;
   };
 
+  const getBasePriceForFoodType = (foodType) => {
+    if (!pricing) return null;
+    switch (foodType) {
+      case "sambusa":
+        return pricing.sambusaPrice;
+      case "boiled_egg":
+        return pricing.boiledEggPrice;
+      case "fetira":
+        return pricing.fetiraBasePrice;
+      case "donut":
+        return pricing.donut1PairPackagePrice;
+      case "ertib":
+      default:
+        return pricing.ertibNormalPrice;
+    }
+  };
+
   const handleCustomerChange = (e) => {
     const { name, value } = e.target;
     setCustomer((prev) => {
@@ -577,11 +620,8 @@ export default function Order() {
   };
 
   const addItem = () => {
-    const fallbackFoodType =
-      Object.keys(DEFAULT_ITEM_AVAILABILITY).find(
-        (foodType) => itemAvailability[foodType] !== false,
-      ) || "ertib";
-
+    const selectable = getSelectableFoodTypes();
+    const fallbackFoodType = selectable.length > 0 ? selectable[0] : "ertib";
     setItems((prev) => [...prev, buildDefaultItem(fallbackFoodType)]);
   };
 
@@ -591,8 +631,6 @@ export default function Order() {
 
   const getSelectableFoodTypes = () => {
     const allFoodTypes = Object.keys(FOOD_TYPE_LABELS);
-    if (isUserAdmin) return allFoodTypes;
-
     return allFoodTypes.filter(
       (foodType) => itemAvailability[foodType] !== false,
     );
@@ -1006,33 +1044,61 @@ export default function Order() {
                     key={index}
                     className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4 relative"
                   >
-                    {/* Top Row: Food Select & Remove */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1">
-                        <select
-                          name="foodType"
-                          value={item.foodType}
-                          onChange={(e) => handleItemChange(index, e)}
-                          className="w-full px-3.5 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 font-extrabold text-base sm:text-sm text-gray-950 bg-gray-50/70 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition cursor-pointer"
-                        >
-                          {getSelectableFoodTypes().map((foodType) => (
-                            <option key={foodType} value={foodType}>
-                              {FOOD_TYPE_LABELS[foodType]}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    {/* Item Header & Remove */}
+                    <div className="flex items-center justify-between pb-1 border-b border-gray-100">
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-700">
+                        {items.length > 1 ? `Item #${index + 1}` : "Select Food"}
+                      </span>
 
                       {items.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeItem(index)}
-                          className="w-11 h-11 rounded-xl text-gray-500 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition cursor-pointer shrink-0"
+                          className="text-xs font-bold text-gray-500 hover:text-rose-600 flex items-center gap-1 transition cursor-pointer py-1 px-2 rounded-lg hover:bg-rose-50"
                           title="Remove item"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove</span>
                         </button>
                       )}
+                    </div>
+
+                    {/* Food Selection Chips */}
+                    <div className="flex flex-wrap gap-2">
+                      {getSelectableFoodTypes().map((foodType) => {
+                        const isSelected = item.foodType === foodType;
+                        const basePrice = getBasePriceForFoodType(foodType);
+
+                        return (
+                          <button
+                            key={foodType}
+                            type="button"
+                            onClick={() => {
+                              if (item.foodType !== foodType) {
+                                handleItemChange(index, {
+                                  target: { name: "foodType", value: foodType },
+                                });
+                              }
+                            }}
+                            className={`px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs sm:text-sm font-extrabold border-2 transition cursor-pointer active:scale-98 flex items-center gap-1.5 ${
+                              isSelected
+                                ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                : "bg-white text-gray-800 border-gray-200 hover:border-gray-300"
+                            }`}
+                          >
+                            <span>{FOOD_TYPE_LABELS[foodType]}</span>
+                            {basePrice != null && (
+                              <span
+                                className={`text-[11px] font-bold ${
+                                  isSelected ? "text-amber-100" : "text-gray-500"
+                                }`}
+                              >
+                                • {basePrice} Birr
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
 
                     {/* ERTIB CUSTOMIZATION */}
@@ -1157,7 +1223,7 @@ export default function Order() {
                                   : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
-                              {num === 0 ? "Standard (3)" : `+${num} Egg${num > 1 ? "s" : ""}`}
+                              {num === 0 ? "Standard" : `+${num} Egg${num > 1 ? "s" : ""}`}
                             </button>
                           ))}
                         </div>
