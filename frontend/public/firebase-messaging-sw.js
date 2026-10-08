@@ -94,19 +94,27 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   // Pass-through fetch handler required for PWA installation criteria
   if (event.request.method !== "GET") return;
+  const url = event.request.url;
   if (
-    event.request.url.startsWith("chrome-extension") ||
-    event.request.url.includes("/@vite/") ||
-    event.request.url.includes("/api/") ||
-    event.request.url.includes("?v=")
+    url.startsWith("chrome-extension") ||
+    url.includes("/@vite/") ||
+    url.includes("/api/") ||
+    url.includes("?v=") ||
+    url.includes("socket.io")
   ) {
     return;
   }
   event.respondWith(
     fetch(event.request).catch(async () => {
-      const cached = await caches.match(event.request);
-      if (cached) return cached;
-      return new Response("Offline", { status: 503, statusText: "Service Unavailable" });
+      try {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+      } catch (_) {}
+      return new Response("Offline", {
+        status: 503,
+        statusText: "Service Unavailable",
+        headers: { "Content-Type": "text/plain" },
+      });
     })
   );
 });

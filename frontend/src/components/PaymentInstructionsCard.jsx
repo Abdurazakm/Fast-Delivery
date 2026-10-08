@@ -213,7 +213,10 @@ export default function PaymentInstructionsCard({
     const changeDue = hasChange ? numPaid - currentTotal : 0;
 
     return (
-      <div className="mt-4 overflow-hidden rounded-2xl border-2 border-emerald-300 bg-linear-to-br from-emerald-50 via-white to-teal-50 shadow-md">
+      <div
+        id="payment-card"
+        className="mt-4 scroll-mt-20 overflow-hidden rounded-2xl border-2 border-emerald-300 bg-linear-to-br from-emerald-50 via-white to-teal-50 shadow-md transition-all duration-500"
+      >
         <div className="bg-emerald-600 px-4 py-3 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Banknote className="w-5 h-5" />
@@ -289,7 +292,10 @@ export default function PaymentInstructionsCard({
     : 0;
 
   return (
-    <div className="mt-4 overflow-hidden rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50/50 via-white to-orange-50/30 shadow-md">
+    <div
+      id="payment-card"
+      className="mt-4 scroll-mt-20 overflow-hidden rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50/50 via-white to-orange-50/30 shadow-md transition-all duration-500"
+    >
       {/* Header Banner */}
       <div
         className={`px-4 py-3 text-white ${

@@ -73,6 +73,47 @@ export default function TrackOrder() {
     };
   }, [code]);
 
+  // Auto-scroll and highlight Payment Instructions Card when deep-linked (via notification or URL anchor)
+  useEffect(() => {
+    if (loading || !order) return;
+
+    const scrollToPaymentCard = () => {
+      const isPaymentHash = window.location.hash === "#payment-card";
+      const isPaymentFocus =
+        searchParams.get("focus") === "payment" ||
+        searchParams.get("pay") === "1";
+
+      if (isPaymentHash || isPaymentFocus) {
+        const el = document.getElementById("payment-card");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+          el.classList.add(
+            "ring-4",
+            "ring-amber-400",
+            "ring-offset-4",
+            "shadow-2xl",
+          );
+          setTimeout(() => {
+            el.classList.remove(
+              "ring-4",
+              "ring-amber-400",
+              "ring-offset-4",
+              "shadow-2xl",
+            );
+          }, 3500);
+        }
+      }
+    };
+
+    const timer = setTimeout(scrollToPaymentCard, 200);
+    window.addEventListener("hashchange", scrollToPaymentCard);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("hashchange", scrollToPaymentCard);
+    };
+  }, [loading, order, searchParams]);
+
   const handleCopyShare = async () => {
     const url = window.location.href;
     if (navigator.share) {

@@ -325,15 +325,54 @@ router.post(
         url: `/track/${order.trackingCode}`,
       });
 
-      // Send push confirmation directly to the customer's device
-      sendNotificationForOrder(order, {
-        title: `Order (${maskedCode}) Confirmed 🎉`,
-        body: `Hi ${customerName}, your order (${maskedCode}) is confirmed and pending.`,
-        url: `/track/${order.trackingCode}`,
-      }).catch((err) => console.error("❌ Order confirmation push failed:", err?.message));
+      // Send notification directly to customer device(s)
+      if (order.paymentMethod === "online") {
+        sendNotificationForOrder(order, {
+          title: `💳 Complete Payment for Order (${maskedCode})`,
+          body: `Hi ${customerName}, please complete your transfer of ${total} Birr via Telebirr or CBE and upload your receipt screenshot.`,
+          url: `/track/${order.trackingCode}#payment-card`,
+          data: {
+            orderId: order.id,
+            trackingCode: order.trackingCode,
+            type: "payment",
+            url: `/track/${order.trackingCode}#payment-card`,
+          },
+        }).catch((err) => console.error("❌ Order payment push failed:", err?.message));
+
+        emitTargetedOrderNotification(order, {
+          title: "💳 Complete Your Payment",
+          message: `Please complete transfer of ${total} Birr via Telebirr or CBE and upload receipt to begin preparation.`,
+          trackingCode: order.trackingCode,
+          url: `/track/${order.trackingCode}#payment-card`,
+          type: "payment",
+        });
+      } else {
+        sendNotificationForOrder(order, {
+          title: `Order (${maskedCode}) Confirmed 🎉`,
+          body: `Hi ${customerName}, your order (${maskedCode}) is confirmed. Total: ${total} Birr (Pay on delivery).`,
+          url: `/track/${order.trackingCode}`,
+          data: {
+            orderId: order.id,
+            trackingCode: order.trackingCode,
+            type: "status",
+            url: `/track/${order.trackingCode}`,
+          },
+        }).catch((err) => console.error("❌ Order confirmation push failed:", err?.message));
+
+        emitTargetedOrderNotification(order, {
+          title: "Order Confirmed 🎉",
+          message: `Your order (${maskedCode}) is confirmed. Total: ${total} Birr (Cash on delivery).`,
+          trackingCode: order.trackingCode,
+          url: `/track/${order.trackingCode}`,
+          type: "status",
+        });
+      }
 
       // Send SMS (non-blocking)
-      const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
+      const smsText =
+        order.paymentMethod === "online"
+          ? `💳 Hi ${customerName}! Please complete your transfer of ${total} Birr for Ertib order (${maskedCode}) via Telebirr/CBE & upload receipt: ${trackUrl}#payment-card`
+          : `✅ Hi ${customerName}! Your Ertib order is confirmed (Cash on Delivery). Total: ${total} birr. Track here: ${trackUrl}`;
       sendSMS(normalizedPhone, smsText)
         .then((smsResp) =>
           prisma.order.update({
@@ -455,8 +494,34 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
     });
     emitOrderUpdated(order, "created");
 
+    const maskedCode = maskTrackingCode(order.trackingCode);
+    if (order.paymentMethod === "online" && order.paymentStatus !== "paid") {
+      sendNotificationForOrder(order, {
+        title: `💳 Complete Payment for Order (${maskedCode})`,
+        body: `Hi ${customerName}, please complete your transfer of ${total} Birr via Telebirr or CBE and upload receipt to begin preparation.`,
+        url: `/track/${order.trackingCode}#payment-card`,
+        data: {
+          orderId: order.id,
+          trackingCode: order.trackingCode,
+          type: "payment",
+          url: `/track/${order.trackingCode}#payment-card`,
+        },
+      }).catch((err) => console.error("❌ Manual order payment push failed:", err?.message));
+
+      emitTargetedOrderNotification(order, {
+        title: "💳 Complete Your Payment",
+        message: `Please complete transfer of ${total} Birr via Telebirr or CBE and upload receipt to begin preparation.`,
+        trackingCode: order.trackingCode,
+        url: `/track/${order.trackingCode}#payment-card`,
+        type: "payment",
+      });
+    }
+
     // Optional SMS
-    const smsText = `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
+    const smsText =
+      order.paymentMethod === "online" && order.paymentStatus !== "paid"
+        ? `💳 Hi ${customerName}! Please complete your transfer of ${total} Birr for Ertib order (${maskedCode}) via Telebirr/CBE & upload receipt: ${trackUrl}#payment-card`
+        : `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
 
     sendSMS(normalizedPhone, smsText)
       .then((smsResp) =>
@@ -1003,6 +1068,28 @@ router.put(
       if (io) {
         io.to(`order:${order.trackingCode}`).emit("order:payment-updated", updated);
         io.to(`order:${order.trackingCode}`).emit("order:updated", updated);
+      }
+
+      if (editNotice?.type === "shortfall") {
+        sendNotificationForOrder(updated, {
+          title: "⚠️ Remaining Balance Required",
+          body: `Hi ${updated.customerName}, your edited order has a remaining balance of ${editNotice.shortfall} Birr. Please upload proof of payment.`,
+          url: `/track/${updated.trackingCode}#payment-card`,
+          data: {
+            orderId: updated.id,
+            trackingCode: updated.trackingCode,
+            type: "payment",
+            url: `/track/${updated.trackingCode}#payment-card`,
+          },
+        }).catch((err) => console.error("❌ Shortfall push failed:", err?.message));
+
+        emitTargetedOrderNotification(updated, {
+          title: "⚠️ Remaining Balance Required",
+          message: `Please complete transfer of ${editNotice.shortfall} Birr and upload receipt to confirm your updated order.`,
+          trackingCode: updated.trackingCode,
+          url: `/track/${updated.trackingCode}#payment-card`,
+          type: "payment",
+        });
       }
 
       res.json({

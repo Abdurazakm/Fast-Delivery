@@ -279,7 +279,7 @@ function App() {
           }
         }
 
-        new Notification(title, {
+        const notif = new Notification(title, {
           body,
           icon: "/favicon.png",
           tag: unifiedTag,
@@ -287,6 +287,12 @@ function App() {
           requireInteraction: true,
           data: { url },
         });
+        notif.onclick = () => {
+          window.focus();
+          if (url) {
+            window.location.href = url;
+          }
+        };
         return true;
       } catch (err) {
         return false;
@@ -306,8 +312,18 @@ function App() {
       if (typeof document !== "undefined" && !document.hidden) {
         const title = payload.title ? `${payload.title}: ` : "";
         setNotificationToast({
-          type: payload.type === "status" ? "success" : "info",
+          type:
+            payload.type === "payment"
+              ? "payment"
+              : payload.type === "status"
+                ? "success"
+                : "info",
           message: `${title}${payload.message}`,
+          url:
+            payload.url ||
+            (payload.trackingCode
+              ? `/track/${payload.trackingCode}`
+              : undefined),
         });
         return;
       }
@@ -507,19 +523,63 @@ function App() {
     return null;
   }
 
+  function NotificationToastManager({ toast, onClose }) {
+    const navigate = useNavigate();
+    if (!toast) return null;
+
+    const handleClick = () => {
+      onClose();
+      if (toast.url) {
+        if (toast.url.startsWith("/")) {
+          navigate(toast.url);
+          if (toast.url.includes("#")) {
+            const hash = toast.url.slice(toast.url.indexOf("#"));
+            setTimeout(() => {
+              const el = document.querySelector(hash);
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+                el.classList.add(
+                  "ring-4",
+                  "ring-amber-400",
+                  "ring-offset-4",
+                  "shadow-2xl",
+                );
+                setTimeout(() => {
+                  el.classList.remove(
+                    "ring-4",
+                    "ring-amber-400",
+                    "ring-offset-4",
+                    "shadow-2xl",
+                  );
+                }, 3000);
+              }
+            }, 150);
+          }
+        } else {
+          window.location.href = toast.url;
+        }
+      }
+    };
+
+    return (
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        onClick={toast.url ? handleClick : undefined}
+        onClose={onClose}
+        duration={5000}
+      />
+    );
+  }
+
   return (
     <Router>
       <SeoManager />
       <InstallPwaBanner />
-      {notificationToast && (
-
-        <Toast
-          message={notificationToast.message}
-          type={notificationToast.type}
-          onClose={() => setNotificationToast(null)}
-          duration={5000}
-        />
-      )}
+      <NotificationToastManager
+        toast={notificationToast}
+        onClose={() => setNotificationToast(null)}
+      />
       <Routes>
         <Route
           path="/"

@@ -10,7 +10,7 @@ import {
   Clock,
   Sparkles,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
@@ -25,6 +25,7 @@ import {
 } from "../notificationStore";
 
 export default function NotificationBell() {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState(() => getStoredNotifications());
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all"); // "all" | "unread" | "read"
@@ -101,6 +102,41 @@ export default function NotificationBell() {
     if (e) e.stopPropagation();
     const updated = markNotificationAsRead(id);
     setNotifications(updated);
+  };
+
+  const handleItemClick = (item) => {
+    handleMarkAsRead(item.id);
+    if (item.url) {
+      setOpen(false);
+      if (item.url.startsWith("/")) {
+        navigate(item.url);
+        if (item.url.includes("#")) {
+          const hash = item.url.slice(item.url.indexOf("#"));
+          setTimeout(() => {
+            const el = document.querySelector(hash);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+              el.classList.add(
+                "ring-4",
+                "ring-amber-400",
+                "ring-offset-4",
+                "shadow-2xl",
+              );
+              setTimeout(() => {
+                el.classList.remove(
+                  "ring-4",
+                  "ring-amber-400",
+                  "ring-offset-4",
+                  "shadow-2xl",
+                );
+              }, 3000);
+            }
+          }, 150);
+        }
+      } else {
+        window.location.href = item.url;
+      }
+    }
   };
 
   return (
@@ -271,7 +307,7 @@ export default function NotificationBell() {
               displayedList.map((item) => (
                 <div
                   key={item.id}
-                  onClick={() => handleMarkAsRead(item.id)}
+                  onClick={() => handleItemClick(item)}
                   className={`p-3.5 transition-colors cursor-pointer group ${
                     !item.read
                       ? "bg-amber-50/50 hover:bg-amber-50/80 border-l-3 border-amber-500"

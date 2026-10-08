@@ -735,7 +735,11 @@ export default function Order() {
           setReviewMode(false);
         } else {
           // Regular customer (other user): immediately transition to live tracking page!
-          navigate(`/track/${encodeURIComponent(finalTrackingCode)}?justPlaced=1`, {
+          const targetUrl =
+            paymentMethod === "online"
+              ? `/track/${encodeURIComponent(finalTrackingCode)}?justPlaced=1#payment-card`
+              : `/track/${encodeURIComponent(finalTrackingCode)}?justPlaced=1`;
+          navigate(targetUrl, {
             replace: true,
           });
           return;
@@ -765,7 +769,11 @@ export default function Order() {
   const handleTrackNow = (targetCode = orderSuccessModal?.trackingCode) => {
     const code = targetCode || orderSuccessModal?.trackingCode;
     if (!code) return;
-    navigate(`/track/${encodeURIComponent(code)}?justPlaced=1`, {
+    const targetUrl =
+      paymentMethod === "online"
+        ? `/track/${encodeURIComponent(code)}?justPlaced=1#payment-card`
+        : `/track/${encodeURIComponent(code)}?justPlaced=1`;
+    navigate(targetUrl, {
       replace: true,
     });
   };
