@@ -22,33 +22,6 @@ import { FiDownload } from "react-icons/fi";
 import API, { BACKEND_URL } from "../../api";
 import { getSocket } from "../../socket";
 
-const DEFAULT_PRICING = {
-  sambusaPrice: 30,
-  boiledEggPrice: 30,
-  ertibNormalPrice: 145,
-  ertibSpecialPrice: 170,
-  fetiraBasePrice: 150,
-  fetiraExtraEggPrice: 30,
-  donut1PairPackagePrice: 60,
-  donut2PairPackagePrice: 120,
-  donut4PairPackagePrice: 220,
-  donut6PairPackagePrice: 320,
-  extraKetchupPrice: 15,
-  doubleFelafilPrice: 20,
-  sambusaCost: 20,
-  boiledEggCost: 20,
-  ertibNormalCost: 100,
-  ertibSpecialCost: 125,
-  fetiraBaseCost: 100,
-  fetiraExtraEggCost: 20,
-  donut1PairPackageCost: 45,
-  donut2PairPackageCost: 90,
-  donut4PairPackageCost: 170,
-  donut6PairPackageCost: 250,
-  extraKetchupCost: 0,
-  doubleFelafilCost: 0,
-};
-
 export default function AdminDashboard({ user }) {
   const [orders, setOrders] = useState([]);
   const navigate = useNavigate();
@@ -59,7 +32,7 @@ export default function AdminDashboard({ user }) {
   const [checkedItems, setCheckedItems] = useState({});
   const [trackingSearch, setTrackingSearch] = useState("");
   const [prevStatuses, setPrevStatuses] = useState({});
-  const [pricing, setPricing] = useState(DEFAULT_PRICING);
+  const [pricing, setPricing] = useState(null);
 
   // Modal states
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -392,6 +365,7 @@ export default function AdminDashboard({ user }) {
 
   // Helper to determine unit price for an item when backend doesn't provide it
   const getUnitPrice = (item) => {
+    if (!item || !pricing) return 0;
     if (item.foodType === "sambusa") {
       return Number(pricing.sambusaPrice) || 0;
     }
@@ -439,6 +413,7 @@ export default function AdminDashboard({ user }) {
   };
 
   const getUnitEstimatedCost = (item) => {
+    if (!item || !pricing) return 0;
     if (item.foodType === "sambusa") {
       return Number(pricing.sambusaCost) || 0;
     }
@@ -814,6 +789,14 @@ Normal - 110 Birr, Special - 135 Birr
       <div className="max-w-6xl mx-auto bg-white p-6 rounded-2xl shadow-md">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-amber-700">📦My Dashboard</h1>
+          {isAdmin && (
+            <Link
+              to="/availability"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold hover:bg-amber-100 transition shadow-xs"
+            >
+              ⚙️ Operations & Availability
+            </Link>
+          )}
         </div>
 
         <div className="flex items-center justify-between mb-4">

@@ -79,6 +79,10 @@ router.get("/stats", authMiddleware, adminMiddleware, async (req, res) => {
 
 router.get("/pricing", authMiddleware, adminMiddleware, async (req, res) => {
   try {
+    res.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
     const pricing = await getActivePricing(prisma);
     res.json(pricing);
   } catch (err) {

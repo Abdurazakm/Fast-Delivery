@@ -142,6 +142,10 @@ function buildUnavailableItemsResponse(unavailableFoodTypes = []) {
 
 router.get("/pricing", async (req, res) => {
   try {
+    res.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate",
+    );
     const pricing = await getActivePricing(prisma);
     res.json(pricing);
   } catch (err) {
@@ -1171,6 +1175,33 @@ router.get("/latest", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("❌ Error fetching latest order:", err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ✅ Fetch complete order history for authenticated user
+router.get("/my-history", authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, phone: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const orders = await prisma.order.findMany({
+      where: {
+        OR: [{ userId: user.id }, { phone: user.phone }],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    res.json(orders || []);
+  } catch (err) {
+    console.error("❌ Error fetching my-history:", err);
+    res.status(500).json({ message: "Failed to fetch order history." });
   }
 });
 

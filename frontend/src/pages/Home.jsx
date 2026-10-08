@@ -39,45 +39,30 @@ const MENU_ITEMS = [
     name: "Ertib",
     emoji: "🍲",
     desc: "Famous Leyla recipe with crispy felafil & fresh bread",
-    pricePrefix: "From",
-    priceKey: "ertibNormalPrice",
-    defaultPrice: 145,
   },
   {
     id: "fetira",
     name: "Fetira",
     emoji: "🥞",
     desc: "Flaky layered flatbread with eggs & honey",
-    pricePrefix: "",
-    priceKey: "fetiraBasePrice",
-    defaultPrice: 150,
   },
   {
     id: "sambusa",
     name: "Sambusa",
     emoji: "🥟",
     desc: "Golden crispy pastry with spiced filling",
-    pricePrefix: "",
-    priceKey: "sambusaPrice",
-    defaultPrice: 30,
   },
   {
     id: "donut",
     name: "Donut",
     emoji: "🍩",
     desc: "Fresh soft glazed doughnuts in pairs",
-    pricePrefix: "From",
-    priceKey: "donut1PairPackagePrice",
-    defaultPrice: 60,
   },
   {
     id: "boiled_egg",
     name: "Boiled Egg",
     emoji: "🥚",
     desc: "Nutritious quick protein boiled fresh",
-    pricePrefix: "",
-    priceKey: "boiledEggPrice",
-    defaultPrice: 30,
   },
 ];
 
@@ -97,24 +82,8 @@ export default function Home() {
   const [itemAvailability, setItemAvailability] = useState(
     DEFAULT_ITEM_AVAILABILITY,
   );
-  const [pricing, setPricing] = useState({
-    ertibNormalPrice: 145,
-    fetiraBasePrice: 150,
-    donut1PairPackagePrice: 60,
-    sambusaPrice: 30,
-    boiledEggPrice: 30,
-  });
 
   const roleLower = (user?.role || "").toLowerCase();
-
-  // Load pricing
-  useEffect(() => {
-    API.get("/orders/pricing")
-      .then((res) => {
-        if (res.data) setPricing((prev) => ({ ...prev, ...res.data }));
-      })
-      .catch(() => {});
-  }, []);
 
   // Fetch user & latest orders
   useEffect(() => {
@@ -350,13 +319,13 @@ export default function Home() {
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
           {/* Logo & Campus Pill */}
-          <Link to="/" className="flex items-center gap-2 group">
+          <Link to="/" className="flex items-center gap-2 group shrink-0">
             <span className="text-2xl">🍲</span>
             <div className="flex flex-col">
-              <span className="font-extrabold text-base sm:text-lg tracking-tight text-gray-950 group-hover:text-amber-600 transition">
+              <span className="font-extrabold text-sm sm:text-lg tracking-tight text-gray-950 group-hover:text-amber-600 transition leading-tight">
                 Fetan Delivery
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-amber-700 leading-none">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-amber-700 leading-none">
                 AASTU Campus
               </span>
             </div>
@@ -368,51 +337,28 @@ export default function Home() {
             {roleLower === "admin" && (
               <Link
                 to="/admin"
-                className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1"
               >
                 <span>Dashboard</span>
               </Link>
             )}
 
-            {/* Menu link */}
+            {/* Menu link (desktop) */}
             <Link
               to="/menu"
-              className="text-xs sm:text-sm font-bold text-gray-700 hover:text-amber-600 px-3 py-1.5 rounded-xl hover:bg-amber-50 transition"
+              className="hidden sm:inline-flex text-xs sm:text-sm font-bold text-gray-700 hover:text-amber-600 px-3 py-1.5 rounded-xl hover:bg-amber-50 transition"
             >
               Menu
             </Link>
 
             {/* Notification Bell with live count */}
             <NotificationBell />
-
-            {/* Auth / Profile Pill */}
-            {!user ? (
-              <Link
-                to="/login"
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition active:scale-95"
-              >
-                Login
-              </Link>
-            ) : (
-              <div className="flex items-center gap-2 bg-gray-100/80 px-2.5 py-1.5 rounded-xl border border-gray-200/60">
-                <span className="text-xs font-semibold text-gray-700 hidden sm:inline">
-                  Hi, <strong className="text-amber-800">{user.name}</strong>
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="text-xs text-rose-600 hover:text-rose-800 font-semibold cursor-pointer pl-1"
-                  title="Logout"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-6 sm:pt-10 pb-16 space-y-12">
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-4 sm:pt-10 pb-28 sm:pb-16 space-y-8 sm:space-y-12">
         {/* Service Warning Banner (if closed) */}
         {user?.role !== "admin" && !serviceAvailable && message && (
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
@@ -515,7 +461,7 @@ export default function Home() {
 
         {/* Track Order By Code Section (For Guests or Quick Lookup) */}
         {latestOrders.length === 0 && (
-          <section className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sm:p-8 max-w-xl mx-auto text-center space-y-4">
+          <section id="track-section" className="bg-white rounded-3xl border border-gray-200 shadow-sm p-5 sm:p-8 max-w-xl mx-auto text-center space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto text-2xl shadow-xs">
               🔍
             </div>
@@ -613,7 +559,7 @@ export default function Home() {
       </main>
 
       {/* Clean Modern Footer */}
-      <footer className="border-t border-gray-200/80 bg-white py-6 text-center text-xs text-gray-500">
+      <footer className="border-t border-gray-200/80 bg-white pt-6 pb-24 sm:pb-6 text-center text-xs text-gray-500">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
             © {new Date().getFullYear()} Fetan Delivery Service — Exclusively for AASTU Students.

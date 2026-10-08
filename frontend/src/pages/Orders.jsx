@@ -26,21 +26,6 @@ import API from "../api";
 import { getSocket } from "../socket";
 import { getRelevantChangeOptions } from "../utils/ethiopianCash";
 
-const DEFAULT_PRICING = {
-  sambusaPrice: 30,
-  boiledEggPrice: 30,
-  ertibNormalPrice: 145,
-  ertibSpecialPrice: 170,
-  fetiraBasePrice: 150,
-  fetiraExtraEggPrice: 30,
-  donut1PairPackagePrice: 60,
-  donut2PairPackagePrice: 120,
-  donut4PairPackagePrice: 220,
-  donut6PairPackagePrice: 320,
-  extraKetchupPrice: 15,
-  doubleFelafilPrice: 20,
-};
-
 const FETIRA_DEFAULT_EGGS = 3;
 const DONUT_PACKAGE_OPTIONS = [1, 2];
 const FOOD_TYPE_LABELS = {
@@ -98,6 +83,7 @@ function buildDefaultItem(foodType = "ertib") {
 }
 
 function getDonutPackageUnitPrice(item, pricing) {
+  if (!pricing) return 0;
   const pairs = Number(item?.donutPairsPerPackage) || 1;
   if (pairs === 1) {
     return (
@@ -318,7 +304,8 @@ export default function Order() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [pricing, setPricing] = useState(DEFAULT_PRICING);
+  const [pricing, setPricing] = useState(null);
+  const [loadingPricing, setLoadingPricing] = useState(true);
   const [itemAvailability, setItemAvailability] = useState(
     DEFAULT_ITEM_AVAILABILITY,
   );
@@ -347,7 +334,7 @@ export default function Order() {
         setCustomer({
           customerName: res.data.name || "",
           phone: res.data.phone || "",
-          location: res.data.location || "",
+          location: res.data.location || res.data.block || "",
         });
       } catch (err) {
         console.error("❌ Failed to load user:", err);
@@ -357,6 +344,7 @@ export default function Order() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchAvailabilityAndPricing = async () => {
       try {
         const [availRes, pricingRes] = await Promise.all([
@@ -364,18 +352,22 @@ export default function Order() {
           API.get("/orders/pricing"),
         ]);
 
-        if (availRes.data?.itemAvailability) {
-          setItemAvailability({
-            ...DEFAULT_ITEM_AVAILABILITY,
-            ...availRes.data.itemAvailability,
-          });
-        }
+        if (isMounted) {
+          if (availRes.data?.itemAvailability) {
+            setItemAvailability({
+              ...DEFAULT_ITEM_AVAILABILITY,
+              ...availRes.data.itemAvailability,
+            });
+          }
 
-        if (pricingRes.data) {
-          setPricing((prev) => ({ ...prev, ...pricingRes.data }));
+          if (pricingRes.data) {
+            setPricing(pricingRes.data);
+          }
+          setLoadingPricing(false);
         }
       } catch (err) {
         console.error("Failed to load availability/pricing:", err);
+        if (isMounted) setLoadingPricing(false);
       }
     };
 
@@ -383,7 +375,7 @@ export default function Order() {
 
     const socket = getSocket();
     const handleAvailabilityUpdated = (payload) => {
-      if (!payload?.itemAvailability) return;
+      if (!payload?.itemAvailability || !isMounted) return;
       setItemAvailability({
         ...DEFAULT_ITEM_AVAILABILITY,
         ...payload.itemAvailability,
@@ -391,14 +383,15 @@ export default function Order() {
     };
 
     const handlePricingUpdated = (payload) => {
-      if (!payload) return;
-      setPricing((prev) => ({ ...prev, ...payload }));
+      if (!payload || !isMounted) return;
+      setPricing((prev) => ({ ...(prev || {}), ...payload }));
     };
 
     socket.on("availability:updated", handleAvailabilityUpdated);
     socket.on("pricing:updated", handlePricingUpdated);
 
     return () => {
+      isMounted = false;
       socket.off("availability:updated", handleAvailabilityUpdated);
       socket.off("pricing:updated", handlePricingUpdated);
     };
@@ -467,6 +460,8 @@ export default function Order() {
   }, [location.search]);
 
   const getUnitPrice = (item) => {
+    if (!item || !pricing) return 0;
+
     if (item.foodType === "sambusa") {
       return Number(pricing.sambusaPrice) || 0;
     }
@@ -882,7 +877,7 @@ export default function Order() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-xl mx-auto px-4 pt-6 space-y-5">
+      <main className="max-w-xl mx-auto px-4 pt-4 sm:pt-6 pb-28 sm:pb-12 space-y-5">
         {/* Error / Status Alert */}
         {message && (
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
@@ -936,7 +931,17 @@ export default function Order() {
         )}
 
         {/* ORDER FORM VS REVIEW SCREEN */}
-        {!reviewMode ? (
+        {loadingPricing && !pricing ? (
+          <div className="bg-white rounded-3xl border border-gray-100 p-8 sm:p-12 text-center space-y-4 shadow-sm">
+            <div className="w-10 h-10 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm sm:text-base font-extrabold text-gray-900">
+              Loading live menu prices from database...
+            </p>
+            <p className="text-xs text-gray-500 font-medium">
+              Connecting directly to live database pricing.
+            </p>
+          </div>
+        ) : !reviewMode ? (
           <form onSubmit={handleReview} className="space-y-5">
             {/* Delivery Information Card */}
             <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-sm space-y-4">
@@ -1083,7 +1088,7 @@ export default function Order() {
                                   : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
-                              Normal ({pricing.ertibNormalPrice} Birr)
+                              Normal ({pricing?.ertibNormalPrice} Birr)
                             </button>
                             <button
                               type="button"
@@ -1098,7 +1103,7 @@ export default function Order() {
                                   : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
-                              Special ({pricing.ertibSpecialPrice} Birr)
+                              Special ({pricing?.ertibSpecialPrice} Birr)
                             </button>
                           </div>
                         </div>
@@ -1142,7 +1147,7 @@ export default function Order() {
                                   : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
-                              + Extra Ketchup (+{pricing.extraKetchupPrice} Birr)
+                              + Extra Ketchup (+{pricing?.extraKetchupPrice} Birr)
                             </button>
 
                             <button
@@ -1154,7 +1159,7 @@ export default function Order() {
                                   : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
-                              + Double Felafil (+{pricing.doubleFelafilPrice} Birr)
+                              + Double Felafil (+{pricing?.doubleFelafilPrice} Birr)
                             </button>
                           </div>
                         </div>
@@ -1165,7 +1170,7 @@ export default function Order() {
                     {item.foodType === "fetira" && (
                       <div className="space-y-2 pt-1">
                         <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
-                          Extra Eggs (+{pricing.fetiraExtraEggPrice} Birr / egg)
+                          Extra Eggs (+{pricing?.fetiraExtraEggPrice} Birr / egg)
                         </label>
                         <div className="flex gap-2">
                           {[0, 1, 2, 3].map((num) => (

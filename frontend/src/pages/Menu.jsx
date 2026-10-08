@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   ArrowRight,
   Phone,
   Clock,
@@ -36,7 +35,6 @@ const MENU_ITEMS = [
     desc: "Famous Leyla recipe with crispy felafil & fresh bread. Highly customizable with extra ketchup and double felafil.",
     pricePrefix: "From",
     priceKey: "ertibNormalPrice",
-    defaultPrice: 145,
   },
   {
     id: "fetira",
@@ -47,7 +45,6 @@ const MENU_ITEMS = [
     desc: "Flaky layered golden flatbread served with fresh eggs & honey. Wholesome and filling for study sessions.",
     pricePrefix: "From",
     priceKey: "fetiraBasePrice",
-    defaultPrice: 150,
   },
   {
     id: "sambusa",
@@ -58,7 +55,6 @@ const MENU_ITEMS = [
     desc: "Golden crispy pastry crust packed with savory spiced filling. Crunchy and hot on delivery.",
     pricePrefix: "",
     priceKey: "sambusaPrice",
-    defaultPrice: 30,
   },
   {
     id: "donut",
@@ -69,7 +65,6 @@ const MENU_ITEMS = [
     desc: "Fresh, soft glazed sweet doughnuts sold in 1-pair (2 pcs) or 2-pair (4 pcs) packages.",
     pricePrefix: "From",
     priceKey: "donut1PairPackagePrice",
-    defaultPrice: 60,
   },
   {
     id: "boiled_egg",
@@ -80,7 +75,6 @@ const MENU_ITEMS = [
     desc: "Freshly boiled nutritious egg, perfect quick energy and protein add-on for your meals.",
     pricePrefix: "",
     priceKey: "boiledEggPrice",
-    defaultPrice: 30,
   },
 ];
 
@@ -95,23 +89,40 @@ export default function Menu({ user: propUser, availability: propAvailability, s
   const [serverOffsetMs, setServerOffsetMs] = useState(propOffset);
   const [formattedCutoff, setFormattedCutoff] = useState("");
   const [itemAvailability, setItemAvailability] = useState(DEFAULT_ITEM_AVAILABILITY);
-  const [pricing, setPricing] = useState({
-    ertibNormalPrice: 145,
-    fetiraBasePrice: 150,
-    donut1PairPackagePrice: 60,
-    sambusaPrice: 30,
-    boiledEggPrice: 30,
-  });
+  const [pricing, setPricing] = useState(null);
+  const [loadingPricing, setLoadingPricing] = useState(true);
 
   const roleLower = (user?.role || "").toLowerCase();
 
-  // Load pricing
+  // Load pricing strictly from DB and listen for live updates
   useEffect(() => {
+    let isMounted = true;
+    setLoadingPricing(true);
     API.get("/orders/pricing")
       .then((res) => {
-        if (res.data) setPricing((prev) => ({ ...prev, ...res.data }));
+        if (isMounted && res.data) {
+          setPricing(res.data);
+        }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error("Failed to load pricing from DB:", err);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingPricing(false);
+      });
+
+    const socket = getSocket();
+    const handlePricingUpdated = (payload) => {
+      if (payload && isMounted) {
+        setPricing((prev) => ({ ...(prev || {}), ...payload }));
+      }
+    };
+    socket.on("pricing:updated", handlePricingUpdated);
+
+    return () => {
+      isMounted = false;
+      socket.off("pricing:updated", handlePricingUpdated);
+    };
   }, []);
 
   // Fetch user if not provided in props
@@ -301,26 +312,15 @@ export default function Menu({ user: propUser, availability: propAvailability, s
 
       {/* Sticky Navigation Header */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-gray-700 hover:text-amber-600 py-1.5 px-2.5 rounded-xl hover:bg-amber-50 transition"
-              title="Return to Home page"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Home</span>
-            </Link>
-
-            <div className="h-4 w-px bg-gray-200 hidden sm:block" />
-
-            <Link to="/" className="flex items-center gap-2 group">
+        <div className="max-w-6xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link to="/" className="flex items-center gap-1.5 sm:gap-2 group">
               <span className="text-xl sm:text-2xl">🍲</span>
               <div className="flex flex-col">
-                <span className="font-extrabold text-sm sm:text-base tracking-tight text-gray-950 group-hover:text-amber-600 transition">
+                <span className="font-extrabold text-sm sm:text-base tracking-tight text-gray-950 group-hover:text-amber-600 transition leading-tight">
                   Fetan Delivery
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-amber-700 leading-none">
+                <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-amber-700 leading-none">
                   AASTU Campus
                 </span>
               </div>
@@ -328,48 +328,26 @@ export default function Menu({ user: propUser, availability: propAvailability, s
           </div>
 
           {/* Right Header Navigation */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             {roleLower === "admin" && (
               <Link
                 to="/admin"
-                className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1"
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1"
               >
                 <span>Dashboard</span>
               </Link>
             )}
 
             <NotificationBell />
-
-            {!user ? (
-              <Link
-                to="/login"
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition active:scale-95"
-              >
-                Login
-              </Link>
-            ) : (
-              <div className="flex items-center gap-2 bg-gray-100/80 px-2.5 py-1.5 rounded-xl border border-gray-200/60">
-                <span className="text-xs font-semibold text-gray-700 hidden sm:inline">
-                  Hi, <strong className="text-amber-800">{user.name}</strong>
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="text-xs text-rose-600 hover:text-rose-800 font-semibold cursor-pointer pl-1"
-                  title="Logout"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-6 sm:pt-8 pb-16 space-y-8">
+      <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-4 sm:pt-8 pb-28 sm:pb-16 space-y-6 sm:space-y-8">
         {/* Service Warning Banner (if closed) */}
         {user?.role !== "admin" && !serviceAvailable && message && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
             <div className="flex items-start gap-2.5">
               <span className="text-lg">⏰</span>
               <div>{message}</div>
@@ -384,65 +362,65 @@ export default function Menu({ user: propUser, availability: propAvailability, s
         )}
 
         {/* Page Hero / Heading */}
-        <section className="text-center max-w-2xl mx-auto space-y-3">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-gray-300 text-xs sm:text-sm shadow-xs">
+        <section className="text-center max-w-2xl mx-auto space-y-3 px-1">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-gray-300 text-xs sm:text-sm shadow-xs max-w-full">
             <span
-              className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0 ${
                 serviceAvailable
                   ? "bg-emerald-500 animate-pulse"
                   : "bg-amber-500"
               }`}
             />
             {serviceAvailable ? (
-              <span className="font-bold text-gray-800">
+              <span className="font-bold text-gray-800 text-[11px] sm:text-sm truncate">
                 Accepting Orders • Cutoff:{" "}
                 <strong className="text-amber-800 font-extrabold">
                   {formattedCutoff || "6:00 PM"}
                 </strong>
               </span>
             ) : (
-              <span className="font-bold text-gray-700">
+              <span className="font-bold text-gray-700 text-[11px] sm:text-sm truncate">
                 Ordering Currently Closed
               </span>
             )}
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-black text-gray-950 tracking-tight">
+          <h1 className="text-2xl sm:text-4xl font-black text-gray-950 tracking-tight">
             Today's Campus Menu
           </h1>
 
-          <p className="text-sm sm:text-base text-gray-600 font-medium max-w-md mx-auto">
+          <p className="text-xs sm:text-base text-gray-600 font-medium max-w-md mx-auto leading-relaxed">
             Freshly prepared food from Leyla's Tuludimtu kitchen. Tap any item to customize and place your dorm delivery order.
           </p>
 
-          {/* Filter Pills */}
-          <div className="pt-2 flex items-center justify-center gap-2">
+          {/* Touch-Friendly Horizontal Swipeable Filter Pills */}
+          <div className="pt-2 flex items-center justify-start sm:justify-center gap-2 overflow-x-auto no-scrollbar py-1 px-1 -mx-4 sm:mx-0 px-4 sm:px-0">
             <button
               onClick={() => setActiveFilter("all")}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+              className={`px-4 py-2 rounded-full text-xs font-bold transition shrink-0 cursor-pointer active:scale-95 ${
                 activeFilter === "all"
                   ? "bg-amber-500 text-white shadow-xs"
-                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-100"
               }`}
             >
               All Items ({MENU_ITEMS.length})
             </button>
             <button
               onClick={() => setActiveFilter("mains")}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+              className={`px-4 py-2 rounded-full text-xs font-bold transition shrink-0 cursor-pointer active:scale-95 ${
                 activeFilter === "mains"
                   ? "bg-amber-500 text-white shadow-xs"
-                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-100"
               }`}
             >
               Main Meals (2)
             </button>
             <button
               onClick={() => setActiveFilter("snacks")}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+              className={`px-4 py-2 rounded-full text-xs font-bold transition shrink-0 cursor-pointer active:scale-95 ${
                 activeFilter === "snacks"
                   ? "bg-amber-500 text-white shadow-xs"
-                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                  : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 active:bg-gray-100"
               }`}
             >
               Snacks & Treats (3)
@@ -451,24 +429,27 @@ export default function Menu({ user: propUser, availability: propAvailability, s
         </section>
 
         {/* Menu Items Showcase Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-6">
           {filteredItems.map((item) => {
             const isAvailable = itemAvailability[item.id] !== false;
-            const price = pricing[item.priceKey] || item.defaultPrice;
+            const rawPrice = pricing ? pricing[item.priceKey] : null;
+            const price =
+              rawPrice !== undefined && rawPrice !== null ? rawPrice : null;
 
             return (
               <div
                 key={item.id}
-                className={`bg-white rounded-3xl border transition-all p-5 flex flex-col justify-between group shadow-xs ${
+                onClick={() => isAvailable && handleOrderClick(item.id)}
+                className={`bg-white rounded-2xl sm:rounded-3xl border transition-all p-4 sm:p-5 flex flex-col justify-between group shadow-xs select-none ${
                   isAvailable
-                    ? "border-gray-200 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-100 hover:-translate-y-1"
-                    : "border-gray-200 opacity-60 bg-gray-50/50"
+                    ? "border-gray-200 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-100 hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
+                    : "border-gray-200 opacity-60 bg-gray-50/50 cursor-not-allowed"
                 }`}
               >
                 <div>
                   {/* Top card row: Emoji + Badges */}
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <div className="w-16 h-16 rounded-2xl bg-amber-50 group-hover:bg-amber-100/80 text-4xl flex items-center justify-center transition-transform group-hover:scale-105 shadow-xs shrink-0">
+                  <div className="flex items-start justify-between gap-2 mb-2.5 sm:mb-3">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-50 group-hover:bg-amber-100/80 text-3xl sm:text-4xl flex items-center justify-center transition-transform group-hover:scale-105 shadow-xs shrink-0">
                       {item.emoji}
                     </div>
 
@@ -492,33 +473,41 @@ export default function Menu({ user: propUser, availability: propAvailability, s
                   </div>
 
                   {/* Title & Description */}
-                  <h3 className="font-black text-lg text-gray-950 group-hover:text-amber-700 transition">
+                  <h3 className="font-black text-base sm:text-lg text-gray-950 group-hover:text-amber-700 transition">
                     {item.name}
                   </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 mt-1.5 leading-relaxed font-medium">
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1 leading-relaxed font-medium">
                     {item.desc}
                   </p>
                 </div>
 
                 {/* Bottom Row: Price & Action */}
-                <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
+                <div className="mt-4 pt-3.5 border-t border-gray-100 flex items-center justify-between gap-3">
                   <div>
-                    <span className="text-[11px] font-semibold text-gray-500 block">
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-gray-500 block">
                       Price
                     </span>
-                    <span className="text-base sm:text-lg font-black text-amber-950">
-                      {item.pricePrefix ? `${item.pricePrefix} ` : ""}
-                      {price}{" "}
-                      <span className="text-xs text-amber-800 font-bold">
-                        Birr
+                    {price != null ? (
+                      <span className="text-base sm:text-lg font-black text-amber-950">
+                        {item.pricePrefix ? `${item.pricePrefix} ` : ""}
+                        {price}{" "}
+                        <span className="text-xs text-amber-800 font-bold">
+                          Birr
+                        </span>
                       </span>
-                    </span>
+                    ) : (
+                      <span className="inline-block h-6 w-20 bg-amber-100/70 animate-pulse rounded-md mt-1" />
+                    )}
                   </div>
 
                   <button
-                    onClick={() => handleOrderClick(item.id)}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOrderClick(item.id);
+                    }}
                     disabled={!isAvailable && user?.role !== "admin"}
-                    className={`px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
+                    className={`min-h-[44px] px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
                       isAvailable || user?.role === "admin"
                         ? "bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white shadow-amber-200/60 active:scale-95"
                         : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
@@ -534,12 +523,12 @@ export default function Menu({ user: propUser, availability: propAvailability, s
         </section>
 
         {/* Quick Order Banner */}
-        <section className="bg-linear-to-r from-amber-500 to-orange-600 rounded-3xl p-6 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
+        <section className="bg-linear-to-r from-amber-500 to-orange-600 rounded-3xl p-5 sm:p-8 text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="space-y-1 text-center sm:text-left">
-            <h3 className="text-lg sm:text-xl font-black">
+            <h3 className="text-base sm:text-xl font-black">
               Ready to place your dorm delivery order?
             </h3>
-            <p className="text-xs sm:text-sm text-amber-100 font-medium">
+            <p className="text-xs sm:text-sm text-amber-100 font-medium leading-relaxed">
               Customize multiple items, select your dorm block, and track delivery in real time.
             </p>
           </div>
@@ -555,7 +544,7 @@ export default function Menu({ user: propUser, availability: propAvailability, s
               }
               navigate("/order");
             }}
-            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-white text-gray-950 font-extrabold text-sm hover:bg-amber-50 transition shadow-xs active:scale-98 flex items-center justify-center gap-2 cursor-pointer shrink-0"
+            className="w-full sm:w-auto min-h-[48px] px-6 py-3 rounded-2xl bg-white text-gray-950 font-extrabold text-sm hover:bg-amber-50 transition shadow-xs active:scale-98 flex items-center justify-center gap-2 cursor-pointer shrink-0"
           >
             <Utensils className="w-4 h-4 text-amber-600" />
             <span>Go to Order Form</span>
@@ -565,7 +554,7 @@ export default function Menu({ user: propUser, availability: propAvailability, s
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200/80 bg-white py-6 text-center text-xs text-gray-500">
+      <footer className="border-t border-gray-200/80 bg-white pt-6 pb-24 sm:pb-6 text-center text-xs text-gray-500">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
             © {new Date().getFullYear()} Fetan Delivery Service — Exclusively for AASTU Students.
