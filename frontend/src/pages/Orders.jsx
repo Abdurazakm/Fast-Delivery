@@ -24,11 +24,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Toast from "./Toast";
 import API from "../api";
 import { getSocket } from "../socket";
-import {
-  getRelevantChangeOptions,
-  getCustomerNoteLabel,
-  getEthiopianNoteBreakdown,
-} from "../utils/ethiopianCash";
+import { getRelevantChangeOptions } from "../utils/ethiopianCash";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -813,14 +809,7 @@ export default function Order() {
   const customNum = Number(customChangeInput);
   const isValidCustomChange =
     isCustomChange && !isNaN(customNum) && customNum > orderTotal;
-  const customChangeBreakdown = isValidCustomChange
-    ? {
-        amount: customNum,
-        change: customNum - orderTotal,
-        customerNotes: getCustomerNoteLabel(customNum),
-        changeNotes: getEthiopianNoteBreakdown(customNum - orderTotal),
-      }
-    : null;
+  const customChange = isValidCustomChange ? customNum - orderTotal : null;
 
   return (
     <div className="min-h-screen bg-gray-50/70 text-gray-900 pb-20 selection:bg-amber-100 selection:text-amber-900">
@@ -1478,7 +1467,7 @@ export default function Order() {
                       </span>
                     </button>
 
-                    {/* Dynamic Note Candidates (e.g. 200 ETB note -> 50 ETB change) */}
+                    {/* Dynamic Note Candidates (clean: "For 300 Birr" / "Change: 10 Birr") */}
                     {relevantChangeOptions.map((opt) => {
                       const isSelected =
                         changeRequested === String(opt.amount) && !isCustomChange;
@@ -1510,35 +1499,26 @@ export default function Order() {
                             </span>
                             <div>
                               <p className="font-black text-xs sm:text-sm">
-                                I have {opt.amount} Birr{" "}
-                                <span
-                                  className={`font-semibold text-[11px] ${
-                                    isSelected ? "text-emerald-100" : "text-gray-500"
-                                  }`}
-                                >
-                                  ({opt.customerNotes})
-                                </span>
+                                For {opt.amount} Birr
                               </p>
                               <p
-                                className={`text-[11px] font-medium ${
-                                  isSelected ? "text-emerald-100" : "text-emerald-700"
+                                className={`text-[11px] font-bold ${
+                                  isSelected ? "text-emerald-100" : "text-emerald-800"
                                 }`}
                               >
-                                Runner brings: <strong>{opt.change} Birr change</strong> ({opt.changeNotes})
+                                Change: {opt.change} Birr
                               </p>
                             </div>
                           </div>
-                          <div className="text-right shrink-0 ml-2">
-                            <span
-                              className={`text-xs font-black px-2 py-0.5 rounded-md ${
-                                isSelected
-                                  ? "bg-white/20 text-white"
-                                  : "bg-emerald-50 text-emerald-800 border border-emerald-200"
-                              }`}
-                            >
-                              +{opt.change} change
-                            </span>
-                          </div>
+                          <span
+                            className={`text-xs font-black px-2.5 py-1 rounded-lg ${
+                              isSelected
+                                ? "bg-white/20 text-white"
+                                : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            }`}
+                          >
+                            {opt.change} Birr change
+                          </span>
                         </button>
                       );
                     })}
@@ -1559,7 +1539,7 @@ export default function Order() {
                           }}
                           className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1 cursor-pointer py-1"
                         >
-                          + Other note combination (e.g. 500 Birr, custom notes)
+                          + Other cash amount
                         </button>
                       ) : (
                         <div className="p-3 rounded-xl bg-white border-2 border-emerald-400 space-y-2">
@@ -1597,14 +1577,10 @@ export default function Order() {
                               className="w-full px-3 py-2 text-xs font-black border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:outline-none"
                             />
                           </div>
-                          {customChangeBreakdown ? (
-                            <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-0.5 font-medium">
-                              <p>
-                                <strong>You pay:</strong> {customChangeBreakdown.amount} Birr ({customChangeBreakdown.customerNotes})
-                              </p>
-                              <p>
-                                <strong>Runner brings:</strong> {customChangeBreakdown.change} Birr change ({customChangeBreakdown.changeNotes})
-                              </p>
+                          {isValidCustomChange ? (
+                            <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 font-bold flex items-center justify-between">
+                              <span>Paying: {customNum} Birr</span>
+                              <span>Change: {customChange} Birr</span>
                             </div>
                           ) : (
                             <p className="text-[11px] font-bold text-rose-600">

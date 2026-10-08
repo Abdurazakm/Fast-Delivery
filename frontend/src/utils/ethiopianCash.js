@@ -77,10 +77,8 @@ export function getRelevantChangeOptions(total) {
   if (t < 50) {
     candidateAmounts.add(50);
     candidateAmounts.add(100);
-    candidateAmounts.add(200);
   } else if (t < 100) {
     candidateAmounts.add(100);
-    candidateAmounts.add(150);
     candidateAmounts.add(200);
   } else if (t < 200) {
     const next50 = Math.ceil(t / 50) * 50;
@@ -89,7 +87,6 @@ export function getRelevantChangeOptions(total) {
     }
     candidateAmounts.add(200);
     candidateAmounts.add(300);
-    candidateAmounts.add(400);
   } else if (t < 300) {
     const next50 = Math.ceil(t / 50) * 50;
     if (next50 > t && next50 < 300) {
@@ -97,7 +94,6 @@ export function getRelevantChangeOptions(total) {
     }
     candidateAmounts.add(300);
     candidateAmounts.add(400);
-    candidateAmounts.add(500);
   } else if (t < 400) {
     const next50 = Math.ceil(t / 50) * 50;
     if (next50 > t && next50 < 400) {
@@ -105,27 +101,20 @@ export function getRelevantChangeOptions(total) {
     }
     candidateAmounts.add(400);
     candidateAmounts.add(500);
-    candidateAmounts.add(600);
   } else {
     const next100 = Math.ceil(t / 100) * 100;
     if (next100 > t) candidateAmounts.add(next100);
     const next200 = Math.ceil(t / 200) * 200;
     if (next200 > t) candidateAmounts.add(next200);
     candidateAmounts.add(next200 + 200);
-    candidateAmounts.add(next200 + 400);
   }
 
   return Array.from(candidateAmounts)
     .filter((amt) => amt > t)
     .sort((a, b) => a - b)
-    .slice(0, 3)
-    .map((amt) => {
-      const change = amt - t;
-      return {
-        amount: amt,
-        change,
-        customerNotes: getCustomerNoteLabel(amt),
-        changeNotes: getEthiopianNoteBreakdown(change),
-      };
-    });
+    .slice(0, 2)
+    .map((amt) => ({
+      amount: amt,
+      change: amt - t,
+    }));
 }

@@ -21,10 +21,6 @@ import html2canvas from "html2canvas";
 import { FiDownload } from "react-icons/fi";
 import API, { BACKEND_URL } from "../../api";
 import { getSocket } from "../../socket";
-import {
-  getCustomerNoteLabel,
-  getEthiopianNoteBreakdown,
-} from "../../utils/ethiopianCash";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -1412,12 +1408,12 @@ Normal - 110 Birr, Special - 135 Birr
                                       className="text-teal-950 bg-teal-200/90 px-1.5 py-0.2 rounded text-[10px] font-black cursor-help"
                                       title={
                                         changeDue !== null
-                                          ? `Customer has: ${numPaid} ETB (${getCustomerNoteLabel(numPaid)}). Runner must bring: ${changeDue} ETB change (${getEthiopianNoteBreakdown(changeDue)}).`
-                                          : `Change requested for ${order.changeRequested} ETB`
+                                          ? `Customer paying: ${numPaid} ETB. Change: ${changeDue} ETB.`
+                                          : `Change: ${order.changeRequested} ETB`
                                       }
                                     >
                                       {changeDue !== null
-                                        ? `Bring: ${changeDue} ETB (for ${numPaid})`
+                                        ? `Change: ${changeDue} ETB (for ${numPaid})`
                                         : `Change: ${order.changeRequested}`}
                                     </span>
                                   );

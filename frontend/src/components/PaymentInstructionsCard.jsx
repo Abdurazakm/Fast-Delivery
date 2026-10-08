@@ -15,10 +15,6 @@ import {
 } from "lucide-react";
 import API, { BACKEND_URL } from "../api";
 import { scanReceiptImage } from "../utils/receiptOcr";
-import {
-  getCustomerNoteLabel,
-  getEthiopianNoteBreakdown,
-} from "../utils/ethiopianCash";
 
 const PAYMENT_METHODS = [
   {
@@ -251,26 +247,18 @@ export default function PaymentInstructionsCard({
           {hasChange ? (
             <div className="p-3.5 rounded-2xl bg-white border-2 border-emerald-200 space-y-2 text-xs sm:text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-gray-600 font-semibold">You will hand over:</span>
-                <span className="font-black text-gray-950">
-                  {numPaid} Birr{" "}
-                  <span className="font-normal text-xs text-gray-600">
-                    ({getCustomerNoteLabel(numPaid)})
-                  </span>
-                </span>
+                <span className="text-gray-600 font-semibold">Paying with:</span>
+                <span className="font-black text-gray-950">{numPaid} Birr</span>
               </div>
               <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-emerald-900 font-bold">
                 <span className="flex items-center gap-1.5">
                   <Coins className="w-4 h-4 text-emerald-600 shrink-0" />
-                  Runner brings change:
+                  Change:
                 </span>
                 <span className="font-black text-emerald-950 text-sm">
                   {changeDue.toFixed(2)} Birr
                 </span>
               </div>
-              <p className="text-[11px] text-emerald-800 font-semibold pt-0.5">
-                Change combination: {getEthiopianNoteBreakdown(changeDue)}
-              </p>
             </div>
           ) : (
             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white border border-gray-200 text-xs sm:text-sm font-bold text-gray-800">
@@ -281,7 +269,7 @@ export default function PaymentInstructionsCard({
 
           <div className="rounded-xl border border-emerald-200 bg-white/80 p-3 text-xs leading-relaxed text-gray-700">
             {hasChange
-              ? `💡 Please have your ${getCustomerNoteLabel(numPaid)} ready. Our delivery runner is bringing ${changeDue.toFixed(0)} Birr change (${getEthiopianNoteBreakdown(changeDue)}) directly to your door!`
+              ? `💡 Please have ${numPaid} Birr ready. Our delivery runner will hand you ${changeDue.toFixed(0)} Birr change upon delivery!`
               : `💡 Please have exact cash ready (${currentTotal.toFixed(0)} Birr). Our delivery runner will collect it directly at your door.`}
           </div>
         </div>
