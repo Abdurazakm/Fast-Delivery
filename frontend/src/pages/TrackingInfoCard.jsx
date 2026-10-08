@@ -25,7 +25,6 @@ import {
 import API from "../api";
 import { motion, AnimatePresence } from "framer-motion";
 import PaymentInstructionsCard from "../components/PaymentInstructionsCard";
-import { maskTrackingCode } from "../notificationStore";
 
 // Toast component for instant feedback
 function Toast({ message, type = "success", onClose, duration = 3000 }) {
@@ -590,7 +589,7 @@ export default function TrackingInfoCard({
                 </span>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="font-mono text-base font-black text-gray-950 truncate">
-                    {maskTrackingCode(currentOrder.trackingCode)}
+                    {currentOrder.trackingCode}
                   </span>
                   <button
                     type="button"

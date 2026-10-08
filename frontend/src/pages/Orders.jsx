@@ -21,7 +21,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import Toast from "./Toast";
 import API from "../api";
 import { getSocket } from "../socket";
-import { maskTrackingCode } from "../notificationStore";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -127,21 +126,17 @@ function OrderSuccessModal({
   useEffect(() => {
     if (isAdmin) return;
 
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          onTrackNow();
-          return 0;
-        }
-        return prev - 1;
-      });
+    if (countdown <= 0) {
+      onTrackNow(order?.trackingCode);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown((prev) => prev - 1);
     }, 900);
 
-    return () => clearInterval(timer);
-  }, [isAdmin, onTrackNow]);
-
-  const maskedCode = maskTrackingCode(order?.trackingCode);
+    return () => clearTimeout(timer);
+  }, [isAdmin, countdown, onTrackNow, order?.trackingCode]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -189,10 +184,10 @@ function OrderSuccessModal({
         <div className="mt-5 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between text-left">
           <div>
             <span className="text-xs font-bold uppercase tracking-wider text-gray-700 block">
-              {isAdmin ? "Full Tracking Code" : "Tracking Code"}
+              Tracking Code
             </span>
             <span className="font-mono text-base font-black text-gray-950 mt-0.5 block">
-              {isAdmin ? order.trackingCode : maskedCode}
+              {order?.trackingCode}
             </span>
           </div>
           <div className="text-right">
@@ -266,7 +261,7 @@ function OrderSuccessModal({
               {/* 3. View Customer Tracking View */}
               <button
                 type="button"
-                onClick={onTrackNow}
+                onClick={() => onTrackNow(order?.trackingCode)}
                 className="w-full min-h-[40px] py-2 text-xs sm:text-sm font-bold text-gray-600 hover:text-amber-800 transition flex items-center justify-center gap-1 cursor-pointer"
               >
                 <Bike className="w-4 h-4" />
@@ -277,7 +272,7 @@ function OrderSuccessModal({
             /* REGULAR CUSTOMER ACTIONS */
             <button
               type="button"
-              onClick={onTrackNow}
+              onClick={() => onTrackNow(order?.trackingCode)}
               className="w-full min-h-[50px] py-3.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm sm:text-base shadow-md shadow-amber-200/60 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Bike className="w-5 h-5 shrink-0" />
@@ -300,6 +295,7 @@ export default function Order() {
   const [tracking, setTracking] = useState(null);
   const [orderSuccessModal, setOrderSuccessModal] = useState(null);
   const [user, setUser] = useState(null);
+  const isUserAdmin = (user?.role || "").toLowerCase() === "admin";
   const [items, setItems] = useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -550,7 +546,7 @@ export default function Order() {
 
   const getSelectableFoodTypes = () => {
     const allFoodTypes = Object.keys(FOOD_TYPE_LABELS);
-    if (user?.role === "admin") return allFoodTypes;
+    if (isUserAdmin) return allFoodTypes;
 
     return allFoodTypes.filter(
       (foodType) => itemAvailability[foodType] !== false,
@@ -602,7 +598,7 @@ export default function Order() {
   };
 
   const handleConfirmOrder = async ({ forceCreateDuplicate = false } = {}) => {
-    if (user?.role !== "admin") {
+    if (!isUserAdmin) {
       const unavailableFoodTypes = Array.from(
         new Set(
           items
@@ -664,7 +660,7 @@ export default function Order() {
         let endpoint = "/orders";
         const headers = {};
 
-        if (user?.role === "admin") {
+        if (isUserAdmin) {
           endpoint = "/orders/manual";
           const token = localStorage.getItem("token");
           headers.Authorization = `Bearer ${token}`;
@@ -699,23 +695,31 @@ export default function Order() {
           }).catch(() => {});
         }
 
-        const orderSummary = {
-          trackingCode: finalTrackingCode,
-          trackingLink: orderData.trackUrl,
-          createdByAdmin: user?.role === "admin",
-          customerPhone: finalPhone,
-          paymentStatus: orderData.paymentStatus || "unpaid",
-          total: orderData.total ?? total,
-        };
+        if (isUserAdmin) {
+          const orderSummary = {
+            trackingCode: finalTrackingCode,
+            trackingLink: orderData.trackUrl,
+            createdByAdmin: true,
+            customerPhone: finalPhone,
+            paymentStatus: orderData.paymentStatus || "unpaid",
+            total: orderData.total ?? total,
+          };
 
-        setOrderSuccessModal(orderSummary);
-        setTracking(orderSummary);
+          setOrderSuccessModal(orderSummary);
+          setTracking(orderSummary);
+
+          // Reset form behind modal so admin can immediately take next phone order
+          setCustomer({ customerName: "", phone: "", location: "" });
+          setItems([buildDefaultItem("ertib")]);
+          setReviewMode(false);
+        } else {
+          // Regular customer (other user): immediately transition to live tracking page!
+          navigate(`/track/${encodeURIComponent(finalTrackingCode)}?justPlaced=1`, {
+            replace: true,
+          });
+          return;
+        }
       }
-
-      // Reset form behind modal
-      setCustomer({ customerName: "", phone: "", location: "" });
-      setItems([buildDefaultItem("ertib")]);
-      setReviewMode(false);
     } catch (err) {
       console.error("❌ Order failed:", err);
       const duplicatePayload = err.response?.data;
@@ -738,8 +742,9 @@ export default function Order() {
   const handleBack = () => setReviewMode(false);
 
   const handleTrackNow = (targetCode = orderSuccessModal?.trackingCode) => {
-    if (!targetCode) return;
-    navigate(`/track/${encodeURIComponent(targetCode)}?justPlaced=1`, {
+    const code = targetCode || orderSuccessModal?.trackingCode;
+    if (!code) return;
+    navigate(`/track/${encodeURIComponent(code)}?justPlaced=1`, {
       replace: true,
     });
   };
@@ -777,13 +782,15 @@ export default function Order() {
         />
       )}
 
-      {/* Role-Aware Order Success Modal */}
+      {/* Role-Aware Order Success Modal (for Admin Phone Orders) */}
       <AnimatePresence>
         {orderSuccessModal && (
           <OrderSuccessModal
             order={orderSuccessModal}
             buildManualOrderSmsMessage={buildManualOrderSmsMessage}
-            onTrackNow={() => handleTrackNow(orderSuccessModal.trackingCode)}
+            onTrackNow={(code) =>
+              handleTrackNow(code || orderSuccessModal.trackingCode)
+            }
             onTakeNextOrder={() => setOrderSuccessModal(null)}
             onGoDashboard={() => navigate("/admin")}
           />
@@ -806,7 +813,7 @@ export default function Order() {
           </h1>
 
           <div className="flex items-center gap-2">
-            {user?.role === "admin" ? (
+            {isUserAdmin ? (
               <Link
                 to="/admin"
                 className="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold transition"
@@ -860,7 +867,7 @@ export default function Order() {
               >
                 View Existing Order
               </button>
-              {user?.role === "admin" && (
+              {isUserAdmin && (
                 <button
                   type="button"
                   onClick={() =>
