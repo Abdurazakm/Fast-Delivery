@@ -24,6 +24,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import Toast from "./Toast";
 import API from "../api";
 import { getSocket } from "../socket";
+import {
+  getRelevantChangeOptions,
+  getCustomerNoteLabel,
+  getEthiopianNoteBreakdown,
+} from "../utils/ethiopianCash";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -328,6 +333,8 @@ export default function Order() {
   const [duplicateOrderHint, setDuplicateOrderHint] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("cod"); // default to COD for campus convenience
   const [changeRequested, setChangeRequested] = useState("exact");
+  const [isCustomChange, setIsCustomChange] = useState(false);
+  const [customChangeInput, setCustomChangeInput] = useState("");
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -788,6 +795,32 @@ export default function Order() {
     (sum, item) => sum + getUnitPrice(item) * (Number(item.quantity) || 1),
     0,
   );
+
+  const relevantChangeOptions = getRelevantChangeOptions(orderTotal);
+
+  // Auto-reset change requested if order total increases past previous note selection
+  useEffect(() => {
+    if (changeRequested !== "exact") {
+      const num = Number(changeRequested);
+      if (!isNaN(num) && num <= orderTotal) {
+        setChangeRequested("exact");
+        setIsCustomChange(false);
+        setCustomChangeInput("");
+      }
+    }
+  }, [orderTotal, changeRequested]);
+
+  const customNum = Number(customChangeInput);
+  const isValidCustomChange =
+    isCustomChange && !isNaN(customNum) && customNum > orderTotal;
+  const customChangeBreakdown = isValidCustomChange
+    ? {
+        amount: customNum,
+        change: customNum - orderTotal,
+        customerNotes: getCustomerNoteLabel(customNum),
+        changeNotes: getEthiopianNoteBreakdown(customNum - orderTotal),
+      }
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50/70 text-gray-900 pb-20 selection:bg-amber-100 selection:text-amber-900">
@@ -1380,38 +1413,207 @@ export default function Order() {
                 </button>
               </div>
 
-              {/* Need change selector if COD is selected */}
+              {/* Relevant COD Change Selection */}
               {paymentMethod === "cod" && (
-                <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-gray-800 flex items-center gap-1.5">
-                      <Coins className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      Do you need change?
+                <div className="p-4 rounded-2xl bg-linear-to-br from-emerald-50/70 via-white to-teal-50/60 border-2 border-emerald-200/90 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                      <Coins className="w-4 h-4 text-emerald-600 shrink-0" />
+                      Cash & Change Needed
                     </span>
-                    <span className="text-[11px] text-gray-500">
-                      Runner will prepare change
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                      Runner prepares change
                     </span>
                   </div>
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {[
-                      { id: "exact", label: "Exact Cash" },
-                      { id: "200", label: "For 200 ETB" },
-                      { id: "500", label: "For 500 ETB" },
-                      { id: "1000", label: "For 1000 ETB" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setChangeRequested(opt.id)}
-                        className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition cursor-pointer ${
-                          changeRequested === opt.id
-                            ? "bg-emerald-600 text-white shadow-sm"
-                            : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100"
+
+                  <div className="space-y-2">
+                    {/* Option 1: Exact Cash */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChangeRequested("exact");
+                        setIsCustomChange(false);
+                      }}
+                      className={`w-full p-3 rounded-xl border-2 text-left transition flex items-center justify-between cursor-pointer ${
+                        changeRequested === "exact" && !isCustomChange
+                          ? "border-emerald-600 bg-emerald-600 text-white shadow-xs"
+                          : "border-gray-200 bg-white text-gray-800 hover:border-emerald-300"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            changeRequested === "exact" && !isCustomChange
+                              ? "border-white bg-white"
+                              : "border-gray-400"
+                          }`}
+                        >
+                          {changeRequested === "exact" && !isCustomChange && (
+                            <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                          )}
+                        </span>
+                        <div>
+                          <p className="font-black text-xs sm:text-sm">
+                            Exact Cash ({orderTotal} Birr)
+                          </p>
+                          <p
+                            className={`text-[11px] font-medium ${
+                              changeRequested === "exact" && !isCustomChange
+                                ? "text-emerald-100"
+                                : "text-gray-500"
+                            }`}
+                          >
+                            No change needed • Exact money ready
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                          changeRequested === "exact" && !isCustomChange
+                            ? "bg-white/20 text-white"
+                            : "bg-gray-100 text-gray-700"
                         }`}
                       >
-                        {opt.label}
-                      </button>
-                    ))}
+                        0 Birr change
+                      </span>
+                    </button>
+
+                    {/* Dynamic Note Candidates (e.g. 200 ETB note -> 50 ETB change) */}
+                    {relevantChangeOptions.map((opt) => {
+                      const isSelected =
+                        changeRequested === String(opt.amount) && !isCustomChange;
+                      return (
+                        <button
+                          key={opt.amount}
+                          type="button"
+                          onClick={() => {
+                            setChangeRequested(String(opt.amount));
+                            setIsCustomChange(false);
+                          }}
+                          className={`w-full p-3 rounded-xl border-2 text-left transition flex items-center justify-between cursor-pointer ${
+                            isSelected
+                              ? "border-emerald-600 bg-emerald-600 text-white shadow-xs"
+                              : "border-gray-200 bg-white text-gray-800 hover:border-emerald-300"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                isSelected
+                                  ? "border-white bg-white"
+                                  : "border-gray-400"
+                              }`}
+                            >
+                              {isSelected && (
+                                <span className="w-2 h-2 rounded-full bg-emerald-600" />
+                              )}
+                            </span>
+                            <div>
+                              <p className="font-black text-xs sm:text-sm">
+                                I have {opt.amount} Birr{" "}
+                                <span
+                                  className={`font-semibold text-[11px] ${
+                                    isSelected ? "text-emerald-100" : "text-gray-500"
+                                  }`}
+                                >
+                                  ({opt.customerNotes})
+                                </span>
+                              </p>
+                              <p
+                                className={`text-[11px] font-medium ${
+                                  isSelected ? "text-emerald-100" : "text-emerald-700"
+                                }`}
+                              >
+                                Runner brings: <strong>{opt.change} Birr change</strong> ({opt.changeNotes})
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0 ml-2">
+                            <span
+                              className={`text-xs font-black px-2 py-0.5 rounded-md ${
+                                isSelected
+                                  ? "bg-white/20 text-white"
+                                  : "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              }`}
+                            >
+                              +{opt.change} change
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                    {/* Custom / Other Amount Note Input */}
+                    <div className="pt-1">
+                      {!isCustomChange ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCustomChange(true);
+                            const defaultCustom =
+                              relevantChangeOptions.length > 0
+                                ? relevantChangeOptions[relevantChangeOptions.length - 1].amount + 100
+                                : Math.ceil(orderTotal / 100) * 100 + 100;
+                            setCustomChangeInput(String(defaultCustom));
+                            setChangeRequested(String(defaultCustom));
+                          }}
+                          className="text-xs font-bold text-emerald-800 hover:text-emerald-950 underline flex items-center gap-1 cursor-pointer py-1"
+                        >
+                          + Other note combination (e.g. 500 Birr, custom notes)
+                        </button>
+                      ) : (
+                        <div className="p-3 rounded-xl bg-white border-2 border-emerald-400 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-black text-gray-800">
+                              Enter cash amount you will pay with (Birr):
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsCustomChange(false);
+                                setChangeRequested("exact");
+                                setCustomChangeInput("");
+                              }}
+                              className="text-[11px] font-bold text-gray-500 hover:text-gray-800 cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="5"
+                              min={orderTotal + 1}
+                              value={customChangeInput}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCustomChangeInput(val);
+                                const num = Number(val);
+                                if (!isNaN(num) && num > orderTotal) {
+                                  setChangeRequested(String(num));
+                                }
+                              }}
+                              placeholder={`More than ${orderTotal}`}
+                              className="w-full px-3 py-2 text-xs font-black border-2 border-gray-200 rounded-xl focus:border-emerald-500 focus:outline-none"
+                            />
+                          </div>
+                          {customChangeBreakdown ? (
+                            <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs text-emerald-950 space-y-0.5 font-medium">
+                              <p>
+                                <strong>You pay:</strong> {customChangeBreakdown.amount} Birr ({customChangeBreakdown.customerNotes})
+                              </p>
+                              <p>
+                                <strong>Runner brings:</strong> {customChangeBreakdown.change} Birr change ({customChangeBreakdown.changeNotes})
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] font-bold text-rose-600">
+                              Amount must be greater than order total ({orderTotal} Birr).
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

@@ -21,6 +21,10 @@ import html2canvas from "html2canvas";
 import { FiDownload } from "react-icons/fi";
 import API, { BACKEND_URL } from "../../api";
 import { getSocket } from "../../socket";
+import {
+  getCustomerNoteLabel,
+  getEthiopianNoteBreakdown,
+} from "../../utils/ethiopianCash";
 
 const DEFAULT_PRICING = {
   sambusaPrice: 30,
@@ -1400,11 +1404,24 @@ Normal - 110 Birr, Special - 135 Birr
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-teal-100 text-teal-800 border border-teal-300">
                                 <FaMoneyBillWave className="text-teal-700" />
                                 <span>COD</span>
-                                {order.changeRequested && order.changeRequested !== "exact" && (
-                                  <span className="text-teal-900 bg-teal-200/70 px-1 rounded text-[10px]">
-                                    Change: {order.changeRequested}
-                                  </span>
-                                )}
+                                {order.changeRequested && order.changeRequested !== "exact" && (() => {
+                                  const numPaid = Number(order.changeRequested);
+                                  const changeDue = !isNaN(numPaid) && numPaid > displayedTotal ? numPaid - displayedTotal : null;
+                                  return (
+                                    <span
+                                      className="text-teal-950 bg-teal-200/90 px-1.5 py-0.2 rounded text-[10px] font-black cursor-help"
+                                      title={
+                                        changeDue !== null
+                                          ? `Customer has: ${numPaid} ETB (${getCustomerNoteLabel(numPaid)}). Runner must bring: ${changeDue} ETB change (${getEthiopianNoteBreakdown(changeDue)}).`
+                                          : `Change requested for ${order.changeRequested} ETB`
+                                      }
+                                    >
+                                      {changeDue !== null
+                                        ? `Bring: ${changeDue} ETB (for ${numPaid})`
+                                        : `Change: ${order.changeRequested}`}
+                                    </span>
+                                  );
+                                })()}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-300">
