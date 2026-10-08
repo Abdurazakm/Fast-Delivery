@@ -411,66 +411,96 @@ export default function PaymentInstructionsCard({
           </div>
         )}
 
-        {/* Existing Proof Status Card (if verifying or partially_paid) */}
-        {(paymentStatus === "verifying" || paymentStatus === "partially_paid") &&
-          !showReuploadForm && (
-            <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/60 p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="font-black text-sm text-blue-950 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-600" />
-                  Submitted Payment Receipt
-                </span>
-                <span className="text-xs font-bold text-blue-700 uppercase bg-blue-100 px-2 py-0.5 rounded-md">
-                  {paymentStatus}
-                </span>
+        {/* Shortfall Due Banner (when order was edited and customer owes remaining balance) */}
+        {paymentStatus === "partially_paid" && (
+          <div className="rounded-2xl border-2 border-orange-300 bg-linear-to-r from-orange-50 via-amber-50 to-orange-50 p-4 text-orange-950 space-y-2.5 shadow-xs">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
+              <h4 className="font-black text-sm text-orange-950">
+                Additional Payment Required ({remainingDue.toFixed(2)} Birr)
+              </h4>
+            </div>
+            <p className="text-xs sm:text-sm font-semibold text-orange-900 leading-snug">
+              You added items to your order. You previously paid <strong>{order?.amountPaid || 0} Birr</strong>.
+              Your updated order total is <strong>{currentTotal.toFixed(2)} Birr</strong>.
+            </p>
+            <p className="text-xs font-bold text-orange-800">
+              👉 Please transfer the remaining <strong>{remainingDue.toFixed(2)} Birr</strong> below and upload your new transfer screenshot to confirm your updated meal!
+            </p>
+            {order?.paymentProofUrl && (
+              <div className="pt-1 flex items-center gap-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setFullImageModal(getProofImageUrl(order.paymentProofUrl))}
+                  className="inline-flex items-center gap-1 font-bold text-orange-800 underline underline-offset-2 hover:text-orange-950 cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View previously verified receipt ({order?.amountPaid || 0} Birr)</span>
+                </button>
               </div>
+            )}
+          </div>
+        )}
 
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {order?.transactionRef && (
-                  <div className="p-2.5 rounded-xl bg-white border border-blue-100">
-                    <span className="text-gray-500 block font-semibold text-[11px]">
-                      Reference / Txn ID
-                    </span>
-                    <span className="font-mono font-bold text-gray-900 break-all">
-                      {order.transactionRef}
-                    </span>
-                  </div>
-                )}
-                {order?.amountPaid !== undefined && (
-                  <div className="p-2.5 rounded-xl bg-white border border-blue-100">
-                    <span className="text-gray-500 block font-semibold text-[11px]">
-                      Reported Amount
-                    </span>
-                    <span className="font-black text-gray-900">
-                      {order.amountPaid} Birr
-                    </span>
-                  </div>
-                )}
-              </div>
+        {/* Existing Proof Status Card (if verifying) */}
+        {paymentStatus === "verifying" && !showReuploadForm && (
+          <div className="rounded-2xl border-2 border-blue-200 bg-blue-50/60 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-black text-sm text-blue-950 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-blue-600" />
+                Submitted Payment Receipt
+              </span>
+              <span className="text-xs font-bold text-blue-700 uppercase bg-blue-100 px-2 py-0.5 rounded-md">
+                {paymentStatus}
+              </span>
+            </div>
 
-              {order?.paymentProofUrl && (
-                <div className="flex items-center gap-3 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setFullImageModal(getProofImageUrl(order.paymentProofUrl))}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-white border border-blue-200 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition cursor-pointer"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>View Submitted Receipt</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowReuploadForm(true)}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-gray-900 transition cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Re-upload New Receipt</span>
-                  </button>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              {order?.transactionRef && (
+                <div className="p-2.5 rounded-xl bg-white border border-blue-100">
+                  <span className="text-gray-500 block font-semibold text-[11px]">
+                    Reference / Txn ID
+                  </span>
+                  <span className="font-mono font-bold text-gray-900 break-all">
+                    {order.transactionRef}
+                  </span>
+                </div>
+              )}
+              {order?.amountPaid !== undefined && (
+                <div className="p-2.5 rounded-xl bg-white border border-blue-100">
+                  <span className="text-gray-500 block font-semibold text-[11px]">
+                    Reported Amount
+                  </span>
+                  <span className="font-black text-gray-900">
+                    {order.amountPaid} Birr
+                  </span>
                 </div>
               )}
             </div>
-          )}
+
+            {order?.paymentProofUrl && (
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setFullImageModal(getProofImageUrl(order.paymentProofUrl))}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-white border border-blue-200 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>View Submitted Receipt</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowReuploadForm(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-gray-900 transition cursor-pointer"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Re-upload New Receipt</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bank Account Numbers (if unpaid, partially paid, or user wants to review) */}
         {(paymentStatus === "unpaid" || paymentStatus === "partially_paid" || showReuploadForm) && (

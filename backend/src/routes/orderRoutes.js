@@ -655,6 +655,8 @@ router.put(
         updateData.amountPaid = Math.max(0, Number(amountPaid));
       } else if (paymentStatus === "paid") {
         updateData.amountPaid = order.total;
+      } else if (paymentStatus === "unpaid" || paymentStatus === "rejected") {
+        updateData.amountPaid = 0;
       }
 
       const updatedOrder = await prisma.order.update({
@@ -950,12 +952,21 @@ router.put(
 
         computedTotal = 0;
         builtItems = items.map((it) => {
-          const unitPrice = calcUnitPrice(it, pricing);
+          const calculatedPrice = calcUnitPrice(it, pricing);
+          const unitPrice =
+            calculatedPrice > 0
+              ? calculatedPrice
+              : (Number(it.unitPrice) || 0);
           const quantity = parseInt(it.quantity) || 1;
           const lineTotal = unitPrice * quantity;
           computedTotal += lineTotal;
           return { ...it, quantity, unitPrice, lineTotal };
         });
+      }
+
+      const reqTotal = Number(req.body.total);
+      if (computedTotal === 0 && Number.isFinite(reqTotal) && reqTotal > 0) {
+        computedTotal = reqTotal;
       }
 
       // ----------------------------------------------------
@@ -975,7 +986,8 @@ router.put(
       const wasAlreadyApprovedOrPartial =
         alreadyPaidAmount > 0 ||
         order.paymentStatus === "paid" ||
-        order.paymentStatus === "partially_paid";
+        order.paymentStatus === "partially_paid" ||
+        order.paymentStatus === "verifying";
 
       if (wasAlreadyApprovedOrPartial) {
         if (computedTotal > alreadyPaidAmount) {

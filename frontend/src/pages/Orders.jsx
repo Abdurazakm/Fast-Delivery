@@ -670,7 +670,11 @@ export default function Order() {
 
         setEditMode(false);
         setEditCode(null);
-        navigate(`/track/${encodeURIComponent(updated.trackingCode || editCode)}`, {
+        const targetUrl =
+          updated.paymentStatus === "partially_paid" || updated.paymentStatus === "unpaid"
+            ? `/track/${encodeURIComponent(updated.trackingCode || editCode)}#payment-card`
+            : `/track/${encodeURIComponent(updated.trackingCode || editCode)}`;
+        navigate(targetUrl, {
           replace: true,
         });
       } else {
@@ -849,7 +853,7 @@ export default function Order() {
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
         <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
           <Link
-            to="/"
+            to="/menu"
             className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-700 hover:text-amber-600 py-1.5 px-2.5 rounded-xl hover:bg-amber-50 transition"
           >
             <ArrowLeft className="w-4 h-4" />

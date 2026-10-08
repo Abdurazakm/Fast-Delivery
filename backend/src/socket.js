@@ -80,6 +80,13 @@ function toOrderPayload(order) {
     total: order.total,
     items: order.items || [],
     source: order.source,
+    paymentMethod: order.paymentMethod || "online",
+    changeRequested: order.changeRequested || "exact",
+    amountPaid: order.amountPaid ?? 0,
+    paymentProofUrl: order.paymentProofUrl || null,
+    transactionRef: order.transactionRef || null,
+    paymentProofAt: order.paymentProofAt || null,
+    userId: order.userId || null,
   };
 }
 
