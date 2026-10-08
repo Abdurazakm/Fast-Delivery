@@ -321,6 +321,7 @@ export default function Order() {
   const [isCustomChange, setIsCustomChange] = useState(false);
   const [customChangeInput, setCustomChangeInput] = useState("");
   const [isEditingDelivery, setIsEditingDelivery] = useState(false);
+  const [activeItemIndex, setActiveItemIndex] = useState(0);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -622,11 +623,23 @@ export default function Order() {
   const addItem = () => {
     const selectable = getSelectableFoodTypes();
     const fallbackFoodType = selectable.length > 0 ? selectable[0] : "ertib";
-    setItems((prev) => [...prev, buildDefaultItem(fallbackFoodType)]);
+    setItems((prev) => {
+      const next = [...prev, buildDefaultItem(fallbackFoodType)];
+      setActiveItemIndex(next.length - 1);
+      return next;
+    });
   };
 
   const removeItem = (index) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
+    setItems((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      setActiveItemIndex((curr) => {
+        if (curr === index) return Math.max(0, next.length - 1);
+        if (curr > index) return curr - 1;
+        return curr;
+      });
+      return next;
+    });
   };
 
   const getSelectableFoodTypes = () => {
@@ -1038,29 +1051,87 @@ export default function Order() {
               {items.map((item, index) => {
                 const unitPrice = getUnitPrice(item);
                 const lineTotal = unitPrice * (Number(item.quantity) || 1);
+                const isItemExpanded =
+                  items.length === 1 || activeItemIndex === index;
+
+                if (!isItemExpanded) {
+                  return (
+                    <div
+                      key={index}
+                      className="bg-white rounded-2xl p-3.5 sm:p-4 border border-gray-100 shadow-2xs flex items-center justify-between gap-3 group transition hover:border-amber-300"
+                    >
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full shrink-0">
+                            Item #{index + 1}
+                          </span>
+                          <span className="font-extrabold text-sm sm:text-base text-gray-950 truncate">
+                            {FOOD_TYPE_LABELS[item.foodType]}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate font-medium">
+                          {describeItem(item)} • {item.quantity} × {unitPrice} Birr
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-black text-sm sm:text-base text-amber-950">
+                          {lineTotal} Birr
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setActiveItemIndex(index)}
+                          className="px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800 text-gray-800 text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          className="w-8 h-8 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition cursor-pointer"
+                          title="Remove item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div
                     key={index}
                     className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4 relative"
                   >
-                    {/* Item Header & Remove */}
+                    {/* Item Header & Remove/Done */}
                     <div className="flex items-center justify-between pb-1 border-b border-gray-100">
                       <span className="text-xs font-black uppercase tracking-wider text-gray-700">
-                        {items.length > 1 ? `Item #${index + 1}` : "Select Food"}
+                        {items.length > 1 ? `Editing Item #${index + 1}` : "Select Food"}
                       </span>
 
-                      {items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="text-xs font-bold text-gray-500 hover:text-rose-600 flex items-center gap-1 transition cursor-pointer py-1 px-2 rounded-lg hover:bg-rose-50"
-                          title="Remove item"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Remove</span>
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveItemIndex(null)}
+                            className="text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-xl border border-amber-200 transition cursor-pointer"
+                          >
+                            Done ✓
+                          </button>
+                        )}
+                        {items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeItem(index)}
+                            className="text-xs font-bold text-gray-500 hover:text-rose-600 flex items-center gap-1 transition cursor-pointer py-1 px-2 rounded-lg hover:bg-rose-50"
+                            title="Remove item"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Food Selection Chips */}
@@ -1302,15 +1373,29 @@ export default function Order() {
               <button
                 type="button"
                 onClick={addItem}
-                className="w-full min-h-[50px] py-3.5 border-2 border-dashed border-amber-300 hover:border-amber-500 bg-amber-50/60 hover:bg-amber-100/60 rounded-2xl text-amber-900 font-extrabold text-sm sm:text-base transition flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98"
+                className="w-full min-h-[48px] py-3 border-2 border-dashed border-gray-300 hover:border-amber-400 bg-white hover:bg-amber-50/40 rounded-2xl text-gray-800 hover:text-amber-900 font-extrabold text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-98"
               >
                 <Plus className="w-4 h-4 text-amber-600" />
                 <span>Add Another Food Item</span>
               </button>
             </div>
 
-            {/* Delivery Destination Card (Smart Collapsed vs Expanded) */}
-            {hasPrefilledDelivery && !isEditingDelivery ? (
+            {/* SECTION 2: DELIVERY DESTINATION */}
+            <div className="space-y-3 pt-3 border-t border-gray-200/80">
+              <div className="px-1 flex items-center justify-between">
+                <h2 className="font-extrabold text-base text-gray-950 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-amber-600" />
+                  <span>Delivery Destination</span>
+                </h2>
+                {hasPrefilledDelivery && !isEditingDelivery && (
+                  <span className="text-xs font-semibold text-gray-500">
+                    AASTU Campus
+                  </span>
+                )}
+              </div>
+
+              {/* Delivery Destination Card (Smart Collapsed vs Expanded) */}
+              {hasPrefilledDelivery && !isEditingDelivery ? (
               <div className="space-y-2">
                 <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-100 shadow-sm flex items-center justify-between gap-3 group transition-all hover:border-amber-300">
                   <div className="flex items-center gap-3 min-w-0">
@@ -1459,6 +1544,7 @@ export default function Order() {
                 </div>
               </div>
             )}
+            </div>
 
             {/* Total & Review CTA Bar (Mobile First: Sticky bar on mobile, card on desktop) */}
             <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl -mx-4 px-4 py-3.5 sm:static sm:mx-0 sm:p-5 sm:rounded-3xl sm:border sm:border-gray-100 sm:shadow-sm space-y-3 sm:space-y-4">
