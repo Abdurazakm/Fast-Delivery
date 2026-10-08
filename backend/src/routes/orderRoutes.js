@@ -34,36 +34,12 @@ const { sendNotificationForOrder, sendNotificationToUser } = require("../service
 const { maskTrackingCode } = require("../utils/masking");
 const fs = require("fs");
 const path = require("path");
-const multer = require("multer");
 const { parseReceiptText } = require("../utils/receiptParser");
-
-const receiptsDir = path.join(__dirname, "../../../uploads/receipts");
-if (!fs.existsSync(receiptsDir)) {
-  fs.mkdirSync(receiptsDir, { recursive: true });
-}
-
-const receiptStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, receiptsDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `receipt-${uniqueSuffix}${ext}`);
-  },
-});
-
-const uploadReceipt = multer({
-  storage: receiptStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only image files are allowed for payment proof"));
-    }
-  },
-});
+const {
+  uploadReceipt,
+  getUploadedFileUrl,
+  deleteUploadedFile,
+} = require("../utils/cloudinary");
 
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
@@ -714,7 +690,7 @@ router.post(
 
       if (!order) {
         if (req.file) {
-          try { fs.unlinkSync(req.file.path); } catch {}
+          await deleteUploadedFile(req.file);
         }
         return res
           .status(404)
@@ -736,7 +712,7 @@ router.post(
 
         if (existingOrderWithRef) {
           if (req.file) {
-            try { fs.unlinkSync(req.file.path); } catch {}
+            await deleteUploadedFile(req.file);
           }
           return res.status(409).json({
             message: `This transaction reference (${normalizedRef}) was already used for order (${existingOrderWithRef.trackingCode}). Reused receipts cannot be accepted.`,
@@ -754,7 +730,7 @@ router.post(
       }
 
       const paymentProofUrl = req.file
-        ? `/uploads/receipts/${req.file.filename}`
+        ? getUploadedFileUrl(req.file)
         : order.paymentProofUrl;
 
       const updateData = {
