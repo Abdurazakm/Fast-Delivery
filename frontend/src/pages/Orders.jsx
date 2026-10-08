@@ -328,7 +328,25 @@ export default function Order() {
   useEffect(() => {
     const fetchUser = async () => {
       const token = localStorage.getItem("token");
-      if (!token) return;
+      if (!token) {
+        // Guest user: restore previously used delivery details on this device
+        try {
+          const savedGuest = localStorage.getItem("ertib_guest_delivery");
+          if (savedGuest) {
+            const parsed = JSON.parse(savedGuest);
+            if (parsed && typeof parsed === "object") {
+              setCustomer((prev) => ({
+                customerName: parsed.customerName || prev.customerName,
+                phone: parsed.phone || prev.phone,
+                location: parsed.location || prev.location,
+              }));
+            }
+          }
+        } catch (e) {
+          console.error("Failed to parse saved guest delivery details:", e);
+        }
+        return;
+      }
       try {
         const res = await API.get("/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
@@ -503,7 +521,15 @@ export default function Order() {
 
   const handleCustomerChange = (e) => {
     const { name, value } = e.target;
-    setCustomer((prev) => ({ ...prev, [name]: value }));
+    setCustomer((prev) => {
+      const next = { ...prev, [name]: value };
+      if (!user) {
+        try {
+          localStorage.setItem("ertib_guest_delivery", JSON.stringify(next));
+        } catch {}
+      }
+      return next;
+    });
   };
 
   const handleItemChange = (index, e) => {
@@ -709,6 +735,18 @@ export default function Order() {
 
         localStorage.setItem("last_order_tracking", finalTrackingCode);
         localStorage.setItem("last_order_phone", finalPhone);
+        if (!user) {
+          try {
+            localStorage.setItem(
+              "ertib_guest_delivery",
+              JSON.stringify({
+                customerName: customer.customerName,
+                phone: finalPhone,
+                location: customer.location,
+              })
+            );
+          } catch {}
+        }
 
         const socket = getSocket();
         if (socket) {
@@ -949,124 +987,6 @@ export default function Order() {
           </div>
         ) : !reviewMode ? (
           <form onSubmit={handleReview} className="space-y-5">
-            {/* Delivery Information Card (Smart Collapsed vs Expanded) */}
-            {hasPrefilledDelivery && !isEditingDelivery ? (
-              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-100 shadow-sm flex items-center justify-between gap-3 group transition-all hover:border-amber-300">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 shadow-xs">
-                    <MapPin className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0 space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full shrink-0">
-                        Delivering To
-                      </span>
-                      <span className="text-xs font-bold text-gray-500 truncate">
-                        {customer.customerName} • {customer.phone}
-                      </span>
-                    </div>
-                    <p className="font-extrabold text-sm sm:text-base text-gray-950 truncate">
-                      {customer.location}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsEditingDelivery(true)}
-                  className="px-3.5 py-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800 active:bg-gray-200 text-gray-800 text-xs font-extrabold transition flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 shadow-xs"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  <span>Change</span>
-                </button>
-              </div>
-            ) : (
-              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-sm space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-amber-600" />
-                    <h2 className="font-extrabold text-base text-gray-950">
-                      Delivery Details
-                    </h2>
-                  </div>
-                  {hasPrefilledDelivery && (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingDelivery(false)}
-                      className="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-3 py-1 rounded-xl border border-amber-200 transition cursor-pointer"
-                    >
-                      Done ✓
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-3.5">
-                  {/* Name Input */}
-                  <div>
-                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                      Your Name
-                    </label>
-                    <div className="relative">
-                      <User className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        name="customerName"
-                        placeholder="e.g. Dawit Kebede"
-                        value={customer.customerName}
-                        onChange={handleCustomerChange}
-                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Phone Input */}
-                  <div>
-                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                      Phone Number
-                    </label>
-                    <div className="relative">
-                      <Phone className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="tel"
-                        name="phone"
-                        placeholder="0911 234 567"
-                        value={customer.phone}
-                        onChange={handleCustomerChange}
-                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Location Input with Datalist */}
-                  <div>
-                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                      AASTU Dorm Block & Room
-                    </label>
-                    <div className="relative">
-                      <MapPin className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                      <input
-                        list="blockOptions"
-                        type="text"
-                        name="location"
-                        placeholder="e.g. Block 14, Room 204"
-                        value={customer.location}
-                        onChange={handleCustomerChange}
-                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
-                        required
-                      />
-                      <datalist id="blockOptions">
-                        {Array.from({ length: 28 }, (_, i) => (
-                          <option key={i + 1} value={`Block ${i + 1}`} />
-                        ))}
-                      </datalist>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Food Items List */}
             <div className="space-y-4">
               <div className="flex items-center justify-between px-1">
@@ -1322,6 +1242,157 @@ export default function Order() {
                 <span>Add Another Food Item</span>
               </button>
             </div>
+
+            {/* Delivery Destination Card (Smart Collapsed vs Expanded) */}
+            {hasPrefilledDelivery && !isEditingDelivery ? (
+              <div className="space-y-2">
+                <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-100 shadow-sm flex items-center justify-between gap-3 group transition-all hover:border-amber-300">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 shadow-xs">
+                      <MapPin className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
+                          {!user && <Sparkles className="w-2.5 h-2.5 text-amber-700" />}
+                          {user ? "Delivering To" : "Saved on this device"}
+                        </span>
+                        <span className="text-xs font-bold text-gray-500 truncate">
+                          {customer.customerName} • {customer.phone}
+                        </span>
+                      </div>
+                      <p className="font-extrabold text-sm sm:text-base text-gray-950 truncate">
+                        {customer.location}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingDelivery(true)}
+                    className="px-3.5 py-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800 active:bg-gray-200 text-gray-800 text-xs font-extrabold transition flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 shadow-xs"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span>Change</span>
+                  </button>
+                </div>
+
+                {!user && (
+                  <div className="flex items-center justify-between px-2 text-xs">
+                    <span className="flex items-center gap-1 text-gray-500 text-[11px]">
+                      <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
+                      1-tap reordering active
+                    </span>
+                    <Link
+                      to="/login?redirect=/order"
+                      className="text-amber-700 hover:text-amber-800 font-bold hover:underline text-[11px]"
+                    >
+                      Have an account? Log in →
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-amber-600" />
+                    <h2 className="font-extrabold text-base text-gray-950">
+                      Delivery Details
+                    </h2>
+                  </div>
+                  {hasPrefilledDelivery && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingDelivery(false)}
+                      className="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-3 py-1 rounded-xl border border-amber-200 transition cursor-pointer"
+                    >
+                      Done ✓
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3.5">
+                  {/* Name Input */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
+                      Your Name
+                    </label>
+                    <div className="relative">
+                      <User className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        name="customerName"
+                        placeholder="e.g. Dawit Kebede"
+                        value={customer.customerName}
+                        onChange={handleCustomerChange}
+                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone Input */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        name="phone"
+                        placeholder="0911 234 567"
+                        value={customer.phone}
+                        onChange={handleCustomerChange}
+                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Location Input with Datalist */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
+                      AASTU Dorm Block & Room
+                    </label>
+                    <div className="relative">
+                      <MapPin className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        list="blockOptions"
+                        type="text"
+                        name="location"
+                        placeholder="e.g. Block 14, Room 204"
+                        value={customer.location}
+                        onChange={handleCustomerChange}
+                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                        required
+                      />
+                      <datalist id="blockOptions">
+                        {Array.from({ length: 28 }, (_, i) => (
+                          <option key={i + 1} value={`Block ${i + 1}`} />
+                        ))}
+                      </datalist>
+                    </div>
+                  </div>
+
+                  {!user && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-1.5 border-t border-gray-100 text-xs">
+                      <span className="flex items-center gap-1 text-amber-700 font-semibold text-[11px]">
+                        <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                        We'll remember your name & dorm on this device!
+                      </span>
+                      <Link
+                        to="/login?redirect=/order"
+                        className="text-amber-800 font-bold hover:underline text-[11px]"
+                      >
+                        Have an account? Log in →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Total & Review CTA Bar (Mobile First: Sticky bar on mobile, card on desktop) */}
             <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl -mx-4 px-4 py-3.5 sm:static sm:mx-0 sm:p-5 sm:rounded-3xl sm:border sm:border-gray-100 sm:shadow-sm space-y-3 sm:space-y-4">
