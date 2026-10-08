@@ -15,6 +15,9 @@ import {
   Receipt,
   AlertCircle,
   X,
+  Banknote,
+  Smartphone,
+  Coins,
 } from "lucide-react";
 import { FaPaperPlane as FaPaperPlaneIcon } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -323,6 +326,8 @@ export default function Order() {
   const [editCode, setEditCode] = useState(null);
   const [toast, setToast] = useState(null);
   const [duplicateOrderHint, setDuplicateOrderHint] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState("cod"); // default to COD for campus convenience
+  const [changeRequested, setChangeRequested] = useState("exact");
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -637,6 +642,8 @@ export default function Order() {
       ...customer,
       items: itemList,
       total,
+      paymentMethod,
+      changeRequested: paymentMethod === "cod" ? changeRequested : "exact",
       ...(fcmToken ? { fcmToken } : {}),
       ...(forceCreateDuplicate ? { forceCreateDuplicate: true } : {}),
     };
@@ -701,7 +708,11 @@ export default function Order() {
             trackingLink: orderData.trackUrl,
             createdByAdmin: true,
             customerPhone: finalPhone,
-            paymentStatus: orderData.paymentStatus || "unpaid",
+            paymentStatus:
+              orderData.paymentStatus ||
+              (paymentMethod === "cod" ? "pending_cash" : "unpaid"),
+            paymentMethod,
+            changeRequested,
             total: orderData.total ?? total,
           };
 
@@ -1283,6 +1294,120 @@ export default function Order() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Payment Method Selection */}
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-xs uppercase tracking-wider text-gray-700">
+                  Payment Method
+                </h3>
+                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Campus Friendly
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Cash on Delivery option */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("cod")}
+                  className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between ${
+                    paymentMethod === "cod"
+                      ? "border-emerald-500 bg-emerald-50/50 shadow-sm ring-2 ring-emerald-500/20"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <span className="flex items-center gap-2 font-black text-gray-950 text-sm">
+                      <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
+                      Cash on Delivery
+                    </span>
+                    <span
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        paymentMethod === "cod"
+                          ? "border-emerald-600 bg-emerald-600"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {paymentMethod === "cod" && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                      )}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 font-medium">
+                    Pay cash directly to the runner when delivered to your dorm.
+                  </p>
+                </button>
+
+                {/* Mobile / Bank Transfer option */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("online")}
+                  className={`p-3.5 rounded-2xl border-2 text-left transition-all flex flex-col justify-between ${
+                    paymentMethod === "online"
+                      ? "border-amber-500 bg-amber-50/50 shadow-sm ring-2 ring-amber-500/20"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-1">
+                    <span className="flex items-center gap-2 font-black text-gray-950 text-sm">
+                      <Smartphone className="w-4 h-4 text-amber-600 shrink-0" />
+                      Telebirr / CBE
+                    </span>
+                    <span
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        paymentMethod === "online"
+                          ? "border-amber-600 bg-amber-600"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {paymentMethod === "online" && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                      )}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 font-medium">
+                    Pay via Telebirr/CBE & upload screenshot on tracking page.
+                  </p>
+                </button>
+              </div>
+
+              {/* Need change selector if COD is selected */}
+              {paymentMethod === "cod" && (
+                <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                      <Coins className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      Do you need change?
+                    </span>
+                    <span className="text-[11px] text-gray-500">
+                      Runner will prepare change
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { id: "exact", label: "Exact Cash" },
+                      { id: "200", label: "For 200 ETB" },
+                      { id: "500", label: "For 500 ETB" },
+                      { id: "1000", label: "For 1000 ETB" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setChangeRequested(opt.id)}
+                        className={`py-2 px-1 text-center rounded-xl text-xs font-bold transition cursor-pointer ${
+                          changeRequested === opt.id
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Grand Total */}

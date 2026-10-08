@@ -14,6 +14,8 @@ const adminRoutes = require("./src/routes/adminRoutes");
 const availabilityRoutes = require("./src/routes/availability");
 const notificationsRoutes = require("./src/routes/notificationsRoutes");
 
+const path = require("path");
+
 const app = express();
 const server = http.createServer(app);
 
@@ -21,6 +23,7 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json());
 app.use(morgan("dev"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // API Routes
 app.use("/api/auth", authRoutes); // Handles user & admin login/signup

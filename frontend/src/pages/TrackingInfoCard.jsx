@@ -677,17 +677,49 @@ export default function TrackingInfoCard({
                   Order Items ({currentOrder.items.length})
                 </h3>
               </div>
-              <span
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                  paymentStatus === "paid"
-                    ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                    : "bg-amber-100 text-amber-800 border border-amber-200"
-                }`}
-              >
-                {paymentStatus === "paid"
-                  ? "✓ Paid & Confirmed"
-                  : "⚠ Payment Pending"}
-              </span>
+              {(() => {
+                const isCod = (currentOrder?.paymentMethod || "").toLowerCase() === "cod";
+                if (paymentStatus === "paid") {
+                  return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      ✓ Paid & Confirmed
+                    </span>
+                  );
+                }
+                if (isCod || paymentStatus === "pending_cash") {
+                  return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200">
+                      💵 Cash on Delivery
+                    </span>
+                  );
+                }
+                if (paymentStatus === "verifying") {
+                  return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                      🔍 Verifying Proof
+                    </span>
+                  );
+                }
+                if (paymentStatus === "partially_paid") {
+                  return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200">
+                      ⚠️ Partial Paid ({currentOrder.amountPaid || 0} Birr)
+                    </span>
+                  );
+                }
+                if (paymentStatus === "rejected") {
+                  return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                      ✕ Proof Rejected
+                    </span>
+                  );
+                }
+                return (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                    ⚠ Payment Pending
+                  </span>
+                );
+              })()}
             </div>
 
             <div className="divide-y divide-gray-100">
@@ -751,15 +783,23 @@ export default function TrackingInfoCard({
           </div>
         )}
 
-        {/* Payment Instructions (If unpaid) */}
-        {paymentStatus === "unpaid" && !isCanceled && (
+        {/* Payment Instructions & Proof Uploader / COD (If not canceled) */}
+        {!isCanceled && (
           <PaymentInstructionsCard
+            order={currentOrder}
             amount={totalPrice}
             trackingCode={currentOrder.trackingCode}
             trackingLink={currentOrder.trackUrl}
             onCopy={(copyMessage) =>
               setToast({ message: copyMessage, type: "success" })
             }
+            onOrderUpdated={(updated) => {
+              setCurrentOrder((prev) => ({ ...prev, ...updated }));
+              setToast({
+                message: "Payment proof submitted successfully!",
+                type: "success",
+              });
+            }}
           />
         )}
 

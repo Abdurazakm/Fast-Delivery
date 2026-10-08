@@ -62,10 +62,12 @@ export default function TrackOrder() {
 
     socket.emit("join-order", code);
     socket.on("order:updated", handleOrderUpdated);
+    socket.on("order:payment-updated", handleOrderUpdated);
     socket.on("order:deleted", handleOrderDeleted);
 
     return () => {
       socket.off("order:updated", handleOrderUpdated);
+      socket.off("order:payment-updated", handleOrderUpdated);
       socket.off("order:deleted", handleOrderDeleted);
       socket.emit("leave-order", code);
     };

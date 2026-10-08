@@ -10,12 +10,16 @@ import {
   FaTrash,
   FaCopy,
   FaExternalLinkAlt,
+  FaEye,
+  FaCheck,
+  FaTimes,
+  FaMoneyBillWave,
 } from "react-icons/fa";
 import { FiArrowLeft } from "react-icons/fi";
 import dayjs from "dayjs";
 import html2canvas from "html2canvas";
 import { FiDownload } from "react-icons/fi";
-import API from "../../api";
+import API, { BACKEND_URL } from "../../api";
 import { getSocket } from "../../socket";
 
 const DEFAULT_PRICING = {
@@ -66,6 +70,14 @@ export default function AdminDashboard({ user }) {
   const [smsDay, setSmsDay] = useState(""); // Mon, Tue, etc.
   const [smsSending, setSmsSending] = useState(false);
   const [toast, setToast] = useState(null);
+  const [proofModalOrder, setProofModalOrder] = useState(null);
+  const [partialAmountInput, setPartialAmountInput] = useState("");
+
+  const getReceiptUrl = (path) => {
+    if (!path) return null;
+    if (path.startsWith("http://") || path.startsWith("https://")) return path;
+    return `${BACKEND_URL}${path}`;
+  };
 
 
   const roleLower = (user?.role || "").toLowerCase();
@@ -293,32 +305,45 @@ export default function AdminDashboard({ user }) {
     }
   };
 
-  const updatePaymentStatus = async (id, newPaymentStatus) => {
-    if (!isAdmin) {
-      setMessage("⛔ Employ accounts have read-only access.");
+  const updatePaymentStatus = async (id, newPaymentStatus, amountPaid = null) => {
+    if (!canManageStatus) {
+      setMessage("⛔ You do not have permission to update payment status.");
       return;
     }
     try {
       const token = localStorage.getItem("token");
+      const payload = { paymentStatus: newPaymentStatus };
+      if (amountPaid !== null && !isNaN(Number(amountPaid))) {
+        payload.amountPaid = Number(amountPaid);
+      }
 
-      await API.put(
+      const res = await API.put(
         `/orders/${id}/payment-status`,
-        { paymentStatus: newPaymentStatus },
+        payload,
         { headers: { Authorization: `Bearer ${token}` } },
       );
+
+      const updated = res.data?.order;
 
       setOrders((prevOrders) =>
         (prevOrders || []).map((order) =>
           order.id === id
-            ? { ...order, paymentStatus: newPaymentStatus }
+            ? {
+                ...order,
+                ...(updated || {}),
+                paymentStatus: newPaymentStatus,
+                ...(amountPaid !== null ? { amountPaid: Number(amountPaid) } : {}),
+              }
             : order,
         ),
       );
 
       setMessage("✅ Payment status updated successfully");
+      showToast(`Payment updated: ${newPaymentStatus}`);
     } catch (err) {
       console.error("Failed to update payment status:", err);
       setMessage("❌ Failed to update payment status");
+      showToast("❌ Failed to update payment status");
     }
   };
 
@@ -581,8 +606,12 @@ export default function AdminDashboard({ user }) {
   };
 
   const paymentStatusColors = {
-    paid: "bg-green-100 text-green-700 border-green-400",
+    paid: "bg-emerald-100 text-emerald-800 border-emerald-400",
     unpaid: "bg-red-100 text-red-700 border-red-400",
+    pending_cash: "bg-teal-100 text-teal-800 border-teal-400",
+    verifying: "bg-blue-100 text-blue-800 border-blue-400",
+    partially_paid: "bg-orange-100 text-orange-800 border-orange-400",
+    rejected: "bg-rose-100 text-rose-800 border-rose-400",
   };
 
   const toggleCheckbox = (key) => {
@@ -1354,61 +1383,119 @@ Normal - 110 Birr, Special - 135 Birr
 
                       {/* Payment */}
                       <td className="p-3">
-                        {isAdmin ? (
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={order.paymentStatus || "unpaid"}
-                              onChange={(e) =>
-                                updatePaymentStatus(orderId, e.target.value)
-                              }
-                              className={`border p-1 rounded-md font-medium ${
+                        <div className="space-y-1.5">
+                          {/* Method Badge & Inspect Button */}
+                          <div className="flex flex-wrap items-center gap-1">
+                            {order.paymentMethod === "cod" ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-teal-100 text-teal-800 border border-teal-300">
+                                <FaMoneyBillWave className="text-teal-700" />
+                                <span>COD</span>
+                                {order.changeRequested && order.changeRequested !== "exact" && (
+                                  <span className="text-teal-900 bg-teal-200/70 px-1 rounded text-[10px]">
+                                    Change: {order.changeRequested}
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-700 border border-gray-300">
+                                Online
+                              </span>
+                            )}
+
+                            {/* Proof badge & inspect button if proof uploaded */}
+                            {(order.paymentProofUrl || order.paymentStatus === "verifying" || order.paymentStatus === "partially_paid") && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProofModalOrder(order);
+                                  setPartialAmountInput(String(order.amountPaid || displayedTotal));
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200 transition cursor-pointer"
+                                title="Inspect payment screenshot"
+                              >
+                                <FaEye />
+                                <span>Inspect Proof</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Quick Actions & Status Selector */}
+                          {canManageStatus ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {/* 1-tap COD Mark Paid */}
+                              {order.paymentMethod === "cod" && order.paymentStatus !== "paid" && (
+                                <button
+                                  type="button"
+                                  onClick={() => updatePaymentStatus(orderId, "paid", displayedTotal)}
+                                  className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded shadow-xs transition cursor-pointer"
+                                  title="Mark cash collected at door"
+                                >
+                                  ✓ Cash Paid
+                                </button>
+                              )}
+
+                              <select
+                                value={order.paymentStatus || (order.paymentMethod === "cod" ? "pending_cash" : "unpaid")}
+                                onChange={(e) =>
+                                  updatePaymentStatus(orderId, e.target.value)
+                                }
+                                className={`border p-1 rounded-md text-xs font-semibold ${
+                                  paymentStatusColors[
+                                    order.paymentStatus || "unpaid"
+                                  ] || paymentStatusColors.unpaid
+                                }`}
+                              >
+                                {[
+                                  "unpaid",
+                                  "pending_cash",
+                                  "verifying",
+                                  "partially_paid",
+                                  "paid",
+                                  "rejected",
+                                ].map((s) => (
+                                  <option key={s} value={s}>
+                                    {s}
+                                  </option>
+                                ))}
+                              </select>
+
+                              {/* Send SMS & Copy buttons */}
+                              <button
+                                title="Send payment SMS"
+                                onClick={() => {
+                                  const smsUrl = `sms:${
+                                    order.phone
+                                  }?body=${encodeURIComponent(paymentMessage)}`;
+                                  window.location.href = smsUrl;
+                                }}
+                                className="text-blue-600 hover:text-blue-800 p-1.5 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center shrink-0"
+                              >
+                                <FaPaperPlane className="text-xs" />
+                              </button>
+
+                              <button
+                                title="Copy payment message"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(paymentMessage);
+                                  showToast("Payment message copied!");
+                                }}
+                                className="text-gray-700 hover:text-gray-900 p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm transition flex items-center justify-center shrink-0"
+                              >
+                                <FaCopy className="text-xs" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${
                                 paymentStatusColors[
                                   order.paymentStatus || "unpaid"
                                 ] || paymentStatusColors.unpaid
                               }`}
                             >
-                              {["unpaid", "paid"].map((s) => (
-                                <option key={s} value={s}>
-                                  {s}
-                                </option>
-                              ))}
-                            </select>
-
-                            <button
-                              title="Send payment SMS"
-                              onClick={() => {
-                                const smsUrl = `sms:${
-                                  order.phone
-                                }?body=${encodeURIComponent(paymentMessage)}`;
-                                window.location.href = smsUrl;
-                              }}
-                              className="text-blue-600 hover:text-blue-800 p-2 rounded-full bg-blue-100 hover:bg-blue-200 shadow-sm transition flex items-center justify-center"
-                            >
-                              <FaPaperPlane className="text-md" />
-                            </button>
-
-                            <button
-                              title="Copy payment message"
-                              onClick={() => {
-                                navigator.clipboard.writeText(paymentMessage);
-                                showToast("Payment message copied!");
-                              }}
-                              className="text-gray-700 hover:text-gray-900 p-2 rounded-full bg-gray-100 hover:bg-gray-200 shadow-sm transition flex items-center justify-center"
-                            >
-                              <FaCopy className="text-sm" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span
-                            className={`inline-flex rounded-md border px-2 py-1 text-xs font-semibold ${
-                              paymentStatusColors[
-                                order.paymentStatus || "unpaid"
-                              ] || paymentStatusColors.unpaid
-                            }`}
-                          >
-                            {order.paymentStatus || "unpaid"}
-                          </span>
-                        )}
+                              {order.paymentStatus || "unpaid"}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -1458,6 +1545,181 @@ Normal - 110 Birr, Special - 135 Birr
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Payment Proof Verification Modal */}
+        {proofModalOrder && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-xs z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+              {/* Header */}
+              <div className="p-4 bg-amber-500 text-white flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-black">
+                    Payment Proof Verification
+                  </h2>
+                  <p className="text-xs opacity-90">
+                    Order {proofModalOrder.trackingCode} • {proofModalOrder.customerName}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setProofModalOrder(null)}
+                  className="p-1 rounded-full hover:bg-white/20 transition cursor-pointer"
+                >
+                  <FaTimes className="text-lg" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-4 space-y-4 overflow-y-auto flex-1">
+                {/* Screenshot Image Preview */}
+                <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-900 flex items-center justify-center relative min-h-[200px] max-h-[300px]">
+                  {proofModalOrder.paymentProofUrl ? (
+                    <a
+                      href={getReceiptUrl(proofModalOrder.paymentProofUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group relative block w-full h-full"
+                    >
+                      <img
+                        src={getReceiptUrl(proofModalOrder.paymentProofUrl)}
+                        alt="Payment Receipt"
+                        className="w-full max-h-[300px] object-contain mx-auto"
+                      />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                        <FaExternalLinkAlt /> Open Full Resolution
+                      </div>
+                    </a>
+                  ) : (
+                    <div className="text-gray-400 text-xs p-8 text-center">
+                      No screenshot image uploaded. Customer only reported reference code.
+                    </div>
+                  )}
+                </div>
+
+                {/* Parsed & Financial Breakdown */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+                    <span className="text-gray-500 block text-[11px] font-semibold">
+                      Transaction Reference
+                    </span>
+                    <span className="font-mono font-bold text-gray-950 break-all text-sm">
+                      {proofModalOrder.transactionRef || "None reported"}
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+                    <span className="text-gray-500 block text-[11px] font-semibold">
+                      Detected / Reported Amount
+                    </span>
+                    <span className="font-black text-gray-950 text-sm">
+                      {proofModalOrder.amountPaid || 0} Birr
+                    </span>
+                  </div>
+                </div>
+
+                {/* Comparison with Order Total */}
+                {(() => {
+                  const targetTotal = Number(proofModalOrder.total || 0);
+                  const reportedAmt = Number(proofModalOrder.amountPaid || 0);
+                  const diff = targetTotal - reportedAmt;
+
+                  if (reportedAmt >= targetTotal && targetTotal > 0) {
+                    return (
+                      <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-900 font-semibold flex items-center gap-2">
+                        <FaCheck className="text-emerald-600 shrink-0" />
+                        <span>
+                          Exact Match: Amount ({reportedAmt} Birr) covers total ({targetTotal} Birr).
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  if (reportedAmt > 0 && diff > 0) {
+                    return (
+                      <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 font-semibold space-y-1">
+                        <div className="font-bold flex items-center gap-1.5 text-amber-950">
+                          <span>⚠️ Underpayment Detected!</span>
+                        </div>
+                        <p>
+                          Order Total: <strong>{targetTotal} Birr</strong> | Reported:{" "}
+                          <strong>{reportedAmt} Birr</strong>
+                        </p>
+                        <p className="text-rose-700 font-bold">
+                          Shortfall: {diff} Birr remaining unpaid.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })()}
+
+                {/* Partial Payment Amount Input if admin chooses to record custom partial amount */}
+                <div className="p-3 rounded-xl bg-orange-50 border border-orange-200 space-y-2">
+                  <label className="block text-xs font-bold text-orange-950">
+                    Record Custom Received Amount (for Partial Payment):
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      step="any"
+                      value={partialAmountInput}
+                      onChange={(e) => setPartialAmountInput(e.target.value)}
+                      placeholder="e.g. 400"
+                      className="flex-1 px-3 py-2 text-xs font-bold border border-orange-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const amt = Number(partialAmountInput);
+                        if (isNaN(amt) || amt <= 0) {
+                          showToast("Please enter a valid amount");
+                          return;
+                        }
+                        const orderId = proofModalOrder._id || proofModalOrder.id;
+                        updatePaymentStatus(orderId, "partially_paid", amt);
+                        setProofModalOrder(null);
+                      }}
+                      className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                    >
+                      Save Partial
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons Footer */}
+              <div className="p-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const orderId = proofModalOrder._id || proofModalOrder.id;
+                    updatePaymentStatus(orderId, "rejected", 0);
+                    setProofModalOrder(null);
+                  }}
+                  className="px-3 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <FaTimes />
+                  <span>Reject Proof</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const orderId = proofModalOrder._id || proofModalOrder.id;
+                    const fullTotal = Number(proofModalOrder.total || 0);
+                    updatePaymentStatus(orderId, "paid", fullTotal);
+                    setProofModalOrder(null);
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <FaCheck />
+                  <span>Approve Full Payment</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

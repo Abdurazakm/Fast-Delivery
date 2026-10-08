@@ -30,12 +30,40 @@ const {
   emitTargetedOrderNotification,
   getSocket,
 } = require("../socket");
-const {
-  sendNotificationForOrder,
-  sendNotificationToUser,
-} = require("../services/pushNotificationService");
+const { sendNotificationForOrder, sendNotificationToUser } = require("../services/pushNotificationService");
 const { maskTrackingCode } = require("../utils/masking");
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
+const { parseReceiptText } = require("../utils/receiptParser");
 
+const receiptsDir = path.join(__dirname, "../../../uploads/receipts");
+if (!fs.existsSync(receiptsDir)) {
+  fs.mkdirSync(receiptsDir, { recursive: true });
+}
+
+const receiptStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, receiptsDir);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, `receipt-${uniqueSuffix}${ext}`);
+  },
+});
+
+const uploadReceipt = multer({
+  storage: receiptStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed for payment proof"));
+    }
+  },
+});
 
 const TRACK_BASE_URL =
   process.env.TRACK_BASE_URL || "fetandelivery.netlify.app/track";
@@ -269,6 +297,12 @@ router.post(
       console.log("Authenticated user:", req.userId);
 
       const authHeader = req.headers.authorization;
+      const paymentMethod = req.body.paymentMethod === "cod" ? "cod" : "online";
+      const changeRequested = req.body.changeRequested
+        ? String(req.body.changeRequested).trim()
+        : "exact";
+      const paymentStatus = paymentMethod === "cod" ? "pending_cash" : "unpaid";
+
       const orderData = {
         customerName,
         phone: normalizedPhone,
@@ -281,6 +315,9 @@ router.post(
         trackUrl,
         statusHistory: [{ status: "pending", at: new Date().toISOString() }],
         userId, // <-- null if guest
+        paymentMethod,
+        changeRequested,
+        paymentStatus,
       };
 
       const order = await prisma.order.create({ data: orderData });
@@ -412,6 +449,15 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
     const trackingCode = generateTrackingCode();
     const trackUrl = `${TRACK_BASE_URL}/${trackingCode}`;
 
+    const paymentMethod = req.body.paymentMethod === "cod" ? "cod" : "online";
+    const changeRequested = req.body.changeRequested
+      ? String(req.body.changeRequested).trim()
+      : "exact";
+    const paymentStatus =
+      paymentMethod === "cod"
+        ? "pending_cash"
+        : (req.body.paymentStatus || "unpaid");
+
     const order = await prisma.order.create({
       data: {
         customerName,
@@ -426,6 +472,9 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
         notes,
         statusHistory: [{ status: "pending", at: new Date().toISOString() }],
         userId: req.user?.id || null, // optional
+        paymentMethod,
+        changeRequested,
+        paymentStatus,
       },
     });
     emitOrderUpdated(order, "created");
@@ -537,13 +586,20 @@ router.put(
 router.put(
   "/:id/payment-status",
   authMiddleware,
-  adminMiddleware,
+  adminOrEmployMiddleware,
   async (req, res) => {
     try {
       const { id } = req.params;
-      const { paymentStatus } = req.body;
+      const { paymentStatus, amountPaid } = req.body;
 
-      const allowedPaymentStatuses = ["paid", "unpaid"];
+      const allowedPaymentStatuses = [
+        "paid",
+        "unpaid",
+        "partially_paid",
+        "verifying",
+        "pending_cash",
+        "rejected",
+      ];
       if (!allowedPaymentStatuses.includes(paymentStatus)) {
         return res.status(400).json({ message: "Invalid payment status" });
       }
@@ -553,14 +609,31 @@ router.put(
       });
       if (!order) return res.status(404).json({ message: "Order not found" });
 
+      const updateData = { paymentStatus };
+      if (amountPaid !== undefined && !isNaN(Number(amountPaid))) {
+        updateData.amountPaid = Math.max(0, Number(amountPaid));
+      } else if (paymentStatus === "paid") {
+        updateData.amountPaid = order.total;
+      }
+
       const updatedOrder = await prisma.order.update({
         where: { id: parseInt(id) },
-        data: { paymentStatus },
+        data: updateData,
       });
 
       emitOrderUpdated(updatedOrder, "payment-status");
 
-      res.json({ message: "Payment status updated", orderId: order.id });
+      // Notify customer room directly
+      const socket = getSocket();
+      if (socket) {
+        socket.to(`order:${order.trackingCode}`).emit("order:payment-updated", updatedOrder);
+      }
+
+      res.json({
+        message: "Payment status updated",
+        orderId: order.id,
+        order: updatedOrder,
+      });
     } catch (err) {
       console.error("❌ Error updating payment status:", err);
       res.status(500).json({ message: "Server error" });
@@ -601,6 +674,12 @@ router.get("/track/:code", async (req, res) => {
       trackUrl: order.trackUrl,
       status: order.status,
       paymentStatus: order.paymentStatus || "unpaid",
+      paymentMethod: order.paymentMethod || "online",
+      changeRequested: order.changeRequested || "exact",
+      paymentProofUrl: order.paymentProofUrl || null,
+      transactionRef: order.transactionRef || null,
+      amountPaid: order.amountPaid ?? 0,
+      paymentProofAt: order.paymentProofAt || null,
       statusHistory: order.statusHistory || [],
       customerName: order.customerName,
       phone: order.phone,
@@ -615,6 +694,114 @@ router.get("/track/:code", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+/**
+ * ------------------------
+ *  Upload Payment Proof (Receipt Screenshot + Reference)
+ * ------------------------
+ */
+router.post(
+  "/track/:code/payment-proof",
+  uploadReceipt.single("receiptImage"),
+  async (req, res) => {
+    try {
+      const { code } = req.params;
+      const { transactionRef, amountPaid, ocrRawText } = req.body;
+
+      const order = await prisma.order.findFirst({
+        where: { trackingCode: code },
+      });
+
+      if (!order) {
+        if (req.file) {
+          try { fs.unlinkSync(req.file.path); } catch {}
+        }
+        return res
+          .status(404)
+          .json({ message: "Order not found for this tracking code" });
+      }
+
+      // If user uploaded OCR raw text or ref, parse it
+      const parsedOcr = parseReceiptText(ocrRawText || "");
+      const normalizedRef = (transactionRef || parsedOcr.reference || "").trim();
+
+      // Check lifetime uniqueness on reference code
+      if (normalizedRef) {
+        const existingOrderWithRef = await prisma.order.findFirst({
+          where: {
+            transactionRef: normalizedRef,
+            NOT: { id: order.id },
+          },
+        });
+
+        if (existingOrderWithRef) {
+          if (req.file) {
+            try { fs.unlinkSync(req.file.path); } catch {}
+          }
+          return res.status(409).json({
+            message: `This transaction reference (${normalizedRef}) was already used for order (${existingOrderWithRef.trackingCode}). Reused receipts cannot be accepted.`,
+            code: "DUPLICATE_TRANSACTION_REF",
+          });
+        }
+      }
+
+      // Determine amount paid
+      let resolvedAmountPaid = 0;
+      if (amountPaid && !isNaN(Number(amountPaid))) {
+        resolvedAmountPaid = Number(amountPaid);
+      } else if (parsedOcr.amount) {
+        resolvedAmountPaid = parsedOcr.amount;
+      }
+
+      const paymentProofUrl = req.file
+        ? `/uploads/receipts/${req.file.filename}`
+        : order.paymentProofUrl;
+
+      const updateData = {
+        paymentProofUrl,
+        transactionRef: normalizedRef || order.transactionRef,
+        amountPaid: resolvedAmountPaid || order.amountPaid,
+        paymentProofAt: new Date(),
+        paymentStatus: "verifying",
+      };
+
+      const updatedOrder = await prisma.order.update({
+        where: { id: order.id },
+        data: updateData,
+      });
+
+      emitOrderUpdated(updatedOrder, "payment-proof");
+
+      const maskedCode = maskTrackingCode(order.trackingCode);
+      emitAdminNotification({
+        type: "payment-proof",
+        title: "Payment Proof Submitted",
+        message: `${order.customerName} submitted payment receipt for (${maskedCode}) - ${resolvedAmountPaid ? resolvedAmountPaid + " ETB" : "Verifying"}.`,
+        trackingCode: order.trackingCode,
+        url: `/track/${order.trackingCode}`,
+      });
+
+      const socket = getSocket();
+      if (socket) {
+        socket.to(`order:${order.trackingCode}`).emit("order:payment-updated", updatedOrder);
+      }
+
+      res.json({
+        message: "Payment proof submitted successfully",
+        order: updatedOrder,
+        parsedOcr,
+      });
+    } catch (err) {
+      console.error("❌ Payment proof upload error:", err);
+      if (req.file) {
+        try { fs.unlinkSync(req.file.path); } catch {}
+      }
+      res.status(500).json({
+        message: err.message || "Failed to upload payment proof",
+      });
+    }
+  },
+);
 
 /**
  * ------------------------

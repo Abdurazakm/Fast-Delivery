@@ -40,6 +40,12 @@ model Order {
   statusHistory Json?    @default("[]") @db.Json
   notes         String?
   user          User?    @relation(fields: [userId], references: [id])
+  paymentMethod     String    @default("online")
+  changeRequested   String?   @default("exact")
+  paymentProofUrl   String?
+  transactionRef    String?
+  amountPaid        Float?    @default(0)
+  paymentProofAt    DateTime?
 }
 
 model Availability {
