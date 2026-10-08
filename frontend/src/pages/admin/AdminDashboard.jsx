@@ -1220,7 +1220,17 @@ Normal - 110 Birr, Special - 135 Birr
                     ).toLowerCase();
 
                     if (payment === "paid") {
+                      if (order.amountPaid && Number(order.amountPaid) > displayedTotal) {
+                        const refundAmt = (Number(order.amountPaid) - displayedTotal).toFixed(2);
+                        return `${greeting}! ✅ Your payment for order (Code: ${code}) is confirmed. Since you updated your order, an overpayment refund of ${refundAmt} Birr will be handed to you in cash upon delivery. Track your order here: ${baseLink}`;
+                      }
                       return `${greeting}! ✅ We have received your payment for order (Code: ${code}). Your order is now confirmed and being processed. Track your order here: ${baseLink}`;
+                    }
+
+                    if (payment === "partially_paid") {
+                      const paidAmt = Number(order.amountPaid || 0).toFixed(2);
+                      const shortfall = Math.max(0, displayedTotal - Number(order.amountPaid || 0)).toFixed(2);
+                      return `${greeting}! ⚠️ Please fulfill your remaining payment for order (Code: ${code}).\n\nTotal: ${totalBirr} Birr\nAlready Paid: ${paidAmt} Birr\nRemaining to Fulfill: ${shortfall} Birr\n\nPlease transfer the remaining ${shortfall} Birr and upload your screenshot on your tracking page:\n${baseLink}\n\nAccounts:\n🏦 CBE: 1000528463243\n📱 Telebirr: 0954724664\n🏦 CBEBirr: 0954724664`;
                     }
 
                     return `${greeting}! 💳 Payment is still required for your order (Code: ${code}).\n\nAmount to pay: ${totalBirr} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\n🏦 CBE\n1000528463243 (Abdurazak Mohammed)\n\n📱 Telebirr\n0954724664 (Abdurazak Mohammed)\n\n🏦 CBEBirr\n0954724664 (Abdurazak Mohammed)\n\n📸 After payment, send screenshot via Telegram:\nhttps://t.me/ABDURAZACQ\n\nTrack your order: ${baseLink}`;

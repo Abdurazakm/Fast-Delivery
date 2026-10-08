@@ -259,11 +259,18 @@ export default function PaymentInstructionsCard({
 
   // --- ONLINE PAYMENT VIEW (Telebirr / CBE) ---
   const numericAmountInput = Number(amountInput);
+  const remainingDue =
+    paymentStatus === "partially_paid"
+      ? Math.max(0, currentTotal - (Number(order?.amountPaid) || 0))
+      : currentTotal;
+  const targetRequiredAmount = remainingDue;
   const hasDiscrepancy =
     !isNaN(numericAmountInput) &&
     numericAmountInput > 0 &&
-    numericAmountInput < currentTotal;
-  const shortfall = hasDiscrepancy ? (currentTotal - numericAmountInput).toFixed(2) : 0;
+    numericAmountInput < targetRequiredAmount;
+  const shortfall = hasDiscrepancy
+    ? (targetRequiredAmount - numericAmountInput).toFixed(2)
+    : 0;
 
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border border-amber-200 bg-linear-to-br from-amber-50/50 via-white to-orange-50/30 shadow-md">
@@ -311,7 +318,7 @@ export default function PaymentInstructionsCard({
               : paymentStatus === "verifying"
                 ? "Your receipt was received. We are verifying your transaction."
                 : paymentStatus === "partially_paid"
-                  ? `Order updated: You already paid ${order?.amountPaid} Birr. Remaining balance due: ${(currentTotal - (order?.amountPaid || 0)).toFixed(2)} Birr. Please transfer the difference below.`
+                  ? `Order updated: You already paid ${order?.amountPaid} Birr. Remaining balance due: ${remainingDue.toFixed(2)} Birr. Please fulfill your payment by transferring the remaining balance and uploading your screenshot below.`
                   : "Please transfer the total amount and upload your screenshot below."}
         </p>
       </div>
@@ -443,12 +450,21 @@ export default function PaymentInstructionsCard({
             </div>
           )}
 
-        {/* Bank Account Numbers (if unpaid or user wants to review) */}
-        {(paymentStatus === "unpaid" || showReuploadForm) && (
+        {/* Bank Account Numbers (if unpaid, partially paid, or user wants to review) */}
+        {(paymentStatus === "unpaid" || paymentStatus === "partially_paid" || showReuploadForm) && (
           <div className="space-y-2.5">
-            <p className="text-xs font-black uppercase tracking-wider text-gray-700">
-              1. Transfer to any of our accounts:
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-wider text-gray-700">
+                {paymentStatus === "partially_paid"
+                  ? `1. Transfer Remaining Balance (${(currentTotal - (order?.amountPaid || 0)).toFixed(2)} Birr)`
+                  : "1. Transfer to any of our accounts:"}
+              </p>
+              {paymentStatus === "partially_paid" && (
+                <span className="text-[11px] font-black text-orange-950 bg-orange-100 px-2.5 py-0.5 rounded-full border border-orange-300">
+                  Fulfill Remaining Balance
+                </span>
+              )}
+            </div>
             {PAYMENT_METHODS.map((method) => (
               <div
                 key={method.key}
@@ -488,11 +504,13 @@ export default function PaymentInstructionsCard({
         )}
 
         {/* IN-APP RECEIPT UPLOAD & OCR VERIFICATION SECTION */}
-        {(paymentStatus === "unpaid" || showReuploadForm) && (
+        {(paymentStatus === "unpaid" || paymentStatus === "partially_paid" || showReuploadForm) && (
           <div className="pt-2 border-t border-gray-200/80 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-black uppercase tracking-wider text-gray-700">
-                2. Upload Screenshot (Instant OCR Scan)
+                {paymentStatus === "partially_paid"
+                  ? "2. Upload Screenshot for Remaining Balance"
+                  : "2. Upload Screenshot (Instant OCR Scan)"}
               </p>
               {showReuploadForm && (
                 <button
@@ -598,12 +616,12 @@ export default function PaymentInstructionsCard({
                           <label className="block text-[11px] font-black uppercase tracking-wider text-gray-600 mb-1">
                             Amount Paid (Birr)
                           </label>
-                          <input
+                            <input
                             type="number"
                             step="any"
                             value={amountInput}
                             onChange={(e) => setAmountInput(e.target.value)}
-                            placeholder={String(currentTotal)}
+                            placeholder={String(targetRequiredAmount)}
                             className="w-full px-3 py-2 text-xs font-black border-2 border-gray-200 rounded-xl focus:border-amber-500 focus:outline-none"
                           />
                         </div>
@@ -623,18 +641,22 @@ export default function PaymentInstructionsCard({
                           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                           <div>
                             <strong>Underpayment Warning:</strong> Receipt amount (
-                            {numericAmountInput} Birr) is less than order total (
-                            {currentTotal} Birr). Shortfall: <strong>{shortfall} Birr</strong>.
+                            {numericAmountInput} Birr) is less than {paymentStatus === "partially_paid" ? "remaining balance" : "order total"} (
+                            {targetRequiredAmount} Birr). Shortfall: <strong>{shortfall} Birr</strong>.
                           </div>
                         </div>
                       )}
 
                       {!hasDiscrepancy &&
-                        numericAmountInput >= currentTotal &&
-                        currentTotal > 0 && (
+                        numericAmountInput >= targetRequiredAmount &&
+                        targetRequiredAmount > 0 && (
                           <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-xs text-emerald-800 font-bold">
                             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                            <span>Amount matches order total ({numericAmountInput} Birr).</span>
+                            <span>
+                              {paymentStatus === "partially_paid"
+                                ? `Amount fulfills remaining balance (${numericAmountInput} Birr).`
+                                : `Amount matches order total (${numericAmountInput} Birr).`}
+                            </span>
                           </div>
                         )}
                     </div>
@@ -663,12 +685,20 @@ export default function PaymentInstructionsCard({
                 {isUploading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Submitting Receipt Proof...</span>
+                    <span>
+                      {paymentStatus === "partially_paid"
+                        ? "Submitting Remaining Payment Proof..."
+                        : "Submitting Receipt Proof..."}
+                    </span>
                   </>
                 ) : (
                   <>
                     <UploadCloud className="w-4 h-4" />
-                    <span>Submit Payment Proof</span>
+                    <span>
+                      {paymentStatus === "partially_paid"
+                        ? "Submit Remaining Payment Proof"
+                        : "Submit Payment Proof"}
+                    </span>
                   </>
                 )}
               </button>

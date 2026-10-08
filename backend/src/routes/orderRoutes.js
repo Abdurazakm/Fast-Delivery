@@ -733,10 +733,34 @@ router.post(
         ? getUploadedFileUrl(req.file)
         : order.paymentProofUrl;
 
+      // Determine cumulative amount paid and preserve multi-receipt transaction refs
+      let newAmountPaid = resolvedAmountPaid || (order.amountPaid ?? 0);
+      if (resolvedAmountPaid > 0) {
+        if (order.paymentStatus === "partially_paid" && (order.amountPaid || 0) > 0) {
+          if (resolvedAmountPaid < order.total) {
+            newAmountPaid = (order.amountPaid || 0) + resolvedAmountPaid;
+          } else {
+            newAmountPaid = resolvedAmountPaid;
+          }
+        } else {
+          newAmountPaid = resolvedAmountPaid;
+        }
+      }
+
+      let updatedRef = normalizedRef || order.transactionRef;
+      if (
+        order.paymentStatus === "partially_paid" &&
+        order.transactionRef &&
+        normalizedRef &&
+        !order.transactionRef.includes(normalizedRef)
+      ) {
+        updatedRef = `${order.transactionRef}, ${normalizedRef}`;
+      }
+
       const updateData = {
         paymentProofUrl,
-        transactionRef: normalizedRef || order.transactionRef,
-        amountPaid: resolvedAmountPaid || order.amountPaid,
+        transactionRef: updatedRef,
+        amountPaid: newAmountPaid,
         paymentProofAt: new Date(),
         paymentStatus: "verifying",
       };
