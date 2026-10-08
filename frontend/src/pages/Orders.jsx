@@ -18,6 +18,7 @@ import {
   Banknote,
   Smartphone,
   Coins,
+  Pencil,
 } from "lucide-react";
 import { FaPaperPlane as FaPaperPlaneIcon } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +26,7 @@ import Toast from "./Toast";
 import API from "../api";
 import { getSocket } from "../socket";
 import { getRelevantChangeOptions } from "../utils/ethiopianCash";
+import Navbar from "../components/Navbar";
 
 const FETIRA_DEFAULT_EGGS = 3;
 const DONUT_PACKAGE_OPTIONS = [1, 2];
@@ -318,6 +320,7 @@ export default function Order() {
   const [changeRequested, setChangeRequested] = useState("exact");
   const [isCustomChange, setIsCustomChange] = useState(false);
   const [customChangeInput, setCustomChangeInput] = useState("");
+  const [isEditingDelivery, setIsEditingDelivery] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -458,6 +461,12 @@ export default function Order() {
 
     fetchOrderForEdit();
   }, [location.search]);
+
+  const hasPrefilledDelivery = Boolean(
+    customer.customerName?.trim() &&
+      customer.phone?.trim() &&
+      customer.location?.trim()
+  );
 
   const getUnitPrice = (item) => {
     if (!item || !pricing) return 0;
@@ -600,7 +609,12 @@ export default function Order() {
 
   const handleReview = (e) => {
     e.preventDefault();
-    if (!customer.customerName.trim() || !customer.phone.trim() || !customer.location.trim()) {
+    if (
+      !customer.customerName?.trim() ||
+      !customer.phone?.trim() ||
+      !customer.location?.trim()
+    ) {
+      setIsEditingDelivery(true);
       setMessage("Please fill in all delivery details.");
       return;
     }
@@ -844,40 +858,32 @@ export default function Order() {
         )}
       </AnimatePresence>
 
-      {/* Sticky Top Header Navigation */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
-        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
+      {/* Responsive Top Navbar */}
+      <Navbar user={user} />
+
+      {/* Sub Header for Order Context */}
+      <div className="bg-amber-50/70 border-b border-amber-100 py-2.5 px-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link
             to="/menu"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-700 hover:text-amber-600 py-1.5 px-2.5 rounded-xl hover:bg-amber-50 transition"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 hover:text-amber-950 transition"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Menu</span>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to Menu</span>
           </Link>
 
-          <h1 className="font-extrabold text-sm sm:text-base text-gray-950">
-            {editMode ? "Modify Your Order" : "Place Your Order"}
-          </h1>
+          <span className="text-xs sm:text-sm font-black text-gray-950">
+            {editMode ? "Modify Your Order" : "Place Campus Delivery Order"}
+          </span>
 
-          <div className="flex items-center gap-2">
-            {isUserAdmin ? (
-              <Link
-                to="/admin"
-                className="px-3 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 text-xs font-bold transition"
-              >
-                Dashboard
-              </Link>
-            ) : (
-              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 hidden sm:inline">
-                AASTU Dorm Delivery
-              </span>
-            )}
-          </div>
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white border border-amber-200 text-amber-800 hidden sm:inline">
+            AASTU Blocks 1–28
+          </span>
         </div>
-      </header>
+      </div>
 
       {/* Main Container */}
-      <main className="max-w-xl mx-auto px-4 pt-4 sm:pt-6 pb-28 sm:pb-12 space-y-5">
+      <main className="max-w-2xl mx-auto px-4 pt-4 sm:pt-6 pb-28 sm:pb-12 space-y-5">
         {/* Error / Status Alert */}
         {message && (
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
@@ -943,80 +949,123 @@ export default function Order() {
           </div>
         ) : !reviewMode ? (
           <form onSubmit={handleReview} className="space-y-5">
-            {/* Delivery Information Card */}
-            <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-                <MapPin className="w-4 h-4 text-amber-600" />
-                <h2 className="font-extrabold text-base text-gray-950">
-                  Delivery Details
-                </h2>
+            {/* Delivery Information Card (Smart Collapsed vs Expanded) */}
+            {hasPrefilledDelivery && !isEditingDelivery ? (
+              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-100 shadow-sm flex items-center justify-between gap-3 group transition-all hover:border-amber-300">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 shadow-xs">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full shrink-0">
+                        Delivering To
+                      </span>
+                      <span className="text-xs font-bold text-gray-500 truncate">
+                        {customer.customerName} • {customer.phone}
+                      </span>
+                    </div>
+                    <p className="font-extrabold text-sm sm:text-base text-gray-950 truncate">
+                      {customer.location}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsEditingDelivery(true)}
+                  className="px-3.5 py-2 rounded-xl border border-gray-200 bg-gray-50 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800 active:bg-gray-200 text-gray-800 text-xs font-extrabold transition flex items-center gap-1.5 shrink-0 cursor-pointer active:scale-95 shadow-xs"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Change</span>
+                </button>
               </div>
-
-              <div className="space-y-3.5">
-                {/* Name Input */}
-                <div>
-                  <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                    Your Name
-                  </label>
-                  <div className="relative">
-                    <User className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      name="customerName"
-                      placeholder="e.g. Dawit Kebede"
-                      value={customer.customerName}
-                      onChange={handleCustomerChange}
-                      className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
-                      required
-                    />
+            ) : (
+              <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-sm space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-amber-600" />
+                    <h2 className="font-extrabold text-base text-gray-950">
+                      Delivery Details
+                    </h2>
                   </div>
+                  {hasPrefilledDelivery && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingDelivery(false)}
+                      className="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-3 py-1 rounded-xl border border-amber-200 transition cursor-pointer"
+                    >
+                      Done ✓
+                    </button>
+                  )}
                 </div>
 
-                {/* Phone Input */}
-                <div>
-                  <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                    Phone Number
-                  </label>
-                  <div className="relative">
-                    <Phone className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="0911 234 567"
-                      value={customer.phone}
-                      onChange={handleCustomerChange}
-                      className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
-                      required
-                    />
+                <div className="space-y-3.5">
+                  {/* Name Input */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
+                      Your Name
+                    </label>
+                    <div className="relative">
+                      <User className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        name="customerName"
+                        placeholder="e.g. Dawit Kebede"
+                        value={customer.customerName}
+                        onChange={handleCustomerChange}
+                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {/* Location Input with Datalist */}
-                <div>
-                  <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                    AASTU Dorm Block & Room
-                  </label>
-                  <div className="relative">
-                    <MapPin className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      list="blockOptions"
-                      type="text"
-                      name="location"
-                      placeholder="e.g. Block 14, Room 204"
-                      value={customer.location}
-                      onChange={handleCustomerChange}
-                      className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
-                      required
-                    />
-                    <datalist id="blockOptions">
-                      {Array.from({ length: 28 }, (_, i) => (
-                        <option key={i + 1} value={`Block ${i + 1}`} />
-                      ))}
-                    </datalist>
+                  {/* Phone Input */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        name="phone"
+                        placeholder="0911 234 567"
+                        value={customer.phone}
+                        onChange={handleCustomerChange}
+                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Location Input with Datalist */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
+                      AASTU Dorm Block & Room
+                    </label>
+                    <div className="relative">
+                      <MapPin className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        list="blockOptions"
+                        type="text"
+                        name="location"
+                        placeholder="e.g. Block 14, Room 204"
+                        value={customer.location}
+                        onChange={handleCustomerChange}
+                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                        required
+                      />
+                      <datalist id="blockOptions">
+                        {Array.from({ length: 28 }, (_, i) => (
+                          <option key={i + 1} value={`Block ${i + 1}`} />
+                        ))}
+                      </datalist>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Food Items List */}
             <div className="space-y-4">
