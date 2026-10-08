@@ -19,19 +19,15 @@ import { scanReceiptImage } from "../utils/receiptOcr";
 const PAYMENT_METHODS = [
   {
     key: "cbe",
-    label: "CBE",
+    label: "CBE Bank",
+    badge: "Account No.",
     accountNumber: "1000528463243",
     accountName: "Abdurazak Mohammed",
   },
   {
-    key: "telebirr",
-    label: "Telebirr",
-    accountNumber: "0954724664",
-    accountName: "Abdurazak Mohammed",
-  },
-  {
-    key: "cbebirr",
-    label: "CBEBirr",
+    key: "telebirr_cbebirr",
+    label: "Telebirr / CBEBirr",
+    badge: "Phone Number",
     accountNumber: "0954724664",
     accountName: "Abdurazak Mohammed",
   },
@@ -490,8 +486,15 @@ export default function PaymentInstructionsCard({
                 key={method.key}
                 className="rounded-2xl border-2 border-gray-200 bg-white p-3.5 shadow-xs"
               >
-                <div className="mb-1 text-xs font-black uppercase tracking-wider text-gray-800">
-                  {method.label}
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-gray-800">
+                    {method.label}
+                  </span>
+                  {method.badge && (
+                    <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200">
+                      {method.badge}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <div>

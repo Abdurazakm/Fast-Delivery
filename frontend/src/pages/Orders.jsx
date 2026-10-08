@@ -784,7 +784,7 @@ export default function Order() {
       return `Hello, we received your payment for order (Code: ${code}). Your order is confirmed and being prepared. Track: ${trackLink}`;
     }
 
-    return `Hello, your order (Code: ${code}) has been created, but payment is still required.\n\nAmount to pay: ${amount} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\nCBE: 1000528463243 (Abdurazak Mohammed)\nTelebirr: 0954724664 (Nur Muhammed)\nCBEBirr: 0954724664 (Abdurazak Mohammed)\n\nAfter payment, send screenshot via Telegram: https://t.me/ABDURAZACQ\n\nTrack: ${trackLink}`;
+    return `Hello, your order (Code: ${code}) has been created, but payment is still required.\n\nAmount to pay: ${amount} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\nCBE: 1000528463243 (Abdurazak Mohammed)\nTelebirr / CBEBirr: 0954724664 (Abdurazak Mohammed)\n\nAfter payment, upload screenshot on tracking page: ${trackLink}\nTelegram: https://t.me/ABDURAZACQ`;
   };
 
   const orderTotal = items.reduce(
