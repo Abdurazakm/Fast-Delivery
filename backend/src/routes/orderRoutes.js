@@ -801,6 +801,11 @@ router.get("/track/:code/edit", async (req, res) => {
       trackUrl: order.trackUrl,
       status: order.status,
       paymentStatus: order.paymentStatus || "unpaid",
+      paymentMethod: order.paymentMethod || "online",
+      changeRequested: order.changeRequested || "exact",
+      amountPaid: order.amountPaid ?? 0,
+      transactionRef: order.transactionRef || null,
+      paymentProofUrl: order.paymentProofUrl || null,
       statusHistory: order.statusHistory || [],
       customerName: order.customerName,
       phone: order.phone,
@@ -827,10 +832,9 @@ router.put(
   async (req, res) => {
     try {
       const code = req.params.code;
-      let { customerName, phone, location, items } = req.body;
+      let { customerName, phone, location, items, paymentMethod, changeRequested } = req.body;
       const pricing = await getActivePricing(prisma);
 
-      // FIX: use findFirst instead of findUnique
       const order = await prisma.order.findFirst({
         where: { trackingCode: code },
       });
@@ -865,20 +869,123 @@ router.put(
         });
       }
 
+      // ----------------------------------------------------
+      // Smart Payment Reconciliation Logic (Option 1)
+      // ----------------------------------------------------
+      const alreadyPaidAmount =
+        order.amountPaid !== null && order.amountPaid !== undefined && Number(order.amountPaid) > 0
+          ? Number(order.amountPaid)
+          : order.paymentStatus === "paid"
+            ? Number(order.total)
+            : 0;
+
+      let nextPaymentStatus = order.paymentStatus || "unpaid";
+      let nextAmountPaid = alreadyPaidAmount;
+      let editNotice = null;
+
+      const wasAlreadyApprovedOrPartial =
+        alreadyPaidAmount > 0 ||
+        order.paymentStatus === "paid" ||
+        order.paymentStatus === "partially_paid";
+
+      if (wasAlreadyApprovedOrPartial) {
+        if (computedTotal > alreadyPaidAmount) {
+          // Total INCREASED: shortfall detected
+          const shortfall = computedTotal - alreadyPaidAmount;
+          nextPaymentStatus = "partially_paid";
+          editNotice = {
+            type: "shortfall",
+            shortfall,
+            alreadyPaidAmount,
+            computedTotal,
+          };
+
+          emitAdminNotification({
+            type: "order-edited-shortfall",
+            title: "⚠️ Order Edited: Shortfall",
+            message: `${order.customerName} edited order (${maskTrackingCode(order.trackingCode)}). Paid: ${alreadyPaidAmount} ETB, New Total: ${computedTotal} ETB. Shortfall: ${shortfall} ETB.`,
+            trackingCode: order.trackingCode,
+          });
+        } else if (computedTotal < alreadyPaidAmount) {
+          // Total DECREASED: refund / credit due upon delivery
+          const overpayment = alreadyPaidAmount - computedTotal;
+          nextPaymentStatus = "paid"; // Remains paid, but flags credit
+          editNotice = {
+            type: "overpayment",
+            overpayment,
+            alreadyPaidAmount,
+            computedTotal,
+          };
+
+          emitAdminNotification({
+            type: "order-edited-overpayment",
+            title: "💵 Order Edited: Refund Due",
+            message: `${order.customerName} edited order (${maskTrackingCode(order.trackingCode)}). Paid: ${alreadyPaidAmount} ETB, New Total: ${computedTotal} ETB. Refund due: ${overpayment} ETB.`,
+            trackingCode: order.trackingCode,
+          });
+        } else {
+          // Total unchanged (condiments or room update only)
+          nextPaymentStatus = "paid";
+        }
+      } else if (paymentMethod === "cod" || order.paymentMethod === "cod") {
+        nextPaymentStatus = "pending_cash";
+      }
+
+      // Append edit audit note to statusHistory
+      const currentHistory = Array.isArray(order.statusHistory) ? order.statusHistory : [];
+      let updatedHistory = currentHistory;
+      if (editNotice) {
+        updatedHistory = [
+          ...currentHistory,
+          {
+            type: "order_edited",
+            at: new Date().toISOString(),
+            note:
+              editNotice.type === "shortfall"
+                ? `Order edited after payment. New total: ${computedTotal} ETB (Shortfall: ${editNotice.shortfall} ETB unpaid).`
+                : `Order edited after payment. New total: ${computedTotal} ETB (Overpayment: ${editNotice.overpayment} ETB refund due).`,
+          },
+        ];
+      }
+
+      const updateData = {
+        customerName: customerName ?? order.customerName,
+        phone: phone ?? order.phone,
+        location: location ?? order.location,
+        items: builtItems,
+        total: computedTotal,
+        paymentStatus: nextPaymentStatus,
+        amountPaid: nextAmountPaid,
+        statusHistory: updatedHistory,
+      };
+
+      if (paymentMethod) {
+        updateData.paymentMethod = paymentMethod;
+      }
+      if (changeRequested) {
+        updateData.changeRequested = changeRequested;
+      }
+
       const updated = await prisma.order.update({
-        where: { id: order.id }, // id is unique
-        data: {
-          customerName: customerName ?? order.customerName,
-          phone: phone ?? order.phone,
-          location: location ?? order.location,
-          items: builtItems,
-          total: computedTotal,
-        },
+        where: { id: order.id },
+        data: updateData,
       });
 
       emitOrderUpdated(updated, "updated");
+      emitOrderUpdated(updated, "payment-status");
 
-      res.json({ message: "Order updated", order: updated });
+      // Notify customer room in real time
+      const io = getSocket();
+      if (io) {
+        io.to(`order:${order.trackingCode}`).emit("order:payment-updated", updated);
+        io.to(`order:${order.trackingCode}`).emit("order:updated", updated);
+      }
+
+      res.json({
+        message: "Order updated successfully",
+        order: updated,
+        editNotice,
+      });
     } catch (err) {
       console.error("❌ Error updating order:", err);
       res.status(500).json({ message: "Server error updating order" });

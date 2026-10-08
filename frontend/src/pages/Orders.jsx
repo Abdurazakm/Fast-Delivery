@@ -421,6 +421,13 @@ export default function Order() {
           location: order.location || "",
         });
 
+        if (order.paymentMethod) {
+          setPaymentMethod(order.paymentMethod);
+        }
+        if (order.changeRequested) {
+          setChangeRequested(order.changeRequested);
+        }
+
         if (order.items && order.items.length > 0) {
           setItems(
             order.items.map((item) => ({

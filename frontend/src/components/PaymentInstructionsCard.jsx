@@ -281,46 +281,83 @@ export default function PaymentInstructionsCard({
       >
         <div className="flex items-center justify-between">
           <p className="text-xs font-black uppercase tracking-wider">
-            {paymentStatus === "paid"
-              ? "Payment Verified"
-              : paymentStatus === "verifying"
-                ? "Proof Under Review"
-                : paymentStatus === "partially_paid"
-                  ? "Partial Payment Received"
-                  : "Payment Required"}
+            {paymentStatus === "paid" && order?.amountPaid > currentTotal
+              ? "Overpayment / Refund Due"
+              : paymentStatus === "paid"
+                ? "Payment Verified"
+                : paymentStatus === "verifying"
+                  ? "Proof Under Review"
+                  : paymentStatus === "partially_paid"
+                    ? "Additional Payment Required"
+                    : "Payment Required"}
           </p>
           <span className="text-[11px] font-bold bg-white/20 px-2 py-0.5 rounded-full">
-            {paymentStatus === "paid"
-              ? "✓ Confirmed"
-              : paymentStatus === "verifying"
-                ? "Checking"
-                : paymentStatus === "partially_paid"
-                  ? "Shortfall"
-                  : "Unpaid"}
+            {paymentStatus === "paid" && order?.amountPaid > currentTotal
+              ? "Refund Due"
+              : paymentStatus === "paid"
+                ? "✓ Confirmed"
+                : paymentStatus === "verifying"
+                  ? "Checking"
+                  : paymentStatus === "partially_paid"
+                    ? "Shortfall"
+                    : "Unpaid"}
           </span>
         </div>
         <p className="mt-1 text-sm font-semibold leading-snug">
-          {paymentStatus === "paid"
-            ? "Your payment was approved! Your meal is being prepared."
-            : paymentStatus === "verifying"
-              ? "Your receipt was received. We are verifying your transaction."
-              : paymentStatus === "partially_paid"
-                ? `Partial payment received (${order?.amountPaid} Birr). Remaining balance: ${(currentTotal - (order?.amountPaid || 0)).toFixed(2)} Birr.`
-                : "Please transfer the total amount and upload your screenshot below."}
+          {paymentStatus === "paid" && order?.amountPaid > currentTotal
+            ? `Order updated! You previously paid ${order.amountPaid} Birr. An overpayment of ${(order.amountPaid - currentTotal).toFixed(2)} Birr will be refunded in cash upon delivery.`
+            : paymentStatus === "paid"
+              ? "Your payment was approved! Your meal is being prepared."
+              : paymentStatus === "verifying"
+                ? "Your receipt was received. We are verifying your transaction."
+                : paymentStatus === "partially_paid"
+                  ? `Order updated: You already paid ${order?.amountPaid} Birr. Remaining balance due: ${(currentTotal - (order?.amountPaid || 0)).toFixed(2)} Birr. Please transfer the difference below.`
+                  : "Please transfer the total amount and upload your screenshot below."}
         </p>
       </div>
 
       <div className="space-y-4 p-4 text-slate-800">
+        {/* Overpayment / Refund Banner */}
+        {paymentStatus === "paid" && order?.amountPaid > currentTotal && (
+          <div className="rounded-2xl border-2 border-teal-300 bg-teal-50/90 p-4 text-teal-950 flex items-start gap-3 shadow-xs">
+            <Coins className="w-5 h-5 text-teal-600 shrink-0 mt-0.5" />
+            <div className="text-xs sm:text-sm font-semibold space-y-1">
+              <p className="font-black text-teal-900 text-sm">
+                💵 Overpayment Refund Scheduled
+              </p>
+              <p className="text-teal-900 leading-snug">
+                You previously paid <strong>{order.amountPaid} Birr</strong>. Your updated total is{" "}
+                <strong>{currentTotal.toFixed(2)} Birr</strong>.
+              </p>
+              <p className="text-teal-800 font-extrabold">
+                Our delivery runner will hand you{" "}
+                <span className="text-teal-950 underline underline-offset-2">
+                  {(order.amountPaid - currentTotal).toFixed(2)} Birr in cash
+                </span>{" "}
+                upon delivery at your dorm!
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Amount to Pay Card */}
         {Number.isFinite(currentTotal) && currentTotal > 0 && (
           <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/70 p-4 text-amber-950 shadow-xs flex items-center justify-between">
             <div>
               <p className="text-xs font-black uppercase tracking-wider text-amber-800">
-                Amount To Pay
+                {paymentStatus === "partially_paid" ? "Remaining Balance To Pay" : "Amount To Pay"}
               </p>
               <p className="mt-1 text-2xl font-black text-amber-950">
-                {currentTotal.toFixed(2)} Birr
+                {paymentStatus === "partially_paid"
+                  ? (currentTotal - (order?.amountPaid || 0)).toFixed(2)
+                  : currentTotal.toFixed(2)}{" "}
+                Birr
               </p>
+              {paymentStatus === "partially_paid" && (
+                <p className="text-xs text-gray-600 font-semibold mt-0.5">
+                  Total Order: {currentTotal.toFixed(2)} Birr • Already Paid: {order?.amountPaid} Birr
+                </p>
+              )}
             </div>
             {currentTrackingCode && (
               <div className="text-right">

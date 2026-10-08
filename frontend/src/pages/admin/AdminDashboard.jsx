@@ -1417,6 +1417,26 @@ Normal - 110 Birr, Special - 135 Birr
                                 <span>Inspect Proof</span>
                               </button>
                             )}
+
+                            {/* Shortfall warning pill if order was edited and customer owes difference */}
+                            {order.paymentStatus === "partially_paid" && (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-black bg-orange-100 text-orange-950 border border-orange-300"
+                                title={`Total: ${displayedTotal} Birr, Paid: ${order.amountPaid || 0} Birr`}
+                              >
+                                ⚠️ Owes: {(displayedTotal - (order.amountPaid || 0)).toFixed(0)} ETB
+                              </span>
+                            )}
+
+                            {/* Overpayment / Refund pill if order was edited and customer paid more than total */}
+                            {order.amountPaid > displayedTotal && order.paymentStatus === "paid" && (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-black bg-purple-100 text-purple-950 border border-purple-300"
+                                title={`Paid: ${order.amountPaid} Birr, New Total: ${displayedTotal} Birr`}
+                              >
+                                💵 Refund: {(order.amountPaid - displayedTotal).toFixed(0)} ETB
+                              </span>
+                            )}
                           </div>
 
                           {/* Quick Actions & Status Selector */}
