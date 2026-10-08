@@ -374,6 +374,14 @@ export default function Home() {
               </Link>
             )}
 
+            {/* Menu link */}
+            <Link
+              to="/menu"
+              className="text-xs sm:text-sm font-bold text-gray-700 hover:text-amber-600 px-3 py-1.5 rounded-xl hover:bg-amber-50 transition"
+            >
+              Menu
+            </Link>
+
             {/* Notification Bell with live count */}
             <NotificationBell />
 
@@ -472,12 +480,13 @@ export default function Home() {
               <ArrowRight className="w-4 h-4 ml-0.5 shrink-0" />
             </button>
 
-            <a
-              href="#menu"
-              className="w-full sm:w-auto min-h-[50px] px-7 py-3.5 rounded-2xl bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-900 border-2 border-gray-200 font-extrabold text-sm sm:text-base shadow-xs transition hover:border-amber-300 active:scale-98 flex items-center justify-center"
+            <Link
+              to="/menu"
+              className="w-full sm:w-auto min-h-[50px] px-7 py-3.5 rounded-2xl bg-white hover:bg-gray-50 active:bg-gray-100 text-gray-900 border-2 border-gray-200 font-extrabold text-sm sm:text-base shadow-xs transition hover:border-amber-300 active:scale-98 flex items-center justify-center gap-2 group"
             >
-              Explore Menu
-            </a>
+              <span>Explore Menu</span>
+              <ArrowRight className="w-4 h-4 text-amber-600 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
           </div>
         </section>
 
@@ -502,69 +511,7 @@ export default function Home() {
           </section>
         )}
 
-        {/* Menu Showcase Section */}
-        <section id="menu" className="scroll-mt-24 space-y-5">
-          <div className="text-center space-y-1">
-            <h2 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">
-              Today's Campus Menu
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-600 font-medium">
-              Tap any item to customize and add to your dorm delivery order
-            </p>
-          </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-            {MENU_ITEMS.map((item) => {
-              const isAvailable = itemAvailability[item.id] !== false;
-              const price = pricing[item.priceKey] || item.defaultPrice;
-
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => handleOrderClick(item.id)}
-                  className={`bg-white p-4 sm:p-5 rounded-3xl border transition-all flex flex-col items-center text-center justify-between group active:scale-97 ${
-                    isAvailable
-                      ? "border-gray-200 hover:border-amber-400 hover:shadow-lg hover:shadow-amber-100 hover:-translate-y-1 cursor-pointer"
-                      : "border-gray-100 opacity-60 cursor-not-allowed bg-gray-50/50"
-                  }`}
-                >
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-amber-50 group-hover:bg-amber-100/80 text-3xl sm:text-4xl flex items-center justify-center transition-transform group-hover:scale-105 mb-3 shadow-xs">
-                    {item.emoji}
-                  </div>
-
-                  <div className="w-full">
-                    <h3 className="font-extrabold text-sm sm:text-base text-gray-950 group-hover:text-amber-700 transition">
-                      {item.name}
-                    </h3>
-                    <p className="text-xs text-gray-600 line-clamp-2 mt-1 leading-snug font-medium">
-                      {item.desc}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 pt-3 border-t border-gray-100 w-full flex items-center justify-between gap-1">
-                    <span className="text-xs sm:text-sm font-black text-amber-950">
-                      {item.pricePrefix ? `${item.pricePrefix} ` : ""}
-                      {price}{" "}
-                      <span className="text-[11px] text-amber-800 font-bold">
-                        Birr
-                      </span>
-                    </span>
-
-                    <span
-                      className={`text-xs font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                        isAvailable
-                          ? "bg-emerald-50 text-emerald-800 border border-emerald-300"
-                          : "bg-rose-50 text-rose-800 border border-rose-300"
-                      }`}
-                    >
-                      {isAvailable ? "Available" : "Sold Out"}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
 
         {/* Track Order By Code Section (For Guests or Quick Lookup) */}
         {latestOrders.length === 0 && (

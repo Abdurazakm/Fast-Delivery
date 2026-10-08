@@ -11,6 +11,7 @@ import {
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
+import Menu from "./pages/Menu";
 import Orders from "./pages/Orders";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import TrackOrder from "./pages/TrackOrder";
@@ -440,6 +441,12 @@ function App() {
             "Fast and reliable food delivery inside AASTU, Addis Ababa Science and Technology University. Order m tuludimtu, leyl's fast food, ertib, sambusa, and boiled egg from Fetan Delivery.",
           robots: "index, follow",
         },
+        "/menu": {
+          title: "Campus Menu | Fetan Delivery AASTU",
+          description:
+            "Explore the campus menu of Fetan Delivery inside AASTU. Check prices and availability for Leyla's famous ertib, fetira, sambusa, donuts, and boiled eggs.",
+          robots: "index, follow",
+        },
         "/order": {
           title: "Order Now | Fetan Delivery AASTU",
           description:
@@ -585,6 +592,16 @@ function App() {
           path="/"
           element={
             <Home
+              user={user}
+              availability={availability}
+              serverOffsetMs={serverOffsetMs}
+            />
+          }
+        />
+        <Route
+          path="/menu"
+          element={
+            <Menu
               user={user}
               availability={availability}
               serverOffsetMs={serverOffsetMs}
