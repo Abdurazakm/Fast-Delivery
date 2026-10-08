@@ -24,6 +24,8 @@ import {
 import { onMessageListener } from "../firebase";
 import PushNotificationPrompt from "../components/PushNotificationPrompt";
 import NotificationBell from "../components/NotificationBell";
+import Navbar from "../components/Navbar";
+import Logo from "../components/Logo";
 
 const DEFAULT_ITEM_AVAILABILITY = {
   ertib: true,
@@ -315,47 +317,8 @@ export default function Home() {
         />
       )}
 
-      {/* Modern Sticky Navigation Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-          {/* Logo & Campus Pill */}
-          <Link to="/" className="flex items-center gap-2 group shrink-0">
-            <span className="text-2xl">🍲</span>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-sm sm:text-lg tracking-tight text-gray-950 group-hover:text-amber-600 transition leading-tight">
-                Fetan Delivery
-              </span>
-              <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-amber-700 leading-none">
-                AASTU Campus
-              </span>
-            </div>
-          </Link>
-
-          {/* Right Header Navigation */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Admin Dashboard shortcut */}
-            {roleLower === "admin" && (
-              <Link
-                to="/admin"
-                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1"
-              >
-                <span>Dashboard</span>
-              </Link>
-            )}
-
-            {/* Menu link (desktop) */}
-            <Link
-              to="/menu"
-              className="hidden sm:inline-flex text-xs sm:text-sm font-bold text-gray-700 hover:text-amber-600 px-3 py-1.5 rounded-xl hover:bg-amber-50 transition"
-            >
-              Menu
-            </Link>
-
-            {/* Notification Bell with live count */}
-            <NotificationBell />
-          </div>
-        </div>
-      </header>
+      {/* Responsive Top Navbar */}
+      <Navbar user={user} />
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-4 sm:pt-10 pb-28 sm:pb-16 space-y-8 sm:space-y-12">
@@ -559,20 +522,32 @@ export default function Home() {
       </main>
 
       {/* Clean Modern Footer */}
-      <footer className="border-t border-gray-200/80 bg-white pt-6 pb-24 sm:pb-6 text-center text-xs text-gray-500">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p>
-            © {new Date().getFullYear()} Fetan Delivery Service — Exclusively for AASTU Students.
-          </p>
-          <a
-            href="https://abdurazakmohammed.vercel.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-gray-600 hover:text-amber-700 font-medium transition flex items-center gap-1"
-          >
-            <span>Developed by Abdurazak</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
+      <footer className="border-t border-gray-200/80 bg-white pt-8 pb-24 sm:pb-8 text-center text-xs text-gray-500">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <Logo variant="mark" size={26} />
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-gray-950 text-sm tracking-tight">
+                Fetan <span className="text-amber-600">Delivery</span>
+              </span>
+              <span className="text-gray-300">|</span>
+              <span className="text-gray-500 font-medium">AASTU Campus Food</span>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-gray-400">
+            <p>
+              © {new Date().getFullYear()} Fetan Delivery. Exclusively for AASTU Students.
+            </p>
+            <a
+              href="https://abdurazakmohammed.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-600 hover:text-amber-700 font-medium transition flex items-center gap-1"
+            >
+              <span>Developed by Abdurazak</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
       </footer>
 

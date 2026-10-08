@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="fetanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="50%" stop-color="#EA580C" />
+      <stop offset="100%" stop-color="#C2410C" />
+    </linearGradient>
+    <linearGradient id="sheen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.05" />
+    </linearGradient>
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#9A3412" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Squircle App Icon Background -->
+  <rect x="28" y="28" width="456" height="456" rx="108" fill="url(#fetanGrad)" filter="url(#softShadow)" />
+  <rect x="30" y="30" width="452" height="452" rx="106" fill="none" stroke="url(#sheen)" stroke-width="4" />
+
+  <!-- Delivery Cloche + Speed Streaks Mark -->
+  <g fill="#FFFFFF">
+    <!-- Cloche Top Knob -->
+    <ellipse cx="285" cy="160" rx="22" ry="18" />
+    <path d="M 276 174 C 276 174 277 184 275 190 H 295 C 293 184 294 174 294 174 Z" />
+
+    <!-- Cloche Main Dome -->
+    <path d="M 169 295 C 169 203, 221 185, 285 185 C 349 185, 401 203, 401 295 Z" />
+
+    <!-- Base Serving Platter -->
+    <rect x="142" y="312" width="278" height="26" rx="13" />
+    <!-- Platter bottom rim -->
+    <path d="M 205 338 L 222 352 H 350 L 365 338 Z" opacity="0.95" />
+
+    <!-- Speed Streaks (Fast / Fetan) -->
+    <rect x="92" y="215" width="93" height="18" rx="9" />
+    <rect x="58" y="255" width="117" height="20" rx="10" />
+    <rect x="88" y="295" width="67" height="18" rx="9" />
+  </g>
+</svg>

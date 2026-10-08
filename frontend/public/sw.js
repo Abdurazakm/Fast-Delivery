@@ -17,8 +17,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: "/favicon.ico",
-      badge: "/favicon.ico",
+      icon: "/notification-icon.png",
+      badge: "/notification-badge.png",
       tag: payload.type || "notification",
       renotify: true,
       requireInteraction: true,

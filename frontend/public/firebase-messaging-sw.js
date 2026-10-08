@@ -47,8 +47,8 @@ messaging.onBackgroundMessage((payload) => {
       data.body ||
       payload.notification?.body ||
       "You have a new update.",
-    icon: "/favicon.png",
-    badge: "/favicon.png",
+    icon: "/notification-icon.png",
+    badge: "/notification-badge.png",
     vibrate: [200, 100, 200],
     requireInteraction: true,
     tag,

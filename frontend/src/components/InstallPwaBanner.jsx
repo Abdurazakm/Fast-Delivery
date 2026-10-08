@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Download, X, Share2, PlusSquare } from "lucide-react";
+import Logo from "./Logo";
 
 const DISMISS_KEY = "pwa_install_dismissed_until";
 const DISMISS_DAYS = 7;
@@ -79,20 +80,11 @@ export default function InstallPwaBanner() {
   if (!showPrompt) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-40 animate-in fade-in slide-in-from-bottom-5 duration-300">
+    <div className="fixed bottom-20 left-4 right-4 sm:bottom-4 sm:left-auto sm:right-6 sm:max-w-md z-40 animate-in fade-in slide-in-from-bottom-5 duration-300">
       <div className="bg-white/95 backdrop-blur-md border border-amber-200/80 rounded-2xl p-4 shadow-xl text-gray-800">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center text-white shadow-md overflow-hidden shrink-0">
-              <img
-                src="/favicon.png"
-                alt="Fetan Delivery"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                }}
-              />
-            </div>
+            <Logo variant="mark" size={44} className="shadow-md" />
             <div>
               <h4 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
                 Install Fetan App

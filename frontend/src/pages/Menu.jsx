@@ -16,6 +16,7 @@ import API from "../api";
 import Toast from "./Toast";
 import { getSocket } from "../socket";
 import NotificationBell from "../components/NotificationBell";
+import Navbar from "../components/Navbar";
 
 const DEFAULT_ITEM_AVAILABILITY = {
   ertib: true,
@@ -310,38 +311,8 @@ export default function Menu({ user: propUser, availability: propAvailability, s
         />
       )}
 
-      {/* Sticky Navigation Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
-        <div className="max-w-6xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link to="/" className="flex items-center gap-1.5 sm:gap-2 group">
-              <span className="text-xl sm:text-2xl">🍲</span>
-              <div className="flex flex-col">
-                <span className="font-extrabold text-sm sm:text-base tracking-tight text-gray-950 group-hover:text-amber-600 transition leading-tight">
-                  Fetan Delivery
-                </span>
-                <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-amber-700 leading-none">
-                  AASTU Campus
-                </span>
-              </div>
-            </Link>
-          </div>
-
-          {/* Right Header Navigation */}
-          <div className="flex items-center gap-1.5 sm:gap-3">
-            {roleLower === "admin" && (
-              <Link
-                to="/admin"
-                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1"
-              >
-                <span>Dashboard</span>
-              </Link>
-            )}
-
-            <NotificationBell />
-          </div>
-        </div>
-      </header>
+      {/* Responsive Top Navbar */}
+      <Navbar user={user} />
 
       {/* Main Content Area */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 pt-4 sm:pt-8 pb-28 sm:pb-16 space-y-6 sm:space-y-8">

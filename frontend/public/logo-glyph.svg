@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="glyphGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#EA580C" />
+    </linearGradient>
+  </defs>
+  <g fill="currentColor">
+    <!-- Cloche Top Knob -->
+    <ellipse cx="285" cy="160" rx="22" ry="18" />
+    <path d="M 276 174 C 276 174 277 184 275 190 H 295 C 293 184 294 174 294 174 Z" />
+
+    <!-- Cloche Main Dome -->
+    <path d="M 169 295 C 169 203, 221 185, 285 185 C 349 185, 401 203, 401 295 Z" />
+
+    <!-- Base Serving Platter -->
+    <rect x="142" y="312" width="278" height="26" rx="13" />
+    <path d="M 205 338 L 222 352 H 350 L 365 338 Z" opacity="0.95" />
+
+    <!-- Speed Streaks -->
+    <rect x="92" y="215" width="93" height="18" rx="9" />
+    <rect x="58" y="255" width="117" height="20" rx="10" />
+    <rect x="88" y="295" width="67" height="18" rx="9" />
+  </g>
+</svg>

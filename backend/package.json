@@ -10,6 +10,7 @@
     "migrate:deploy": "npx prisma migrate deploy",
     "studio:dev": "npx prisma studio",
     "studio:prod": "npx prisma studio",
+    "test": "node test-api-suite.js",
     "postinstall": "npx prisma generate"
   },
   "dependencies": {

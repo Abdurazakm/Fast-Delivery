@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
 import Menu from "./pages/Menu";
+import Profile from "./pages/Profile";
 import Orders from "./pages/Orders";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import TrackOrder from "./pages/TrackOrder";
@@ -26,6 +27,8 @@ import {
   isDuplicateNotification,
 } from "./notificationStore";
 import InstallPwaBanner from "./components/InstallPwaBanner";
+import MobileBottomNav from "./components/MobileBottomNav";
+import PageLoader from "./components/PageLoader";
 
 
 /* ---------------- Main App ---------------- */
@@ -136,7 +139,14 @@ function App() {
   function ProtectedRoute({ children, user, loadingUser, availability }) {
     const navigate = useNavigate();
 
-    if (loadingUser) return null;
+    if (loadingUser) {
+      return (
+        <PageLoader
+          message="Checking order availability..."
+          subtext="Preparing your campus menu session"
+        />
+      );
+    }
     if (user?.role === "admin") return children;
 
     const serviceAvailable = checkAvailability(availability);
@@ -191,7 +201,14 @@ function App() {
     const isStaff =
       role === "employ" || role === "employee" || role === "supleyer";
 
-    if (loadingUser) return null;
+    if (loadingUser) {
+      return (
+        <PageLoader
+          message="Verifying staff permissions..."
+          subtext="Connecting to Fetan Staff portal"
+        />
+      );
+    }
     if (!user || (role !== "admin" && !isStaff)) {
       return (
         <Modal
@@ -209,7 +226,14 @@ function App() {
     const navigate = useNavigate();
     const role = (user?.role || "").toLowerCase();
 
-    if (loadingUser) return null;
+    if (loadingUser) {
+      return (
+        <PageLoader
+          message="Verifying admin permissions..."
+          subtext="Connecting to Fetan Admin portal"
+        />
+      );
+    }
     if (!user || role !== "admin") {
       return (
         <Modal
@@ -269,8 +293,8 @@ function App() {
           if (registration) {
             await registration.showNotification(title, {
               body,
-              icon: "/favicon.png",
-              badge: "/favicon.png",
+              icon: "/notification-icon.png",
+              badge: "/notification-badge.png",
               tag: unifiedTag,
               renotify: true,
               requireInteraction: true,
@@ -282,7 +306,8 @@ function App() {
 
         const notif = new Notification(title, {
           body,
-          icon: "/favicon.png",
+          icon: "/notification-icon.png",
+          badge: "/notification-badge.png",
           tag: unifiedTag,
           renotify: true,
           requireInteraction: true,
@@ -431,7 +456,7 @@ function App() {
 
     useEffect(() => {
       const siteUrl = "https://fetandelivery.netlify.app";
-      const defaultImage = `${siteUrl}/favicon.png`;
+      const defaultImage = `${siteUrl}/pwa-512x512.png`;
 
       const routeSeo = {
         "/": {
@@ -457,6 +482,12 @@ function App() {
           title: "Login | Fetan Delivery",
           description:
             "Login to your Fetan Delivery account to place and track food delivery orders inside AASTU, Addis Ababa.",
+          robots: "noindex, follow",
+        },
+        "/profile": {
+          title: "My Profile | Fetan Delivery AASTU",
+          description:
+            "View and manage your Fetan Delivery student profile, dorm block, and recent orders inside AASTU.",
           robots: "noindex, follow",
         },
         "/register": {
@@ -624,7 +655,14 @@ function App() {
           path="/login"
           element={<Login onLoginSuccess={handleLoginSuccess} />}
         />
-        <Route path="/register" element={<Register />} />
+        <Route
+          path="/register"
+          element={<Register onLoginSuccess={handleLoginSuccess} />}
+        />
+        <Route
+          path="/profile"
+          element={<Profile user={user} setUser={setUser} />}
+        />
         <Route
           path="/admin"
           element={
@@ -645,6 +683,7 @@ function App() {
         <Route path="/orders/track/:code" element={<TrackOrder />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <MobileBottomNav user={user} />
     </Router>
   );
 }

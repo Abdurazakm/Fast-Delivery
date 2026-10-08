@@ -5,6 +5,7 @@ import TrackingInfoCard from "./TrackingInfoCard";
 import { ArrowLeft, Check, Share2, Sparkles } from "lucide-react";
 import { getSocket } from "../socket";
 import PushNotificationPrompt from "../components/PushNotificationPrompt";
+import PageLoader from "../components/PageLoader";
 
 export default function TrackOrder() {
   const { code } = useParams();
@@ -138,12 +139,10 @@ export default function TrackOrder() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50/70 px-4">
-        <div className="w-12 h-12 rounded-full border-4 border-amber-200 border-t-amber-500 animate-spin mb-4" />
-        <p className="text-gray-600 font-medium text-sm">
-          Loading live tracking...
-        </p>
-      </div>
+      <PageLoader
+        message="Loading live tracking..."
+        subtext="Connecting to campus rider dispatch"
+      />
     );
   }
 
@@ -170,7 +169,7 @@ export default function TrackOrder() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/70 pb-16">
+    <div className="min-h-screen bg-gray-50/70 pb-28 sm:pb-16">
       {/* Sticky Top Navigation */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
         <div className="max-w-3xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-3">
