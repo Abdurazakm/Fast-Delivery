@@ -3,6 +3,7 @@ const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const https = require("https");
 
 const isCloudinaryConfigured = Boolean(
   process.env.CLOUDINARY_CLOUD_NAME &&
@@ -10,11 +11,18 @@ const isCloudinaryConfigured = Boolean(
   process.env.CLOUDINARY_API_SECRET
 );
 
+const isProduction = process.env.NODE_ENV === "production";
+// Use relaxed TLS agent in local development on Windows to prevent UNABLE_TO_VERIFY_LEAF_SIGNATURE
+const devHttpsAgent = isProduction
+  ? undefined
+  : new https.Agent({ rejectUnauthorized: false });
+
 if (isCloudinaryConfigured) {
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
   });
   console.log("☁️  Cloudinary configured successfully for receipt storage.");
 } else {
@@ -26,16 +34,20 @@ let storage;
 if (isCloudinaryConfigured) {
   storage = new CloudinaryStorage({
     cloudinary,
-    params: {
-      folder: "ertib-delivery/receipts",
-      allowed_formats: ["jpg", "jpeg", "png", "webp"],
-      transformation: [
-        { width: 1400, crop: "limit", quality: "auto", fetch_format: "auto" },
-      ],
-      public_id: (req, file) => {
-        const baseName = path.parse(file.originalname).name.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 30);
-        return `receipt-${Date.now()}-${baseName}`;
-      },
+    params: async (req, file) => {
+      const baseName = path
+        .parse(file.originalname)
+        .name.replace(/[^a-zA-Z0-9]/g, "_")
+        .slice(0, 30);
+      return {
+        folder: "ertib-delivery/receipts",
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+        transformation: [
+          { width: 1400, crop: "limit", quality: "auto", fetch_format: "auto" },
+        ],
+        public_id: `receipt-${Date.now()}-${baseName}`,
+        ...(devHttpsAgent ? { agent: devHttpsAgent } : {}),
+      };
     },
   });
 } else {
@@ -89,8 +101,9 @@ async function deleteUploadedFile(file) {
   if (!file) return;
   try {
     if (isCloudinaryConfigured && file.filename) {
-      // CloudinaryStorage sets file.filename to the public_id
-      await cloudinary.uploader.destroy(file.filename);
+      await cloudinary.uploader.destroy(file.filename, {
+        ...(devHttpsAgent ? { agent: devHttpsAgent } : {}),
+      });
     } else if (file.path && fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
     }
