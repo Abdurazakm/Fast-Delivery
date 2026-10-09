@@ -146,10 +146,31 @@ function OrderSuccessModal({
   onTrackNow,
   onTakeNextOrder,
   onGoDashboard,
+  buildTrackingMessage,
+  buildPaymentMessage,
   buildManualOrderSmsMessage,
 }) {
+  const initialTemplateType =
+    order?.initialTemplate ||
+    (order?.paymentMethod === "online" &&
+    String(order?.paymentStatus || "").toLowerCase() !== "paid"
+      ? "payment"
+      : "tracking");
+
+  const [selectedTemplate, setSelectedTemplate] = useState(initialTemplateType);
+
+  const getTemplateContent = (type) => {
+    if (type === "payment") {
+      if (buildPaymentMessage) return buildPaymentMessage(order);
+      if (buildManualOrderSmsMessage) return buildManualOrderSmsMessage(order);
+    }
+    if (buildTrackingMessage) return buildTrackingMessage(order);
+    if (buildManualOrderSmsMessage) return buildManualOrderSmsMessage(order);
+    return "";
+  };
+
   const [messageText, setMessageText] = useState(() =>
-    buildManualOrderSmsMessage ? buildManualOrderSmsMessage(order) : ""
+    getTemplateContent(initialTemplateType),
   );
   const [copiedSms, setCopiedSms] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -160,10 +181,26 @@ function OrderSuccessModal({
 
   // Keep messageText in sync if order changes
   useEffect(() => {
-    if (buildManualOrderSmsMessage && order) {
-      setMessageText(buildManualOrderSmsMessage(order));
+    if (order) {
+      const type =
+        order?.initialTemplate ||
+        (order?.paymentMethod === "online" &&
+        String(order?.paymentStatus || "").toLowerCase() !== "paid"
+          ? "payment"
+          : "tracking");
+      setSelectedTemplate(type);
+      setMessageText(getTemplateContent(type));
     }
-  }, [order, buildManualOrderSmsMessage]);
+  }, [order]);
+
+  const handleSelectTemplate = (type) => {
+    setSelectedTemplate(type);
+    setMessageText(getTemplateContent(type));
+  };
+
+  const handleResetToCurrentTemplate = () => {
+    setMessageText(getTemplateContent(selectedTemplate));
+  };
 
   const handleCopyCode = () => {
     if (order?.trackingCode && navigator?.clipboard?.writeText) {
@@ -174,7 +211,7 @@ function OrderSuccessModal({
   };
 
   const handleCopySms = () => {
-    const text = messageText || buildManualOrderSmsMessage(order);
+    const text = messageText || getTemplateContent(selectedTemplate);
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(text);
       setCopiedSms(true);
@@ -184,7 +221,7 @@ function OrderSuccessModal({
 
   const handleSendAppSms = () => {
     if (!order?.customerPhone) return;
-    const text = messageText || buildManualOrderSmsMessage(order);
+    const text = messageText || getTemplateContent(selectedTemplate);
     const isIOS =
       typeof navigator !== "undefined" &&
       /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -199,7 +236,7 @@ function OrderSuccessModal({
         {
           orderId: order.orderId,
           trackingCode: order.trackingCode,
-          type: "confirmation",
+          type: selectedTemplate === "payment" ? "payment_reminder" : "confirmation",
           messageText: text,
           recipientPhone: order.customerPhone,
         },
@@ -216,7 +253,7 @@ function OrderSuccessModal({
   };
 
   const handleSendTelegram = () => {
-    const text = messageText || buildManualOrderSmsMessage(order);
+    const text = messageText || getTemplateContent(selectedTemplate);
     const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(order?.trackingLink || "")}&text=${encodeURIComponent(text)}`;
     window.open(tgUrl, "_blank");
   };
@@ -352,8 +389,34 @@ function OrderSuccessModal({
               </span>
             </div>
 
+            {/* Template Selector Tabs (Tracking SMS vs Payment SMS from AdminDashboard) */}
+            <div className="flex items-center gap-1.5 p-1 bg-blue-100/70 rounded-xl">
+              <button
+                type="button"
+                onClick={() => handleSelectTemplate("tracking")}
+                className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  selectedTemplate === "tracking"
+                    ? "bg-white text-blue-900 shadow-xs"
+                    : "text-blue-700 hover:text-blue-900"
+                }`}
+              >
+                <span>🚚 Tracking SMS</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSelectTemplate("payment")}
+                className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  selectedTemplate === "payment"
+                    ? "bg-white text-blue-900 shadow-xs"
+                    : "text-blue-700 hover:text-blue-900"
+                }`}
+              >
+                <span>💳 Payment SMS</span>
+              </button>
+            </div>
+
             <p className="text-[11px] text-blue-800 font-medium leading-relaxed">
-              Message generated for <span className="font-bold">{order.customerName || "customer"}</span>. Review or edit before sending:
+              Message generated for <span className="font-bold">{order.customerName || "customer"}</span> ({selectedTemplate === "payment" ? "Payment Required" : "Order Confirmation"} template). Review or edit before sending:
             </p>
 
             {/* Editable Message Box */}
@@ -361,7 +424,7 @@ function OrderSuccessModal({
               <textarea
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                rows={3}
+                rows={4}
                 className="w-full p-2.5 rounded-xl border border-blue-200 bg-white text-xs font-mono text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 leading-relaxed resize-none shadow-2xs"
                 placeholder="Type SMS message..."
               />
@@ -369,10 +432,10 @@ function OrderSuccessModal({
                 <span>{messageText.length} characters</span>
                 <button
                   type="button"
-                  onClick={() => setMessageText(buildManualOrderSmsMessage(order))}
+                  onClick={handleResetToCurrentTemplate}
                   className="text-blue-600 hover:underline font-bold cursor-pointer"
                 >
-                  Reset to default text
+                  Reset to {selectedTemplate === "payment" ? "payment" : "tracking"} template
                 </button>
               </div>
             </div>
@@ -1207,14 +1270,26 @@ export default function Order({ user: propUser } = {}) {
           Boolean(localStorage.getItem("token") && ["admin", "employ", "employee", "supleyer"].includes(currentRole));
 
         if (isAdminOrder) {
-          const smsText = buildManualOrderSmsMessage({
+          const initialTemplate =
+            paymentMethod === "online" &&
+            String(orderData?.paymentStatus || "").toLowerCase() !== "paid"
+              ? "payment"
+              : "tracking";
+
+          const orderForTemplate = {
+            ...orderData,
             trackingCode: finalTrackingCode,
             trackingLink: orderData.trackUrl,
             paymentStatus: orderData.paymentStatus,
             paymentMethod,
             total: orderData.total ?? total,
             customerName: effectiveCustomerName,
-          });
+          };
+
+          const smsText =
+            initialTemplate === "payment"
+              ? buildPaymentMessage(orderForTemplate)
+              : buildTrackingMessage(orderForTemplate);
 
           let smsLogged = false;
           if (autoSendSms && finalPhone) {
@@ -1226,7 +1301,7 @@ export default function Order({ user: propUser } = {}) {
                 {
                   orderId: orderData.id,
                   trackingCode: finalTrackingCode,
-                  type: "confirmation",
+                  type: initialTemplate === "payment" ? "payment_reminder" : "confirmation",
                   messageText: smsText,
                   recipientPhone: finalPhone,
                 },
@@ -1260,6 +1335,7 @@ export default function Order({ user: propUser } = {}) {
               customer.location || orderData.location || "AASTU Campus",
             autoSendSms,
             smsServerLogged: smsLogged,
+            initialTemplate,
             paymentStatus:
               orderData.paymentStatus ||
               (paymentMethod === "cod" ? "pending_cash" : "unpaid"),
@@ -1334,25 +1410,95 @@ export default function Order({ user: propUser } = {}) {
     });
   };
 
-  const buildManualOrderSmsMessage = (orderObj = orderSuccessModal || tracking) => {
+  // Message templates adopted from AdminDashboard as reference:
+  const buildTrackingMessage = (orderObj = orderSuccessModal || tracking) => {
     if (!orderObj) return "";
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://fetandelivery.netlify.app";
+    const code = orderObj.trackingCode || orderObj._id || orderObj.id || "--";
+    const baseLink = orderObj.trackingLink || `${origin}/track/${code}/`;
+    const name = (orderObj.customerName || "").trim();
+    const isGeneric = !name || name === "AASTU Student" || name === "Customer";
+    const greeting = !isGeneric
+      ? `Hello ${name}`
+      : orderObj.source === "manual" || orderObj.createdByAdmin
+      ? "Hello"
+      : `Hello ${name || "Customer"}`;
+    const status = String(orderObj.status || "pending").toLowerCase();
 
-    const code = orderObj.trackingCode || "--";
-    const trackLink = orderObj.trackingLink || "";
-    const paymentStatus = String(
-      orderObj.paymentStatus || "unpaid",
-    ).toLowerCase();
-    const paymentMethod = String(
-      orderObj.paymentMethod || "cod",
-    ).toLowerCase();
-    const amount = Number(orderObj.total || 0).toFixed(0);
-    const custName = (orderObj.customerName || "").trim() || DEFAULT_CUSTOMER_NAME;
+    switch (status) {
+      case "pending":
+        return `${greeting}! Your order (Code: ${code}) is confirmed. Thanks for your request — we’ll notify you once preparation begins. Track your order here: ${baseLink}`;
 
-    if (paymentMethod === "cod" || paymentStatus === "pending_cash" || paymentStatus === "paid") {
-      return `✅ Hi ${custName}! Your Ertib order (${code}) is confirmed. Total: ${amount} Birr (Cash on delivery). Track live: ${trackLink}`;
+      case "in_progress":
+        return `${greeting}! Good news — your order (Code: ${code}) is now being prepared and will be on its way shortly. Track its progress here: ${baseLink}`;
+
+      case "arrived":
+        return `${greeting}! Your order (Code: ${code}) has arrived. Please pick it up from the location you shared around ${
+          orderObj.customerLocation || orderObj.location || "your specified address"
+        }. Track it here: ${baseLink}`;
+
+      case "delivered":
+        return `${greeting}! Your order (Code: ${code}) has been delivered. Thank you for choosing Fetan Delivery! We’d be happy to serve you again — you can place next order during our service hours at https://fetandelivery.netlify.app/. If you have feedback, just reply to this message.`;
+
+      default:
+        return `${greeting}! Your order (Code: ${code}) is currently: ${
+          orderObj.status || "unknown"
+        }. Track it here: ${baseLink}`;
+    }
+  };
+
+  const buildPaymentMessage = (orderObj = orderSuccessModal || tracking) => {
+    if (!orderObj) return "";
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "https://fetandelivery.netlify.app";
+    const code = orderObj.trackingCode || orderObj._id || orderObj.id || "--";
+    const baseLink = orderObj.trackingLink || `${origin}/track/${code}/`;
+    const name = (orderObj.customerName || "").trim();
+    const isGeneric = !name || name === "AASTU Student" || name === "Customer";
+    const greeting = !isGeneric
+      ? `Hello ${name}`
+      : orderObj.source === "manual" || orderObj.createdByAdmin
+      ? "Hello"
+      : `Hello ${name || "Customer"}`;
+
+    const displayedTotal = Number(
+      orderObj.total ?? orderObj.totalPrice ?? orderObj.amount ?? 0,
+    );
+    const totalBirr = displayedTotal.toFixed(2);
+    const payment = String(
+      orderObj.paymentStatus ||
+        (orderObj.paymentMethod === "cod" ? "pending_cash" : "unpaid"),
+    ).toLowerCase();
+
+    if (payment === "paid") {
+      if (orderObj.amountPaid && Number(orderObj.amountPaid) > displayedTotal) {
+        const refundAmt = (Number(orderObj.amountPaid) - displayedTotal).toFixed(2);
+        return `${greeting}! ✅ Your payment for order (Code: ${code}) is confirmed. Since you updated your order, an overpayment refund of ${refundAmt} Birr will be handed to you in cash upon delivery. Track your order here: ${baseLink}`;
+      }
+      return `${greeting}! ✅ We have received your payment for order (Code: ${code}). Your order is now confirmed and being processed. Track your order here: ${baseLink}`;
     }
 
-    return `💳 Hi ${custName}! Your Ertib order (${code}) total is ${amount} Birr.\n\nPayment options:\nCBE: 1000528463243 (Abdurazak Mohammed)\nTelebirr / CBEBirr: 0954724664 (Abdurazak Mohammed)\n\nTrack & upload screenshot: ${trackLink}`;
+    if (payment === "partially_paid") {
+      const paidAmt = Number(orderObj.amountPaid || 0).toFixed(2);
+      const shortfall = Math.max(0, displayedTotal - Number(orderObj.amountPaid || 0)).toFixed(2);
+      return `${greeting}! ⚠️ Please fulfill your remaining payment for order (Code: ${code}).\n\nTotal: ${totalBirr} Birr\nAlready Paid: ${paidAmt} Birr\nRemaining to Fulfill: ${shortfall} Birr\n\nPlease transfer the remaining ${shortfall} Birr and upload your screenshot on your tracking page:\n${baseLink}\n\nAccounts:\n🏦 CBE: 1000528463243\n📱 Telebirr / CBEBirr: 0954724664`;
+    }
+
+    return `${greeting}! 💳 Payment is still required for your order (Code: ${code}).\n\nAmount to pay: ${totalBirr} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\n🏦 CBE: 1000528463243 (Abdurazak Mohammed)\n📱 Telebirr / CBEBirr: 0954724664 (Abdurazak Mohammed)\n\n📸 After payment, upload your screenshot on tracking page:\n${baseLink}\nTelegram: https://t.me/ABDURAZACQ`;
+  };
+
+  const buildManualOrderSmsMessage = (orderObj = orderSuccessModal || tracking) => {
+    const isOnlineUnpaid =
+      orderObj?.paymentMethod === "online" &&
+      String(orderObj?.paymentStatus || "").toLowerCase() !== "paid";
+    return isOnlineUnpaid
+      ? buildPaymentMessage(orderObj)
+      : buildTrackingMessage(orderObj);
   };
 
   const handleResetForNextOrder = () => {
@@ -1406,6 +1552,8 @@ export default function Order({ user: propUser } = {}) {
           <OrderSuccessModal
             key={orderSuccessModal.trackingCode || "order-success-dialog"}
             order={orderSuccessModal}
+            buildTrackingMessage={buildTrackingMessage}
+            buildPaymentMessage={buildPaymentMessage}
             buildManualOrderSmsMessage={buildManualOrderSmsMessage}
             onTrackNow={(code) =>
               handleTrackNow(code || orderSuccessModal.trackingCode)
