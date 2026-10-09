@@ -45,17 +45,32 @@ export default function OrdersMenuWaitingCard() {
 
         {/* Floating / Interactive Logo Badge */}
         <div
-          className={`relative z-10 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl shadow-orange-600/30 ring-2 ring-white/80 transition-transform duration-300 ${
+          className={`relative z-10 rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl shadow-orange-600/30 ring-2 ring-white/80 transition-transform duration-300 bg-gradient-to-tr from-amber-500 via-orange-500 to-amber-600 ${
             isBouncing ? "scale-110 rotate-2" : "animate-bounce-slow group-hover:scale-105"
           }`}
           style={{ width: 72, height: 72 }}
         >
+          {/* Zero-latency fallback vector silhouette (renders at 0ms even on slow 2G/3G) */}
+          <div className="absolute inset-0 flex items-center justify-center p-2.5">
+            <svg viewBox="0 0 512 512" fill="#ffffff" className="w-full h-full drop-shadow-sm" xmlns="http://www.w3.org/2000/svg">
+              <ellipse cx="285" cy="160" rx="22" ry="18" />
+              <path d="M 276 174 C 276 174 277 184 275 190 H 295 C 293 184 294 174 294 174 Z" />
+              <path d="M 169 295 C 169 203, 221 185, 285 185 C 349 185, 401 203, 401 295 Z" />
+              <rect x="142" y="312" width="278" height="26" rx="13" />
+              <path d="M 205 338 L 222 352 H 350 L 365 338 Z" opacity="0.95" />
+              <rect x="92" y="215" width="93" height="18" rx="9" />
+              <rect x="58" y="255" width="117" height="20" rx="10" />
+              <rect x="88" y="295" width="67" height="18" rx="9" />
+            </svg>
+          </div>
+          {/* Master logo displays on top as soon as network delivers it */}
           <img
             src="/logo.png"
             alt="Fetan Delivery"
             width={72}
             height={72}
-            className="w-full h-full object-cover pointer-events-none"
+            className="w-full h-full object-cover pointer-events-none relative z-10 transition-opacity duration-300"
+            loading="eager"
           />
         </div>
       </div>

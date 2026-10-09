@@ -477,6 +477,27 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
         ? "pending_cash"
         : (req.body.paymentStatus || "unpaid");
 
+    // Look up if a registered customer exists with this phone number; never assign admin's userId
+    let customerUserId = null;
+    const existingCustomerUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: normalizedPhone },
+          { phone: String(phone).trim() },
+          ...(normalizedPhone.startsWith("+251")
+            ? [
+                { phone: "0" + normalizedPhone.slice(4) },
+                { phone: normalizedPhone.slice(4) },
+              ]
+            : []),
+        ],
+      },
+      select: { id: true },
+    });
+    if (existingCustomerUser) {
+      customerUserId = existingCustomerUser.id;
+    }
+
     const order = await prisma.order.create({
       data: {
         customerName,
@@ -490,7 +511,7 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
         trackUrl,
         notes,
         statusHistory: [{ status: "pending", at: new Date().toISOString() }],
-        userId: req.user?.id || null, // optional
+        userId: customerUserId,
         paymentMethod,
         changeRequested,
         paymentStatus,

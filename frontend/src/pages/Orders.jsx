@@ -148,6 +148,10 @@ function OrderSuccessModal({
 }) {
   const isAdmin = Boolean(order?.createdByAdmin);
   const [countdown, setCountdown] = useState(2);
+  const [copiedSms, setCopiedSms] = useState(false);
+  const [serverSmsLoading, setServerSmsLoading] = useState(false);
+  const [serverSmsDone, setServerSmsDone] = useState(false);
+  const [serverSmsError, setServerSmsError] = useState("");
 
   // Auto-redirect only for regular customers
   useEffect(() => {
@@ -165,6 +169,37 @@ function OrderSuccessModal({
     return () => clearTimeout(timer);
   }, [isAdmin, countdown, onTrackNow, order?.trackingCode]);
 
+  const handleCopySms = () => {
+    const text = buildManualOrderSmsMessage(order);
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedSms(true);
+      setTimeout(() => setCopiedSms(false), 2000);
+    }
+  };
+
+  const handleTriggerServerSms = async () => {
+    if (!order?.orderId) return;
+    setServerSmsLoading(true);
+    setServerSmsError("");
+    try {
+      const token = localStorage.getItem("token");
+      await API.post(
+        "/orders/resend-sms",
+        { orderId: order.orderId, type: "confirmation" },
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+      );
+      setServerSmsDone(true);
+    } catch (err) {
+      console.error("Failed to trigger server SMS:", err);
+      setServerSmsError(
+        err.response?.data?.message || "Server SMS gateway unavailable"
+      );
+    } finally {
+      setServerSmsLoading(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <motion.div
@@ -172,45 +207,45 @@ function OrderSuccessModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.85, y: 20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative bg-white rounded-3xl shadow-2xl max-w-sm sm:max-w-md w-full p-5 sm:p-8 text-center border border-gray-100 overflow-hidden max-h-[92vh] overflow-y-auto"
+        className="relative bg-white rounded-3xl shadow-2xl max-w-sm sm:max-w-md w-full p-5 sm:p-7 text-center border border-gray-100 overflow-hidden max-h-[92vh] overflow-y-auto"
       >
         {/* Animated Celebration Icon */}
-        <div className="relative mx-auto mb-4 w-20 h-20 flex items-center justify-center">
+        <div className="relative mx-auto mb-3 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: "spring", delay: 0.1, damping: 15 }}
-            className={`w-20 h-20 rounded-full text-white flex items-center justify-center shadow-lg ${
+            className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full text-white flex items-center justify-center shadow-lg ${
               isAdmin
                 ? "bg-linear-to-tr from-blue-600 to-indigo-500 shadow-blue-200"
                 : "bg-linear-to-tr from-emerald-500 to-teal-400 shadow-emerald-200"
             }`}
           >
-            <CheckCircle2 className="w-10 h-10" />
+            <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
           </motion.div>
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
             className="absolute -top-1 -right-1 text-amber-500"
           >
-            <Sparkles className="w-6 h-6" />
+            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
           </motion.div>
         </div>
 
         {/* Heading & Subtitle */}
         <h2 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">
-          {isAdmin ? "Manual Order Created!" : "Order Placed Successfully!"}
+          {isAdmin ? "Customer Order Created!" : "Order Placed Successfully!"}
         </h2>
-        <p className="text-xs sm:text-sm text-gray-700 font-medium mt-1 leading-relaxed">
+        <p className="text-xs sm:text-sm text-gray-600 font-medium mt-1 leading-relaxed">
           {isAdmin
-            ? "Order has been logged in the system and kitchen queue."
+            ? `Order for ${order.customerName || "customer"} is confirmed in the kitchen queue.`
             : "We've received your order and sent it to the kitchen."}
         </p>
 
         {/* Order Details Strip */}
-        <div className="mt-5 p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between text-left">
+        <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between text-left">
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-700 block">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 block">
               Tracking Code
             </span>
             <span className="font-mono text-base font-black text-gray-950 mt-0.5 block">
@@ -218,7 +253,7 @@ function OrderSuccessModal({
             </span>
           </div>
           <div className="text-right">
-            <span className="text-xs font-bold uppercase tracking-wider text-gray-700 block">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 block">
               Total Amount
             </span>
             <span className="text-base font-black text-amber-950 mt-0.5 block">
@@ -246,40 +281,74 @@ function OrderSuccessModal({
         )}
 
         {/* Action Buttons */}
-        <div className="mt-6 space-y-2.5">
+        <div className="mt-5 space-y-2.5">
           {isAdmin ? (
             /* ADMIN OPERATIONAL CONTROLS */
             <>
-              {/* 1. Send Order SMS */}
+              {/* 1. Send SMS section */}
               {order.customerPhone && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const messageToSend = buildManualOrderSmsMessage(order);
-                    const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
-                    window.location.href = smsUrl;
-                  }}
-                  className="w-full min-h-[48px] py-3 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-sm sm:text-base shadow-md shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <FaPaperPlaneIcon className="text-sm" />
-                  <span>Send SMS to Customer ({order.customerPhone})</span>
-                </button>
+                <div className="space-y-2 pb-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const messageToSend = buildManualOrderSmsMessage(order);
+                      const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
+                      window.location.href = smsUrl;
+                    }}
+                    className="w-full min-h-[46px] py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <FaPaperPlaneIcon className="text-xs" />
+                    <span>📱 Send SMS via App ({order.customerPhone})</span>
+                  </button>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleTriggerServerSms}
+                      disabled={serverSmsLoading || serverSmsDone}
+                      className={`flex-1 min-h-[38px] py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 ${
+                        serverSmsDone
+                          ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                          : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                      }`}
+                    >
+                      <span>
+                        {serverSmsLoading
+                          ? "Sending..."
+                          : serverSmsDone
+                            ? "Server SMS Sent ✅"
+                            : "⚡ Gateway SMS"}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCopySms}
+                      className="min-h-[38px] py-2 px-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                    >
+                      <span>{copiedSms ? "Copied! ✅" : "📋 Copy Text"}</span>
+                    </button>
+                  </div>
+                  {serverSmsError && (
+                    <p className="text-[11px] text-rose-600 font-semibold">{serverSmsError}</p>
+                  )}
+                </div>
               )}
 
-              {/* 2. Take Next Phone Order & Admin Dashboard */}
-              <div className="flex gap-2">
+              {/* 2. Create Another Order & Go Dashboard */}
+              <div className="flex gap-2 pt-1 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={onTakeNextOrder}
-                  className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-amber-200 active:scale-98"
+                  className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs sm:text-sm font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-amber-200 active:scale-98"
                 >
-                  <span>+ Next Order</span>
+                  <span>➕ Create Another Order</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={onGoDashboard}
-                  className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                  className="min-h-[46px] py-2.5 px-4 rounded-xl bg-gray-900 hover:bg-black active:scale-98 text-white text-xs sm:text-sm font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                 >
                   <span>Dashboard</span>
                 </button>
@@ -289,10 +358,10 @@ function OrderSuccessModal({
               <button
                 type="button"
                 onClick={() => onTrackNow(order?.trackingCode)}
-                className="w-full min-h-[40px] py-2 text-xs sm:text-sm font-bold text-gray-600 hover:text-amber-800 transition flex items-center justify-center gap-1 cursor-pointer"
+                className="w-full min-h-[36px] py-1 text-xs font-bold text-gray-500 hover:text-amber-800 transition flex items-center justify-center gap-1 cursor-pointer"
               >
-                <Bike className="w-4 h-4" />
-                <span>View Order Tracking Page →</span>
+                <Bike className="w-3.5 h-3.5" />
+                <span>View Live Tracking Page →</span>
               </button>
             </>
           ) : (
@@ -408,12 +477,25 @@ export default function Order() {
         const res = await API.get("/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
+        const role = (res.data?.role || "").toLowerCase();
+        const isAdminOrStaff =
+          role === "admin" || role === "employ" || role === "employee" || role === "supleyer";
         setUser(res.data);
-        setCustomer({
-          customerName: res.data.name || "",
-          phone: res.data.phone || "",
-          location: res.data.location || res.data.block || "",
-        });
+        if (!isAdminOrStaff) {
+          setCustomer({
+            customerName: res.data.name || "",
+            phone: res.data.phone || "",
+            location: res.data.location || res.data.block || "",
+          });
+        } else {
+          // Admin creates orders for customers: keep delivery details empty
+          setCustomer({
+            customerName: "",
+            phone: "",
+            location: "",
+          });
+          setIsEditingDelivery(true);
+        }
       } catch (err) {
         console.error("Failed to load user:", err);
       }
@@ -562,7 +644,8 @@ export default function Order() {
   }, [location.search]);
 
   const hasPrefilledDelivery = Boolean(
-    customer.customerName?.trim() &&
+    !isUserAdmin &&
+      customer.customerName?.trim() &&
       customer.phone?.trim() &&
       customer.location?.trim()
   );
@@ -961,55 +1044,60 @@ export default function Order() {
         const finalTrackingCode = orderData.trackingCode;
         const finalPhone = orderData.phone || customer.phone;
 
-        localStorage.setItem("last_order_tracking", finalTrackingCode);
-        localStorage.setItem("last_order_phone", finalPhone);
-        if (!user) {
+        // Only save to localStorage, bind device FCM token, and join socket rooms for regular customer devices
+        if (!isUserAdmin) {
+          localStorage.setItem("last_order_tracking", finalTrackingCode);
+          localStorage.setItem("last_order_phone", finalPhone);
+          if (!user) {
+            try {
+              localStorage.setItem(
+                "ertib_guest_delivery",
+                JSON.stringify({
+                  customerName: customer.customerName,
+                  phone: finalPhone,
+                  location: customer.location,
+                })
+              );
+            } catch {}
+          }
+
           try {
             localStorage.setItem(
-              "ertib_guest_delivery",
+              "ertib_last_order",
               JSON.stringify({
+                items,
                 customerName: customer.customerName,
                 phone: finalPhone,
                 location: customer.location,
+                paymentMethod,
               })
             );
           } catch {}
-        }
 
-        try {
-          localStorage.setItem(
-            "ertib_last_order",
-            JSON.stringify({
-              items,
-              customerName: customer.customerName,
+          const socket = getSocket();
+          if (socket) {
+            socket.emit("join-order", finalTrackingCode);
+            socket.emit("join-phone", finalPhone);
+          }
+
+          const currentFcmToken = localStorage.getItem("fcm_token");
+          if (currentFcmToken) {
+            API.post("/notifications/register-token", {
+              token: currentFcmToken,
               phone: finalPhone,
-              location: customer.location,
-              paymentMethod,
-            })
-          );
-        } catch {}
-
-        const socket = getSocket();
-        if (socket) {
-          socket.emit("join-order", finalTrackingCode);
-          socket.emit("join-phone", finalPhone);
-        }
-
-        const currentFcmToken = localStorage.getItem("fcm_token");
-        if (currentFcmToken) {
-          API.post("/notifications/register-token", {
-            token: currentFcmToken,
-            phone: finalPhone,
-            trackingCode: finalTrackingCode,
-          }).catch(() => {});
+              trackingCode: finalTrackingCode,
+            }).catch(() => {});
+          }
         }
 
         if (isUserAdmin) {
           const orderSummary = {
+            orderId: orderData.id,
             trackingCode: finalTrackingCode,
             trackingLink: orderData.trackUrl,
             createdByAdmin: true,
             customerPhone: finalPhone,
+            customerName: customer.customerName,
             paymentStatus:
               orderData.paymentStatus ||
               (paymentMethod === "cod" ? "pending_cash" : "unpaid"),
@@ -1023,7 +1111,12 @@ export default function Order() {
           // Reset form behind modal so admin can immediately take next phone order
           setCustomer({ customerName: "", phone: "", location: "" });
           setItems([buildDefaultItem("ertib")]);
+          setActiveItemIndex(0);
           setReviewMode(false);
+          setDuplicateOrderHint(null);
+          setPaymentMethod("cod");
+          setFieldErrors({});
+          setIsEditingDelivery(true);
         } else {
           // Regular customer (other user): immediately transition to live tracking page!
           const targetUrl =
@@ -1091,6 +1184,29 @@ export default function Order() {
     return `Hello, your order (Code: ${code}) has been created, but payment is still required.\n\nAmount to pay: ${amount} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\nCBE: 1000528463243 (Abdurazak Mohammed)\nTelebirr / CBEBirr: 0954724664 (Abdurazak Mohammed)\n\nAfter payment, upload screenshot on tracking page: ${trackLink}\nTelegram: https://t.me/ABDURAZACQ`;
   };
 
+  const handleResetForNextOrder = () => {
+    setCustomer({
+      customerName: "",
+      phone: "",
+      location: "",
+    });
+    setItems([buildDefaultItem("ertib")]);
+    setActiveItemIndex(0);
+    setReviewMode(false);
+    setOrderSuccessModal(null);
+    setTracking(null);
+    setDuplicateOrderHint(null);
+    setPaymentMethod("cod");
+    setMessage("");
+    setFieldErrors({});
+    setIsEditingDelivery(true);
+    setToast({
+      type: "info",
+      message: "Form cleared! Ready for next customer order.",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const orderTotal = items.reduce(
     (sum, item) => sum + getUnitPrice(item) * (Number(item.quantity) || 1),
     0,
@@ -1122,7 +1238,7 @@ export default function Order() {
             onTrackNow={(code) =>
               handleTrackNow(code || orderSuccessModal.trackingCode)
             }
-            onTakeNextOrder={() => setOrderSuccessModal(null)}
+            onTakeNextOrder={handleResetForNextOrder}
             onGoDashboard={() => navigate("/admin")}
           />
         )}
@@ -1220,13 +1336,24 @@ export default function Order() {
       {/* Sub Header for Order Context */}
       <div className="bg-white/90 backdrop-blur-md border-b border-gray-150 py-2.5 px-4 shadow-2xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
-          <Link
-            to="/menu"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 transition shrink-0"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Menu</span>
-          </Link>
+          {reviewMode ? (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-700 hover:text-gray-950 transition shrink-0 cursor-pointer active:scale-95"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to Edit</span>
+            </button>
+          ) : (
+            <Link
+              to="/menu"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 transition shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Menu</span>
+            </Link>
+          )}
 
           {/* Campus Delivery Status Badge */}
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full">
@@ -1242,8 +1369,49 @@ export default function Order() {
 
       {/* Main Container */}
       <main className="max-w-2xl mx-auto px-4 pt-4 sm:pt-6 pb-44 sm:pb-12 space-y-5">
-        {/* "The Usual" 1-Tap Quick Reorder Card */}
-        {lastOrderPreset &&
+        {/* Admin Operational Mode Banner */}
+        {isUserAdmin && (
+          <div className="bg-blue-50/90 border border-blue-200 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
+                Staff
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <p className="text-xs sm:text-sm font-black text-blue-950">
+                    Taking Customer Order
+                  </p>
+                  <span className="px-2 py-0.2 rounded-full text-[10px] font-extrabold bg-blue-200/80 text-blue-800">
+                    Admin Session
+                  </span>
+                </div>
+                <p className="text-[11px] text-blue-700 font-medium truncate sm:whitespace-normal">
+                  Details are not saved to your personal account. Each order is logged for that customer.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={handleResetForNextOrder}
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-blue-50 border border-blue-300 text-blue-900 font-bold text-xs transition cursor-pointer active:scale-95 shadow-xs"
+              >
+                ➕ New Order
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/admin")}
+                className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition cursor-pointer active:scale-95 shadow-xs"
+              >
+                Dashboard →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* "The Usual" 1-Tap Quick Reorder Card (Customers Only) */}
+        {!isUserAdmin &&
+          lastOrderPreset &&
           lastOrderPreset.items?.length > 0 &&
           !reviewMode && (
             <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2035,8 +2203,13 @@ export default function Order() {
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-amber-600" />
                     <h2 className="font-extrabold text-base text-gray-950">
-                      Delivery Details
+                      {isUserAdmin ? "Customer Delivery Details" : "Delivery Details"}
                     </h2>
+                    {isUserAdmin && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-blue-700">
+                        Admin Mode
+                      </span>
+                    )}
                   </div>
                   {hasPrefilledDelivery && (
                     <button
@@ -2049,18 +2222,29 @@ export default function Order() {
                   )}
                 </div>
 
+                {isUserAdmin && (
+                  <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-3 text-xs text-blue-900 space-y-0.5">
+                    <p className="font-extrabold text-blue-950">
+                      Fill Customer's Information
+                    </p>
+                    <p className="text-blue-700 font-medium text-[11px] leading-relaxed">
+                      Enter the customer's real phone and dorm room. Details are empty for manual entry and will not be saved to your admin account.
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-3.5">
                   {/* Name Input */}
                   <div>
                     <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                      Your Name
+                      {isUserAdmin ? "Customer Name" : "Your Name"}
                     </label>
                     <div className="relative">
                       <User className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         name="customerName"
-                        placeholder="e.g. Dawit Kebede"
+                        placeholder={isUserAdmin ? "Customer's Name (e.g. Abel Tesfaye)" : "e.g. Dawit Kebede"}
                         value={customer.customerName}
                         onChange={handleCustomerChange}
                         className={`w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 transition ${
@@ -2076,14 +2260,14 @@ export default function Order() {
                   {/* Phone Input */}
                   <div>
                     <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                      Phone Number
+                      {isUserAdmin ? "Customer Phone Number" : "Phone Number"}
                     </label>
                     <div className="relative">
                       <Phone className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="tel"
                         name="phone"
-                        placeholder="0911 234 567"
+                        placeholder={isUserAdmin ? "09... or 07... (Customer's active phone)" : "0911 234 567"}
                         value={customer.phone}
                         onChange={handleCustomerChange}
                         className={`w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 transition ${
@@ -2099,7 +2283,7 @@ export default function Order() {
                   {/* Location Input with Datalist */}
                   <div>
                     <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                      AASTU Dorm Block & Room
+                      {isUserAdmin ? "Customer Dorm Block & Room" : "AASTU Dorm Block & Room"}
                     </label>
                     <div className="relative">
                       <MapPin className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -2107,7 +2291,7 @@ export default function Order() {
                         list="blockOptions"
                         type="text"
                         name="location"
-                        placeholder="e.g. Block 14, Room 204"
+                        placeholder={isUserAdmin ? "e.g. Block 14, Room 204" : "e.g. Block 14, Room 204"}
                         value={customer.location}
                         onChange={handleCustomerChange}
                         className={`w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 transition ${
@@ -2194,21 +2378,27 @@ export default function Order() {
           <div className="bg-white rounded-3xl p-5 sm:p-7 border border-gray-100 shadow-sm space-y-6">
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-gray-950">
-                Review Your Order
+                {isUserAdmin ? "Review Customer Order" : "Review Your Order"}
               </h2>
               <p className="text-xs sm:text-sm text-gray-600 font-medium mt-0.5">
-                Please verify your delivery location and items before confirming
+                {isUserAdmin
+                  ? "Verify customer details and order summary before confirming"
+                  : "Please verify your delivery location and items before confirming"}
               </p>
             </div>
 
             {/* Delivery Recipient Summary */}
             <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 border border-gray-200 text-xs sm:text-sm space-y-1.5">
               <p className="font-bold text-gray-900 text-sm sm:text-base">
-                Recipient: {customer.customerName}
+                {isUserAdmin ? "Customer: " : "Recipient: "}{customer.customerName}
               </p>
-              <p className="text-gray-700 font-medium">Phone: {customer.phone}</p>
               <p className="text-gray-700 font-medium">
-                Dorm Location: <span className="text-gray-900 font-bold">{customer.location}</span>
+                {isUserAdmin ? "Customer Phone: " : "Phone: "}
+                <span className="font-mono font-bold text-gray-900">{customer.phone}</span>
+              </p>
+              <p className="text-gray-700 font-medium">
+                {isUserAdmin ? "Delivery Dorm: " : "Dorm Location: "}
+                <span className="text-gray-900 font-bold">{customer.location}</span>
               </p>
             </div>
 
@@ -2421,9 +2611,10 @@ export default function Order() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 font-extrabold text-sm transition cursor-pointer active:scale-98 flex items-center justify-center"
+                className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 font-extrabold text-sm transition cursor-pointer active:scale-98 flex items-center justify-center gap-2"
               >
-                Back & Edit
+                <ArrowLeft className="w-4 h-4 text-gray-700" />
+                <span>Back to Edit</span>
               </button>
 
               <button
