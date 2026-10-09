@@ -148,8 +148,6 @@ function OrderSuccessModal({
   onGoDashboard,
   buildManualOrderSmsMessage,
 }) {
-  const isAdmin = Boolean(order?.createdByAdmin);
-  const [countdown, setCountdown] = useState(2);
   const [messageText, setMessageText] = useState(() =>
     buildManualOrderSmsMessage ? buildManualOrderSmsMessage(order) : ""
   );
@@ -163,35 +161,6 @@ function OrderSuccessModal({
       setMessageText(buildManualOrderSmsMessage(order));
     }
   }, [order, buildManualOrderSmsMessage]);
-
-  // If order was placed with "Confirm & Send SMS", immediately trigger device SMS app
-  useEffect(() => {
-    if (isAdmin && order?.autoSendSms && order?.customerPhone) {
-      const msg = messageText || buildManualOrderSmsMessage(order);
-      const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(msg)}`;
-      setSmsOpened(true);
-      const timer = setTimeout(() => {
-        window.location.href = smsUrl;
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isAdmin, order, messageText, buildManualOrderSmsMessage]);
-
-  // Auto-redirect only for regular customers
-  useEffect(() => {
-    if (isAdmin) return;
-
-    if (countdown <= 0) {
-      onTrackNow(order?.trackingCode);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setCountdown((prev) => prev - 1);
-    }, 900);
-
-    return () => clearTimeout(timer);
-  }, [isAdmin, countdown, onTrackNow, order?.trackingCode]);
 
   const handleCopyCode = () => {
     if (order?.trackingCode && navigator?.clipboard?.writeText) {
@@ -213,7 +182,10 @@ function OrderSuccessModal({
   const handleSendAppSms = () => {
     if (!order?.customerPhone) return;
     const text = messageText || buildManualOrderSmsMessage(order);
-    const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(text)}`;
+    const isIOS =
+      typeof navigator !== "undefined" &&
+      /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const smsUrl = `sms:${order.customerPhone}${isIOS ? "&" : "?"}body=${encodeURIComponent(text)}`;
     setSmsOpened(true);
     window.location.href = smsUrl;
   };
@@ -230,32 +202,46 @@ function OrderSuccessModal({
   };
 
   return (
-    <div
+    <motion.div
       role="dialog"
       aria-modal="true"
       aria-labelledby="order-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm pointer-events-auto"
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.9, y: 15 }}
+        initial={{ opacity: 0, scale: 0.95, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: 15 }}
+        exit={{ opacity: 0, scale: 0.95, y: 15 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-4 sm:p-6 text-left border border-gray-100 overflow-hidden max-h-[92vh] overflow-y-auto"
       >
         {/* Top Header */}
-        <div className="flex items-start gap-3.5 pb-3 border-b border-gray-100">
-          <div className="w-12 h-12 rounded-2xl bg-linear-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-100">
-            <CheckCircle2 className="w-6 h-6" />
+        <div className="flex items-start justify-between gap-3 pb-3 border-b border-gray-100">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <div className="w-12 h-12 rounded-2xl bg-linear-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-100">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 id="order-dialog-title" className="text-lg sm:text-xl font-black text-gray-950 tracking-tight">
+                Order Created Successfully! 🎉
+              </h2>
+              <p className="text-xs text-gray-600 font-medium mt-0.5">
+                Order is queued in the kitchen. Customer details and message ready below.
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 id="order-dialog-title" className="text-lg sm:text-xl font-black text-gray-950 tracking-tight">
-              Order Created Successfully! 🎉
-            </h2>
-            <p className="text-xs text-gray-600 font-medium mt-0.5">
-              Order is queued in the kitchen. Customer details and message ready below.
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={onTakeNextOrder}
+            className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition shrink-0 cursor-pointer"
+            aria-label="Close dialog"
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Specific Order & Customer Summary Card */}
@@ -446,11 +432,11 @@ function OrderSuccessModal({
           </button>
         </div>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }
 
-export default function Order() {
+export default function Order({ user: propUser } = {}) {
   const [customer, setCustomer] = useState({
     customerName: "",
     phone: "",
@@ -459,7 +445,10 @@ export default function Order() {
   const [tracking, setTracking] = useState(null);
   const [orderSuccessModal, setOrderSuccessModal] = useState(null);
   const [user, setUser] = useState(null);
-  const isUserAdmin = (user?.role || "").toLowerCase() === "admin";
+  const storedRole = (typeof window !== "undefined" ? localStorage.getItem("role") || "" : "").toLowerCase();
+  const effectiveUser = user || propUser;
+  const userRole = (effectiveUser?.role || storedRole || "").toLowerCase();
+  const isUserAdmin = ["admin", "employ", "employee", "supleyer"].includes(userRole);
   const [items, setItems] = useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -1171,7 +1160,16 @@ export default function Order() {
           }
         }
 
-        if (isUserAdmin) {
+        const storedRole = (typeof window !== "undefined" ? localStorage.getItem("role") || "" : "").toLowerCase();
+        const effectiveUser = user || propUser;
+        const currentRole = (effectiveUser?.role || storedRole || "").toLowerCase();
+        const isAdminOrder =
+          isUserAdmin ||
+          Boolean(orderData?.createdByAdmin) ||
+          orderData?.source === "manual" ||
+          Boolean(localStorage.getItem("token") && ["admin", "employ", "employee", "supleyer"].includes(currentRole));
+
+        if (isAdminOrder) {
           const orderSummary = {
             orderId: orderData.id,
             trackingCode: finalTrackingCode,
@@ -1320,6 +1318,7 @@ export default function Order() {
       <AnimatePresence>
         {orderSuccessModal && (
           <OrderSuccessModal
+            key={orderSuccessModal.trackingCode || "order-success-dialog"}
             order={orderSuccessModal}
             buildManualOrderSmsMessage={buildManualOrderSmsMessage}
             onTrackNow={(code) =>
@@ -2523,6 +2522,23 @@ export default function Order() {
               </p>
             </div>
 
+            {/* Error / Status Alert in Review Mode */}
+            {message && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>{message}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMessage("")}
+                  className="text-amber-700 hover:text-amber-900 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Delivery Recipient Summary */}
             <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 border border-gray-200 text-xs sm:text-sm space-y-1.5">
               <p className="font-bold text-gray-900 text-sm sm:text-base">
@@ -2753,57 +2769,21 @@ export default function Order() {
                 <span>Back to Edit</span>
               </button>
 
-              {isUserAdmin ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handleConfirmOrder({ autoSendSms: true })}
-                    disabled={loading}
-                    className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:bg-blue-800 text-white font-extrabold text-sm shadow-md shadow-blue-200 transition cursor-pointer flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
-                  >
-                    {loading ? (
-                      <span>Placing & Preparing SMS...</span>
-                    ) : (
-                      <>
-                        <FaPaperPlaneIcon className="text-xs" />
-                        <span>Confirm & Open SMS App</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleConfirmOrder({ autoSendSms: false })}
-                    disabled={loading}
-                    className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
-                  >
-                    {loading ? (
-                      <span>Placing Order...</span>
-                    ) : (
-                      <>
-                        <span>Confirm Order Only</span>
-                        <CheckCircle2 className="w-4 h-4 shrink-0" />
-                      </>
-                    )}
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleConfirmOrder}
-                  disabled={loading}
-                  className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
-                >
-                  {loading ? (
-                    <span>Placing Order...</span>
-                  ) : (
-                    <>
-                      <span>Confirm Order</span>
-                      <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => handleConfirmOrder()}
+                disabled={loading}
+                className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
+              >
+                {loading ? (
+                  <span>Placing Order...</span>
+                ) : (
+                  <>
+                    <span>Confirm Order</span>
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}

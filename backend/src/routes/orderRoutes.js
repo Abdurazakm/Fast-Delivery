@@ -414,7 +414,7 @@ router.post(
  *  Create Manual Order (Admin)
  * ------------------------
  */
-router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
+router.post("/manual", authMiddleware, adminOrEmployMiddleware, async (req, res) => {
   try {
     const {
       customerName,
