@@ -1512,6 +1512,74 @@ router.post(
 );
 
 /**
+ * ---------------------------------------------------------
+ *  Log Mobile SMS Sent (Admin using personal phone messaging)
+ * ---------------------------------------------------------
+ */
+router.post(
+  "/log-sms",
+  authMiddleware,
+  adminOrEmployMiddleware,
+  async (req, res) => {
+    try {
+      const {
+        orderId,
+        trackingCode,
+        type = "confirmation",
+        messageText,
+        recipientPhone,
+      } = req.body;
+      if (!orderId && !trackingCode) {
+        return res
+          .status(400)
+          .json({ message: "orderId or trackingCode is required" });
+      }
+
+      const whereClause = orderId ? { id: parseInt(orderId) } : { trackingCode };
+      const order = await prisma.order.findUnique({ where: whereClause });
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const phoneToUse = recipientPhone || order.phone;
+      const existingHistory = Array.isArray(order.smsHistory)
+        ? order.smsHistory
+        : [];
+      const newEntry = {
+        type,
+        status: "sent_via_mobile_app",
+        phone: phoneToUse,
+        text: messageText || "",
+        sentByAdminId: req.user?.id,
+        sentByAdminRole: req.user?.role,
+        at: new Date().toISOString(),
+      };
+
+      const updated = await prisma.order.update({
+        where: whereClause,
+        data: {
+          smsHistory: [...existingHistory, newEntry],
+        },
+      });
+
+      emitOrderUpdated(updated, "sms_sent");
+
+      return res.json({
+        success: true,
+        message: "SMS logged as sent to customer",
+        smsEntry: newEntry,
+        order: updated,
+      });
+    } catch (err) {
+      console.error("❌ Failed to log mobile SMS:", err);
+      return res
+        .status(500)
+        .json({ message: "Server error logging mobile SMS" });
+    }
+  },
+);
+
+/**
  * ------------------------
  *  Delete Order (Admin)
  * ------------------------

@@ -153,7 +153,10 @@ function OrderSuccessModal({
   );
   const [copiedSms, setCopiedSms] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [smsOpened, setSmsOpened] = useState(false);
+  const [smsOpened, setSmsOpened] = useState(Boolean(order?.autoSendSms));
+  const [smsServerLogged, setSmsServerLogged] = useState(
+    Boolean(order?.smsServerLogged),
+  );
 
   // Keep messageText in sync if order changes
   useEffect(() => {
@@ -187,6 +190,28 @@ function OrderSuccessModal({
       /iPad|iPhone|iPod/.test(navigator.userAgent);
     const smsUrl = `sms:${order.customerPhone}${isIOS ? "&" : "?"}body=${encodeURIComponent(text)}`;
     setSmsOpened(true);
+
+    // Tell the server in one click that mobile SMS was sent to customer
+    const token = localStorage.getItem("token");
+    if (token && (order?.orderId || order?.trackingCode)) {
+      API.post(
+        "/orders/log-sms",
+        {
+          orderId: order.orderId,
+          trackingCode: order.trackingCode,
+          type: "confirmation",
+          messageText: text,
+          recipientPhone: order.customerPhone,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      )
+        .then(() => setSmsServerLogged(true))
+        .catch((err) =>
+          console.error("Failed to log mobile SMS on server:", err),
+        );
+    }
+
+    // Open mobile messaging app with customer phone & prefilled text
     window.location.href = smsUrl;
   };
 
@@ -364,9 +389,18 @@ function OrderSuccessModal({
 
             {/* Visual confirmation when SMS app is opened */}
             {smsOpened && (
-              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-xs text-emerald-800 font-bold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Opened in your mobile SMS app! Tap "Send" in Messages.</span>
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-900 font-semibold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-extrabold block text-emerald-950">
+                    Opened in your mobile messaging app!
+                  </span>
+                  <span className="text-[11px] text-emerald-800 font-medium">
+                    {smsServerLogged
+                      ? `Server recorded that SMS was sent to ${order.customerPhone}.`
+                      : "Tap 'Send' in your mobile Messages app to dispatch to customer."}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -466,6 +500,7 @@ export default function Order({ user: propUser } = {}) {
   });
 
   const [loading, setLoading] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState(null); // null | "sms" | "only"
   const [message, setMessage] = useState("");
   const [pricing, setPricing] = useState(null);
   const [loadingPricing, setLoadingPricing] = useState(true);
@@ -1043,6 +1078,8 @@ export default function Order({ user: propUser } = {}) {
       }
     }
 
+    const actionType = autoSendSms ? "sms" : "only";
+    setSubmittingAction(actionType);
     setLoading(true);
     setMessage("");
     setDuplicateOrderHint(null);
@@ -1170,6 +1207,48 @@ export default function Order({ user: propUser } = {}) {
           Boolean(localStorage.getItem("token") && ["admin", "employ", "employee", "supleyer"].includes(currentRole));
 
         if (isAdminOrder) {
+          const smsText = buildManualOrderSmsMessage({
+            trackingCode: finalTrackingCode,
+            trackingLink: orderData.trackUrl,
+            paymentStatus: orderData.paymentStatus,
+            paymentMethod,
+            total: orderData.total ?? total,
+            customerName: effectiveCustomerName,
+          });
+
+          let smsLogged = false;
+          if (autoSendSms && finalPhone) {
+            // Tell the server that mobile SMS was sent to customer
+            const token = localStorage.getItem("token");
+            if (token) {
+              API.post(
+                "/orders/log-sms",
+                {
+                  orderId: orderData.id,
+                  trackingCode: finalTrackingCode,
+                  type: "confirmation",
+                  messageText: smsText,
+                  recipientPhone: finalPhone,
+                },
+                { headers: { Authorization: `Bearer ${token}` } },
+              )
+                .then(() => {})
+                .catch((e) =>
+                  console.error("Failed to log mobile SMS on server:", e),
+                );
+            }
+
+            // Open mobile messaging app with customer phone & prefilled text
+            const isIOS =
+              typeof navigator !== "undefined" &&
+              /iPad|iPhone|iPod/.test(navigator.userAgent);
+            const smsUrl = `sms:${finalPhone}${isIOS ? "&" : "?"}body=${encodeURIComponent(smsText)}`;
+            setTimeout(() => {
+              window.location.href = smsUrl;
+            }, 80);
+            smsLogged = true;
+          }
+
           const orderSummary = {
             orderId: orderData.id,
             trackingCode: finalTrackingCode,
@@ -1177,8 +1256,10 @@ export default function Order({ user: propUser } = {}) {
             createdByAdmin: true,
             customerPhone: finalPhone,
             customerName: effectiveCustomerName,
-            customerLocation: customer.location || orderData.location || "AASTU Campus",
+            customerLocation:
+              customer.location || orderData.location || "AASTU Campus",
             autoSendSms,
+            smsServerLogged: smsLogged,
             paymentStatus:
               orderData.paymentStatus ||
               (paymentMethod === "cod" ? "pending_cash" : "unpaid"),
@@ -1190,7 +1271,11 @@ export default function Order({ user: propUser } = {}) {
           setTracking(orderSummary);
 
           // Reset form behind modal so admin can immediately take next phone order
-          setCustomer({ customerName: DEFAULT_CUSTOMER_NAME, phone: "", location: "" });
+          setCustomer({
+            customerName: DEFAULT_CUSTOMER_NAME,
+            phone: "",
+            location: "",
+          });
           setItems([buildDefaultItem("ertib")]);
           setActiveItemIndex(0);
           setReviewMode(false);
@@ -1228,6 +1313,7 @@ export default function Order({ user: propUser } = {}) {
       }
     } finally {
       setLoading(false);
+      setSubmittingAction(null);
     }
   };
 
@@ -2763,27 +2849,64 @@ export default function Order({ user: propUser } = {}) {
               <button
                 type="button"
                 onClick={handleBack}
-                className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 font-extrabold text-sm transition cursor-pointer active:scale-98 flex items-center justify-center gap-2"
+                disabled={Boolean(submittingAction)}
+                className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 font-extrabold text-sm transition cursor-pointer active:scale-98 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <ArrowLeft className="w-4 h-4 text-gray-700" />
                 <span>Back to Edit</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => handleConfirmOrder()}
-                disabled={loading}
-                className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
-              >
-                {loading ? (
-                  <span>Placing Order...</span>
-                ) : (
-                  <>
-                    <span>Confirm Order</span>
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  </>
-                )}
-              </button>
+              {isUserAdmin ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmOrder({ autoSendSms: true })}
+                    disabled={Boolean(submittingAction)}
+                    className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:bg-blue-800 text-white font-extrabold text-sm shadow-md shadow-blue-200 transition cursor-pointer flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
+                  >
+                    {submittingAction === "sms" ? (
+                      <span>Placing & Opening SMS...</span>
+                    ) : (
+                      <>
+                        <FaPaperPlaneIcon className="text-xs" />
+                        <span>Confirm & Send SMS</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmOrder({ autoSendSms: false })}
+                    disabled={Boolean(submittingAction)}
+                    className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
+                  >
+                    {submittingAction === "only" ? (
+                      <span>Placing Order...</span>
+                    ) : (
+                      <>
+                        <span>Confirm Order Only</span>
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleConfirmOrder({ autoSendSms: false })}
+                  disabled={Boolean(submittingAction)}
+                  className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
+                >
+                  {submittingAction === "only" ? (
+                    <span>Placing Order...</span>
+                  ) : (
+                    <>
+                      <span>Confirm Order</span>
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         )}
