@@ -140,7 +140,7 @@ export function areItemsSameSpec(a, b) {
   return true;
 }
 
-// Post-Order Celebratory Splash Modal with Role-Aware Experience
+// Dialog Box for Admin Successful Order Creation
 function OrderSuccessModal({
   order,
   onTrackNow,
@@ -150,23 +150,33 @@ function OrderSuccessModal({
 }) {
   const isAdmin = Boolean(order?.createdByAdmin);
   const [countdown, setCountdown] = useState(2);
+  const [messageText, setMessageText] = useState(() =>
+    buildManualOrderSmsMessage ? buildManualOrderSmsMessage(order) : ""
+  );
   const [copiedSms, setCopiedSms] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
   const [serverSmsLoading, setServerSmsLoading] = useState(false);
   const [serverSmsDone, setServerSmsDone] = useState(false);
   const [serverSmsError, setServerSmsError] = useState("");
-  const [showSmsPreview, setShowSmsPreview] = useState(false);
+
+  // Keep messageText in sync if order changes
+  useEffect(() => {
+    if (buildManualOrderSmsMessage && order) {
+      setMessageText(buildManualOrderSmsMessage(order));
+    }
+  }, [order, buildManualOrderSmsMessage]);
 
   // If order was placed with "Confirm & Send SMS", immediately trigger device SMS app
   useEffect(() => {
     if (isAdmin && order?.autoSendSms && order?.customerPhone) {
-      const messageToSend = buildManualOrderSmsMessage(order);
-      const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
+      const msg = messageText || buildManualOrderSmsMessage(order);
+      const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(msg)}`;
       const timer = setTimeout(() => {
         window.location.href = smsUrl;
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isAdmin, order, buildManualOrderSmsMessage]);
+  }, [isAdmin, order, messageText, buildManualOrderSmsMessage]);
 
   // Auto-redirect only for regular customers
   useEffect(() => {
@@ -184,13 +194,34 @@ function OrderSuccessModal({
     return () => clearTimeout(timer);
   }, [isAdmin, countdown, onTrackNow, order?.trackingCode]);
 
+  const handleCopyCode = () => {
+    if (order?.trackingCode && navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(order.trackingCode);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    }
+  };
+
   const handleCopySms = () => {
-    const text = buildManualOrderSmsMessage(order);
+    const text = messageText || buildManualOrderSmsMessage(order);
     if (navigator?.clipboard?.writeText) {
       navigator.clipboard.writeText(text);
       setCopiedSms(true);
       setTimeout(() => setCopiedSms(false), 2000);
     }
+  };
+
+  const handleSendAppSms = () => {
+    if (!order?.customerPhone) return;
+    const text = messageText || buildManualOrderSmsMessage(order);
+    const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(text)}`;
+    window.location.href = smsUrl;
+  };
+
+  const handleSendTelegram = () => {
+    const text = messageText || buildManualOrderSmsMessage(order);
+    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(order?.trackingLink || "")}&text=${encodeURIComponent(text)}`;
+    window.open(tgUrl, "_blank");
   };
 
   const handleTriggerServerSms = async () => {
@@ -216,222 +247,227 @@ function OrderSuccessModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="order-dialog-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm"
+    >
       <motion.div
-        initial={{ opacity: 0, scale: 0.85, y: 20 }}
+        initial={{ opacity: 0, scale: 0.9, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.85, y: 20 }}
+        exit={{ opacity: 0, scale: 0.9, y: 15 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative bg-white rounded-3xl shadow-2xl max-w-sm sm:max-w-md w-full p-5 sm:p-7 text-center border border-gray-100 overflow-hidden max-h-[92vh] overflow-y-auto"
+        className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-4 sm:p-6 text-left border border-gray-100 overflow-hidden max-h-[92vh] overflow-y-auto"
       >
-        {/* Animated Celebration Icon */}
-        <div className="relative mx-auto mb-3 w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", delay: 0.1, damping: 15 }}
-            className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full text-white flex items-center justify-center shadow-lg ${
-              isAdmin
-                ? "bg-linear-to-tr from-blue-600 to-indigo-500 shadow-blue-200"
-                : "bg-linear-to-tr from-emerald-500 to-teal-400 shadow-emerald-200"
-            }`}
-          >
-            <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10" />
-          </motion.div>
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-            className="absolute -top-1 -right-1 text-amber-500"
-          >
-            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
-          </motion.div>
-        </div>
-
-        {/* Heading & Subtitle */}
-        <h2 className="text-xl sm:text-2xl font-black text-gray-950 tracking-tight">
-          {isAdmin ? "Customer Order Created!" : "Order Placed Successfully!"}
-        </h2>
-        <p className="text-xs sm:text-sm text-gray-600 font-medium mt-1 leading-relaxed">
-          {isAdmin
-            ? `Order for ${order.customerName || "customer"} is confirmed in the kitchen queue.`
-            : "We've received your order and sent it to the kitchen."}
-        </p>
-
-        {/* Order Details Strip */}
-        <div className="mt-4 p-3.5 sm:p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-between text-left">
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 block">
-              Tracking Code
-            </span>
-            <span className="font-mono text-base font-black text-gray-950 mt-0.5 block">
-              {order?.trackingCode}
-            </span>
+        {/* Top Header */}
+        <div className="flex items-start gap-3.5 pb-3 border-b border-gray-100">
+          <div className="w-12 h-12 rounded-2xl bg-linear-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-100">
+            <CheckCircle2 className="w-6 h-6" />
           </div>
-          <div className="text-right">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 block">
-              Total Amount
-            </span>
-            <span className="text-base font-black text-amber-950 mt-0.5 block">
-              {order.total} <span className="text-xs text-amber-800 font-bold">Birr</span>
-            </span>
+          <div className="min-w-0 flex-1">
+            <h2 id="order-dialog-title" className="text-lg sm:text-xl font-black text-gray-950 tracking-tight">
+              Order Created Successfully! 🎉
+            </h2>
+            <p className="text-xs text-gray-600 font-medium mt-0.5">
+              Order is queued in the kitchen. Customer details and message ready below.
+            </p>
           </div>
         </div>
 
-        {/* For Customer: Auto-redirect countdown bar */}
-        {!isAdmin && (
-          <div className="mt-5">
-            <div className="flex items-center justify-between text-xs sm:text-sm text-gray-700 mb-1.5 font-bold">
-              <span>Redirecting to live tracking...</span>
-              <span className="text-amber-800 font-black">{countdown}s</span>
+        {/* Specific Order & Customer Summary Card */}
+        <div className="mt-3.5 p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-2.5">
+          <div className="flex items-center justify-between gap-2 flex-wrap pb-2 border-b border-amber-200/60">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                Tracking Code
+              </span>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="font-mono text-base font-black text-gray-950">
+                  {order?.trackingCode}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyCode}
+                  className="p-1 rounded-md text-gray-500 hover:text-gray-900 hover:bg-amber-100 transition cursor-pointer"
+                  title="Copy Tracking Code"
+                >
+                  {copiedCode ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
-            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-200/60">
-              <motion.div
-                initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{ duration: 1.8, ease: "linear" }}
-                className="h-full bg-linear-to-r from-amber-500 to-emerald-500 rounded-full"
+
+            <div className="text-right">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                Total Amount
+              </span>
+              <span className="text-base font-black text-amber-950 mt-0.5 block">
+                {order.total} <span className="text-xs text-amber-800 font-bold">Birr</span>
+                <span className="text-[10px] text-gray-500 font-medium ml-1">
+                  ({order.paymentMethod === "cod" ? "Cash on Delivery" : "Online"})
+                </span>
+              </span>
+            </div>
+          </div>
+
+          {/* Customer Meta Details */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                Customer Name
+              </span>
+              <span className="font-extrabold text-gray-900 truncate block mt-0.5">
+                {order.customerName || "AASTU Student"}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                Customer Phone
+              </span>
+              <span className="font-mono font-black text-blue-900 block mt-0.5">
+                {order.customerPhone}
+              </span>
+            </div>
+            <div className="col-span-2 sm:col-span-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                Dorm / Location
+              </span>
+              <span className="font-extrabold text-gray-900 truncate block mt-0.5">
+                {order.customerLocation || "AASTU Campus"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* READY TO SEND MESSAGE BOX (Dedicated to specific customer) */}
+        {order.customerPhone && (
+          <div className="mt-3.5 bg-blue-50/70 border border-blue-200/90 rounded-2xl p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <MessageSquare className="w-4 h-4 text-blue-600 shrink-0" />
+                <span className="text-xs font-black uppercase tracking-wider text-blue-950">
+                  Ready to Send Message
+                </span>
+              </div>
+              <span className="text-[11px] font-mono font-bold text-blue-900 bg-blue-100/90 px-2 py-0.5 rounded-lg">
+                To: {order.customerPhone}
+              </span>
+            </div>
+
+            <p className="text-[11px] text-blue-800 font-medium leading-relaxed">
+              Message generated for <span className="font-bold">{order.customerName || "customer"}</span>. Review or edit before sending:
+            </p>
+
+            {/* Editable Message Box */}
+            <div className="relative">
+              <textarea
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                rows={3}
+                className="w-full p-2.5 rounded-xl border border-blue-200 bg-white text-xs font-mono text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 leading-relaxed resize-none shadow-2xs"
+                placeholder="Type SMS message..."
               />
+              <div className="flex items-center justify-between mt-1 text-[10px] text-gray-500 font-medium">
+                <span>{messageText.length} characters</span>
+                <button
+                  type="button"
+                  onClick={() => setMessageText(buildManualOrderSmsMessage(order))}
+                  className="text-blue-600 hover:underline font-bold cursor-pointer"
+                >
+                  Reset to default text
+                </button>
+              </div>
             </div>
+
+            {/* PRIMARY SEND BUTTON FOR SPECIFIC CUSTOMER */}
+            <button
+              type="button"
+              onClick={handleSendAppSms}
+              className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:bg-blue-800 text-white font-black text-xs sm:text-sm shadow-md shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <FaPaperPlaneIcon className="text-xs" />
+              <span>Send Message to {order.customerPhone}</span>
+            </button>
+
+            {/* Extra Sending Channels: Server Gateway, Telegram, Copy */}
+            <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+              <button
+                type="button"
+                onClick={handleTriggerServerSms}
+                disabled={serverSmsLoading || serverSmsDone}
+                className={`min-h-[36px] py-1.5 px-2 rounded-xl border text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
+                  serverSmsDone
+                    ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                    : "bg-white border-blue-200 text-blue-900 hover:bg-blue-50"
+                }`}
+                title="Send directly from server SMS gateway"
+              >
+                <span>
+                  {serverSmsLoading
+                    ? "Sending..."
+                    : serverSmsDone
+                      ? "Sent ✅"
+                      : "⚡ Gateway SMS"}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSendTelegram}
+                className="min-h-[36px] py-1.5 px-2 rounded-xl bg-white hover:bg-sky-50 border border-sky-200 text-sky-800 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                title="Share directly via Telegram"
+              >
+                <span>✈️ Telegram</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopySms}
+                className="min-h-[36px] py-1.5 px-2 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                title="Copy message to clipboard"
+              >
+                <span>{copiedSms ? "Copied! ✅" : "📋 Copy Text"}</span>
+              </button>
+            </div>
+
+            {serverSmsError && (
+              <p className="text-[11px] text-rose-600 font-semibold">{serverSmsError}</p>
+            )}
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="mt-5 space-y-2.5">
-          {isAdmin ? (
-            /* ADMIN OPERATIONAL CONTROLS */
-            <>
-              {/* 1. Send SMS section */}
-              {order.customerPhone && (
-                <div className="bg-blue-50/70 border border-blue-200/90 rounded-2xl p-3.5 text-left space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
-                      <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
-                      <span>Immediate Customer SMS</span>
-                    </span>
-                    <span className="text-xs font-mono font-black text-blue-950 bg-blue-100/90 px-2 py-0.5 rounded-md">
-                      {order.customerPhone}
-                    </span>
-                  </div>
-
-                  {/* Primary 1-Tap App SMS Button */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const messageToSend = buildManualOrderSmsMessage(order);
-                      const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
-                      window.location.href = smsUrl;
-                    }}
-                    className="w-full min-h-[46px] py-2.5 px-4 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <FaPaperPlaneIcon className="text-xs" />
-                    <span>📱 Send SMS via App ({order.customerPhone})</span>
-                  </button>
-
-                  {/* Multi-channel fast actions */}
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={handleTriggerServerSms}
-                      disabled={serverSmsLoading || serverSmsDone}
-                      className={`min-h-[36px] py-1.5 px-2 rounded-xl border text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
-                        serverSmsDone
-                          ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-                          : "bg-white border-blue-200 text-blue-900 hover:bg-blue-50"
-                      }`}
-                    >
-                      <span>
-                        {serverSmsLoading
-                          ? "Sending..."
-                          : serverSmsDone
-                            ? "Sent ✅"
-                            : "⚡ Gateway SMS"}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const messageToSend = buildManualOrderSmsMessage(order);
-                        const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(order.trackingLink || '')}&text=${encodeURIComponent(messageToSend)}`;
-                        window.open(tgUrl, "_blank");
-                      }}
-                      className="min-h-[36px] py-1.5 px-2 rounded-xl bg-white hover:bg-sky-50 border border-sky-200 text-sky-800 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
-                    >
-                      <span>✈️ Telegram</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleCopySms}
-                      className="min-h-[36px] py-1.5 px-2 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
-                    >
-                      <span>{copiedSms ? "Copied! ✅" : "📋 Copy"}</span>
-                    </button>
-                  </div>
-
-                  {serverSmsError && (
-                    <p className="text-[11px] text-rose-600 font-semibold">{serverSmsError}</p>
-                  )}
-
-                  {/* Toggle Preview Drawer */}
-                  <div className="pt-1 border-t border-blue-100">
-                    <button
-                      type="button"
-                      onClick={() => setShowSmsPreview((prev) => !prev)}
-                      className="text-[10px] font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>{showSmsPreview ? "Hide SMS text ▲" : "Preview SMS text ▼"}</span>
-                    </button>
-                    {showSmsPreview && (
-                      <p className="mt-1.5 text-[11px] text-gray-700 font-mono bg-white p-2.5 rounded-xl border border-blue-200 whitespace-pre-wrap leading-relaxed select-all">
-                        {buildManualOrderSmsMessage(order)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* 2. Create Another Order & Go Dashboard */}
-              <div className="flex gap-2 pt-1 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={onTakeNextOrder}
-                  className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs sm:text-sm font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm shadow-amber-200 active:scale-98"
-                >
-                  <span>➕ Create Another Order</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={onGoDashboard}
-                  className="min-h-[46px] py-2.5 px-4 rounded-xl bg-gray-900 hover:bg-black active:scale-98 text-white text-xs sm:text-sm font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
-                >
-                  <span>Dashboard</span>
-                </button>
-              </div>
-
-              {/* 3. View Customer Tracking View */}
-              <button
-                type="button"
-                onClick={() => onTrackNow(order?.trackingCode)}
-                className="w-full min-h-[36px] py-1 text-xs font-bold text-gray-500 hover:text-amber-800 transition flex items-center justify-center gap-1 cursor-pointer"
-              >
-                <Bike className="w-3.5 h-3.5" />
-                <span>View Live Tracking Page →</span>
-              </button>
-            </>
-          ) : (
-            /* REGULAR CUSTOMER ACTIONS */
+        {/* DIALOG ACTION BUTTONS: ADD NEW ORDER AND GO TO DASHBOARD */}
+        <div className="mt-4 pt-3.5 border-t border-gray-100 space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={() => onTrackNow(order?.trackingCode)}
-              className="w-full min-h-[50px] py-3.5 px-5 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm sm:text-base shadow-md shadow-amber-200/60 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+              onClick={onTakeNextOrder}
+              className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-amber-200 active:scale-98"
             >
-              <Bike className="w-5 h-5 shrink-0" />
-              <span>Track Your Order Now</span>
-              <ArrowRight className="w-4 h-4 ml-0.5 shrink-0" />
+              <span>➕ Add New Order</span>
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={onGoDashboard}
+              className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-gray-900 hover:bg-black active:scale-98 text-white text-xs sm:text-sm font-black transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+            >
+              <span>📊 Go to Dashboard</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onTrackNow(order?.trackingCode)}
+            className="w-full min-h-[36px] py-1 text-xs font-bold text-gray-500 hover:text-amber-800 transition flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Bike className="w-3.5 h-3.5" />
+            <span>View Customer Tracking Page →</span>
+          </button>
         </div>
       </motion.div>
     </div>
@@ -1167,6 +1203,7 @@ export default function Order() {
             createdByAdmin: true,
             customerPhone: finalPhone,
             customerName: effectiveCustomerName,
+            customerLocation: customer.location || orderData.location || "AASTU Campus",
             autoSendSms,
             paymentStatus:
               orderData.paymentStatus ||
