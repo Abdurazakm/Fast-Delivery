@@ -415,7 +415,7 @@ export default function Order() {
           location: res.data.location || res.data.block || "",
         });
       } catch (err) {
-        console.error("❌ Failed to load user:", err);
+        console.error("Failed to load user:", err);
       }
     };
     fetchUser();
@@ -1036,7 +1036,7 @@ export default function Order() {
         }
       }
     } catch (err) {
-      console.error("❌ Order failed:", err);
+      console.error("Order failed:", err);
       const duplicatePayload = err.response?.data;
       if (
         err.response?.status === 409 &&
