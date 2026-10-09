@@ -340,8 +340,17 @@ function OrderSuccessModal({
         );
     }
 
-    // Open mobile messaging app with customer phone & prefilled text
-    window.location.href = smsUrl;
+    // Open mobile messaging app with customer phone & prefilled text via safe DOM click
+    try {
+      const a = document.createElement("a");
+      a.href = smsUrl;
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      window.open(smsUrl, "_self");
+    }
   };
 
   const handleSendTelegram = () => {
@@ -356,21 +365,14 @@ function OrderSuccessModal({
   };
 
   return (
-    <motion.div
+    <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="order-dialog-title"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm pointer-events-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm pointer-events-auto overflow-y-auto"
     >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 15 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 15 }}
-        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-4 sm:p-6 text-left border border-gray-100 overflow-hidden max-h-[92vh] overflow-y-auto"
+      <div
+        className="relative bg-white rounded-3xl shadow-2xl max-w-lg w-full p-4 sm:p-6 text-left border border-gray-100 overflow-hidden max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-150"
       >
         {/* Top Header */}
         <div className="flex items-start justify-between gap-3 pb-3 border-b border-gray-100">
@@ -620,8 +622,8 @@ function OrderSuccessModal({
             <span>View Customer Tracking Page →</span>
           </button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
@@ -634,9 +636,24 @@ export default function Order({ user: propUser } = {}) {
   const [tracking, setTracking] = useState(null);
   const [orderSuccessModal, setOrderSuccessModal] = useState(null);
   const [user, setUser] = useState(null);
+
+  const getStoredTokenRole = () => {
+    if (typeof window === "undefined") return "";
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return "";
+      const parts = token.split(".");
+      if (parts.length >= 2) {
+        const decoded = JSON.parse(atob(parts[1]));
+        return (decoded?.role || "").toLowerCase();
+      }
+    } catch {}
+    return "";
+  };
+
   const storedRole = (typeof window !== "undefined" ? localStorage.getItem("role") || "" : "").toLowerCase();
   const effectiveUser = user || propUser;
-  const userRole = (effectiveUser?.role || storedRole || "").toLowerCase();
+  const userRole = (effectiveUser?.role || storedRole || getStoredTokenRole() || "").toLowerCase();
   const isUserAdmin = ["admin", "employ", "employee", "supleyer"].includes(userRole);
   const [items, setItems] = useState(() => {
     if (typeof window !== "undefined") {
@@ -725,6 +742,11 @@ export default function Order({ user: propUser } = {}) {
           headers: { Authorization: `Bearer ${token}` },
         });
         const role = (res.data?.role || "").toLowerCase();
+        if (role) {
+          try {
+            localStorage.setItem("role", role);
+          } catch {}
+        }
         const isAdminOrStaff =
           role === "admin" || role === "employ" || role === "employee" || role === "supleyer";
         setUser(res.data);
@@ -1286,12 +1308,19 @@ export default function Order({ user: propUser } = {}) {
           replace: true,
         });
       } else {
+        const token = localStorage.getItem("token");
+        const tokenRole = getStoredTokenRole();
+        const effectiveUser = user || propUser;
+        const currentRole = (effectiveUser?.role || storedRole || tokenRole || "").toLowerCase();
+        const isStaffUser =
+          isUserAdmin ||
+          ["admin", "employ", "employee", "supleyer"].includes(currentRole);
+
         let endpoint = "/orders";
         const headers = {};
 
-        if (isUserAdmin) {
+        if (isStaffUser && token) {
           endpoint = "/orders/manual";
-          const token = localStorage.getItem("token");
           headers.Authorization = `Bearer ${token}`;
         }
 
@@ -1307,7 +1336,7 @@ export default function Order({ user: propUser } = {}) {
         const finalPhone = orderData.phone || customer.phone;
 
         // Only save to localStorage, bind device FCM token, and join socket rooms for regular customer devices
-        if (!isUserAdmin) {
+        if (!isStaffUser) {
           localStorage.setItem("last_order_tracking", finalTrackingCode);
           localStorage.setItem("last_order_phone", finalPhone);
           if (!user) {
@@ -1352,14 +1381,11 @@ export default function Order({ user: propUser } = {}) {
           }
         }
 
-        const storedRole = (typeof window !== "undefined" ? localStorage.getItem("role") || "" : "").toLowerCase();
-        const effectiveUser = user || propUser;
-        const currentRole = (effectiveUser?.role || storedRole || "").toLowerCase();
         const isAdminOrder =
-          isUserAdmin ||
+          isStaffUser ||
+          endpoint === "/orders/manual" ||
           Boolean(orderData?.createdByAdmin) ||
-          orderData?.source === "manual" ||
-          Boolean(localStorage.getItem("token") && ["admin", "employ", "employee", "supleyer"].includes(currentRole));
+          orderData?.source === "manual";
 
         if (isAdminOrder) {
           const initialTemplate =
@@ -1386,7 +1412,6 @@ export default function Order({ user: propUser } = {}) {
           let smsLogged = false;
           if (autoSendSms && finalPhone) {
             // Tell the server that mobile SMS was sent to customer
-            const token = localStorage.getItem("token");
             if (token) {
               API.post(
                 "/orders/log-sms",
@@ -1405,14 +1430,21 @@ export default function Order({ user: propUser } = {}) {
                 );
             }
 
-            // Open mobile messaging app with customer phone & prefilled text
-            const isIOS =
-              typeof navigator !== "undefined" &&
-              /iPad|iPhone|iPod/.test(navigator.userAgent);
-            const smsUrl = `sms:${finalPhone}${isIOS ? "&" : "?"}body=${encodeURIComponent(smsText)}`;
-            setTimeout(() => {
-              window.location.href = smsUrl;
-            }, 80);
+            // Open mobile messaging app with customer phone & prefilled text via safe link trigger
+            try {
+              const isIOS =
+                typeof navigator !== "undefined" &&
+                /iPad|iPhone|iPod/.test(navigator.userAgent);
+              const smsUrl = `sms:${finalPhone}${isIOS ? "&" : "?"}body=${encodeURIComponent(smsText)}`;
+              const a = document.createElement("a");
+              a.href = smsUrl;
+              a.rel = "noopener noreferrer";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            } catch (e) {
+              console.warn("Could not auto-open SMS app link:", e);
+            }
             smsLogged = true;
           }
 
@@ -1435,24 +1467,15 @@ export default function Order({ user: propUser } = {}) {
             total: orderData.total ?? total,
           };
 
+          // PROMINENTLY SHOW ADMIN SUCCESS DIALOG BOX
           setOrderSuccessModal(orderSummary);
           setTracking(orderSummary);
-
-          // Reset form behind modal so admin can immediately take next phone order
-          setCustomer({
-            customerName: DEFAULT_CUSTOMER_NAME,
-            phone: "",
-            location: "",
-          });
-          setItems([buildDefaultItem("ertib")]);
-          setActiveItemIndex(0);
-          setReviewMode(false);
-          setDuplicateOrderHint(null);
-          setPaymentMethod("cod");
-          setFieldErrors({});
-          setIsEditingDelivery(true);
+          // Notice: We deliberately DO NOT call setReviewMode(false) or wipe form inputs here!
+          // This keeps the underlying screen stable, eliminates flashes or accidental redirects,
+          // and ensures the Admin Dialog Box remains cleanly presented.
+          // Form fields and reviewMode will be cleanly reset when the admin taps "➕ Add New Order" (handleResetForNextOrder).
         } else {
-          // Regular customer (other user): immediately transition to live tracking page!
+          // Regular customer: immediately transition to live tracking page!
           const targetUrl =
             paymentMethod === "online"
               ? `/track/${encodeURIComponent(finalTrackingCode)}?justPlaced=1#payment-card`
@@ -1550,22 +1573,20 @@ export default function Order({ user: propUser } = {}) {
       )}
 
       {/* Role-Aware Order Success Modal (for Admin Phone Orders) */}
-      <AnimatePresence>
-        {orderSuccessModal && (
-          <OrderSuccessModal
-            key={orderSuccessModal.trackingCode || "order-success-dialog"}
-            order={orderSuccessModal}
-            buildTrackingMessage={buildTrackingMessage}
-            buildPaymentMessage={buildPaymentMessage}
-            buildManualOrderSmsMessage={buildManualOrderSmsMessage}
-            onTrackNow={(code) =>
-              handleTrackNow(code || orderSuccessModal.trackingCode)
-            }
-            onTakeNextOrder={handleResetForNextOrder}
-            onGoDashboard={() => navigate("/admin")}
-          />
-        )}
-      </AnimatePresence>
+      {orderSuccessModal && (
+        <OrderSuccessModal
+          key={orderSuccessModal.trackingCode || "order-success-dialog"}
+          order={orderSuccessModal}
+          buildTrackingMessage={buildTrackingMessage}
+          buildPaymentMessage={buildPaymentMessage}
+          buildManualOrderSmsMessage={buildManualOrderSmsMessage}
+          onTrackNow={(code) =>
+            handleTrackNow(code || orderSuccessModal.trackingCode)
+          }
+          onTakeNextOrder={handleResetForNextOrder}
+          onGoDashboard={() => navigate("/admin")}
+        />
+      )}
 
       {/* Floating Duplicate Order Notification */}
       <AnimatePresence>
