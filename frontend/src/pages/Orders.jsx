@@ -140,15 +140,108 @@ export function areItemsSameSpec(a, b) {
   return true;
 }
 
+// ==========================================
+// MESSAGE TEMPLATES (from AdminDashboard reference)
+// ==========================================
+export function buildTrackingMessage(orderObj = {}) {
+  if (!orderObj) return "";
+  const origin =
+    typeof window !== "undefined"
+      ? window.location.origin
+    : "https://fetandelivery.netlify.app";
+  const code = orderObj.trackingCode || orderObj._id || orderObj.id || "--";
+  const baseLink = orderObj.trackingLink || `${origin}/track/${code}/`;
+  const name = (orderObj.customerName || "").trim();
+  const isGeneric = !name || name === "AASTU Student" || name === "Customer";
+  const greeting = !isGeneric
+    ? `Hello ${name}`
+    : orderObj.source === "manual" || orderObj.createdByAdmin
+    ? "Hello"
+    : `Hello ${name || "Customer"}`;
+  const status = String(orderObj.status || "pending").toLowerCase();
+
+  switch (status) {
+    case "pending":
+      return `${greeting}! Your order (Code: ${code}) is confirmed. Thanks for your request — we’ll notify you once preparation begins. Track your order here: ${baseLink}`;
+
+    case "in_progress":
+      return `${greeting}! Good news — your order (Code: ${code}) is now being prepared and will be on its way shortly. Track its progress here: ${baseLink}`;
+
+    case "arrived":
+      return `${greeting}! Your order (Code: ${code}) has arrived. Please pick it up from the location you shared around ${
+        orderObj.customerLocation || orderObj.location || "your specified address"
+      }. Track it here: ${baseLink}`;
+
+    case "delivered":
+      return `${greeting}! Your order (Code: ${code}) has been delivered. Thank you for choosing Fetan Delivery! We’d be happy to serve you again — you can place next order during our service hours at https://fetandelivery.netlify.app/. If you have feedback, just reply to this message.`;
+
+    default:
+      return `${greeting}! Your order (Code: ${code}) is currently: ${
+        orderObj.status || "unknown"
+      }. Track it here: ${baseLink}`;
+  }
+}
+
+export function buildPaymentMessage(orderObj = {}) {
+  if (!orderObj) return "";
+  const origin =
+    typeof window !== "undefined"
+      ? window.location.origin
+    : "https://fetandelivery.netlify.app";
+  const code = orderObj.trackingCode || orderObj._id || orderObj.id || "--";
+  const baseLink = orderObj.trackingLink || `${origin}/track/${code}/`;
+  const name = (orderObj.customerName || "").trim();
+  const isGeneric = !name || name === "AASTU Student" || name === "Customer";
+  const greeting = !isGeneric
+    ? `Hello ${name}`
+    : orderObj.source === "manual" || orderObj.createdByAdmin
+    ? "Hello"
+    : `Hello ${name || "Customer"}`;
+
+  const displayedTotal = Number(
+    orderObj.total ?? orderObj.totalPrice ?? orderObj.amount ?? 0,
+  );
+  const totalBirr = displayedTotal.toFixed(2);
+  const payment = String(
+    orderObj.paymentStatus ||
+      (orderObj.paymentMethod === "cod" ? "pending_cash" : "unpaid"),
+  ).toLowerCase();
+
+  if (payment === "paid") {
+    if (orderObj.amountPaid && Number(orderObj.amountPaid) > displayedTotal) {
+      const refundAmt = (Number(orderObj.amountPaid) - displayedTotal).toFixed(2);
+      return `${greeting}! ✅ Your payment for order (Code: ${code}) is confirmed. Since you updated your order, an overpayment refund of ${refundAmt} Birr will be handed to you in cash upon delivery. Track your order here: ${baseLink}`;
+    }
+    return `${greeting}! ✅ We have received your payment for order (Code: ${code}). Your order is now confirmed and being processed. Track your order here: ${baseLink}`;
+  }
+
+  if (payment === "partially_paid") {
+    const paidAmt = Number(orderObj.amountPaid || 0).toFixed(2);
+    const shortfall = Math.max(0, displayedTotal - Number(orderObj.amountPaid || 0)).toFixed(2);
+    return `${greeting}! ⚠️ Please fulfill your remaining payment for order (Code: ${code}).\n\nTotal: ${totalBirr} Birr\nAlready Paid: ${paidAmt} Birr\nRemaining to Fulfill: ${shortfall} Birr\n\nPlease transfer the remaining ${shortfall} Birr and upload your screenshot on your tracking page:\n${baseLink}\n\nAccounts:\n🏦 CBE: 1000528463243\n📱 Telebirr / CBEBirr: 0954724664`;
+  }
+
+  return `${greeting}! 💳 Payment is still required for your order (Code: ${code}).\n\nAmount to pay: ${totalBirr} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\n🏦 CBE: 1000528463243 (Abdurazak Mohammed)\n📱 Telebirr / CBEBirr: 0954724664 (Abdurazak Mohammed)\n\n📸 After payment, upload your screenshot on tracking page:\n${baseLink}\nTelegram: https://t.me/ABDURAZACQ`;
+}
+
+export function buildManualOrderSmsMessage(orderObj = {}) {
+  const isOnlineUnpaid =
+    orderObj?.paymentMethod === "online" &&
+    String(orderObj?.paymentStatus || "").toLowerCase() !== "paid";
+  return isOnlineUnpaid
+    ? buildPaymentMessage(orderObj)
+    : buildTrackingMessage(orderObj);
+}
+
 // Dialog Box for Admin Successful Order Creation
 function OrderSuccessModal({
   order,
   onTrackNow,
   onTakeNextOrder,
   onGoDashboard,
-  buildTrackingMessage,
-  buildPaymentMessage,
-  buildManualOrderSmsMessage,
+  buildTrackingMessage: propBuildTrackingMessage,
+  buildPaymentMessage: propBuildPaymentMessage,
+  buildManualOrderSmsMessage: propBuildManualOrderSmsMessage,
 }) {
   const initialTemplateType =
     order?.initialTemplate ||
@@ -161,12 +254,11 @@ function OrderSuccessModal({
 
   const getTemplateContent = (type) => {
     if (type === "payment") {
-      if (buildPaymentMessage) return buildPaymentMessage(order);
-      if (buildManualOrderSmsMessage) return buildManualOrderSmsMessage(order);
+      const fn = propBuildPaymentMessage || buildPaymentMessage;
+      return fn(order);
     }
-    if (buildTrackingMessage) return buildTrackingMessage(order);
-    if (buildManualOrderSmsMessage) return buildManualOrderSmsMessage(order);
-    return "";
+    const fn = propBuildTrackingMessage || buildTrackingMessage;
+    return fn(order);
   };
 
   const [messageText, setMessageText] = useState(() =>
@@ -1410,96 +1502,7 @@ export default function Order({ user: propUser } = {}) {
     });
   };
 
-  // Message templates adopted from AdminDashboard as reference:
-  const buildTrackingMessage = (orderObj = orderSuccessModal || tracking) => {
-    if (!orderObj) return "";
-    const origin =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "https://fetandelivery.netlify.app";
-    const code = orderObj.trackingCode || orderObj._id || orderObj.id || "--";
-    const baseLink = orderObj.trackingLink || `${origin}/track/${code}/`;
-    const name = (orderObj.customerName || "").trim();
-    const isGeneric = !name || name === "AASTU Student" || name === "Customer";
-    const greeting = !isGeneric
-      ? `Hello ${name}`
-      : orderObj.source === "manual" || orderObj.createdByAdmin
-      ? "Hello"
-      : `Hello ${name || "Customer"}`;
-    const status = String(orderObj.status || "pending").toLowerCase();
 
-    switch (status) {
-      case "pending":
-        return `${greeting}! Your order (Code: ${code}) is confirmed. Thanks for your request — we’ll notify you once preparation begins. Track your order here: ${baseLink}`;
-
-      case "in_progress":
-        return `${greeting}! Good news — your order (Code: ${code}) is now being prepared and will be on its way shortly. Track its progress here: ${baseLink}`;
-
-      case "arrived":
-        return `${greeting}! Your order (Code: ${code}) has arrived. Please pick it up from the location you shared around ${
-          orderObj.customerLocation || orderObj.location || "your specified address"
-        }. Track it here: ${baseLink}`;
-
-      case "delivered":
-        return `${greeting}! Your order (Code: ${code}) has been delivered. Thank you for choosing Fetan Delivery! We’d be happy to serve you again — you can place next order during our service hours at https://fetandelivery.netlify.app/. If you have feedback, just reply to this message.`;
-
-      default:
-        return `${greeting}! Your order (Code: ${code}) is currently: ${
-          orderObj.status || "unknown"
-        }. Track it here: ${baseLink}`;
-    }
-  };
-
-  const buildPaymentMessage = (orderObj = orderSuccessModal || tracking) => {
-    if (!orderObj) return "";
-    const origin =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "https://fetandelivery.netlify.app";
-    const code = orderObj.trackingCode || orderObj._id || orderObj.id || "--";
-    const baseLink = orderObj.trackingLink || `${origin}/track/${code}/`;
-    const name = (orderObj.customerName || "").trim();
-    const isGeneric = !name || name === "AASTU Student" || name === "Customer";
-    const greeting = !isGeneric
-      ? `Hello ${name}`
-      : orderObj.source === "manual" || orderObj.createdByAdmin
-      ? "Hello"
-      : `Hello ${name || "Customer"}`;
-
-    const displayedTotal = Number(
-      orderObj.total ?? orderObj.totalPrice ?? orderObj.amount ?? 0,
-    );
-    const totalBirr = displayedTotal.toFixed(2);
-    const payment = String(
-      orderObj.paymentStatus ||
-        (orderObj.paymentMethod === "cod" ? "pending_cash" : "unpaid"),
-    ).toLowerCase();
-
-    if (payment === "paid") {
-      if (orderObj.amountPaid && Number(orderObj.amountPaid) > displayedTotal) {
-        const refundAmt = (Number(orderObj.amountPaid) - displayedTotal).toFixed(2);
-        return `${greeting}! ✅ Your payment for order (Code: ${code}) is confirmed. Since you updated your order, an overpayment refund of ${refundAmt} Birr will be handed to you in cash upon delivery. Track your order here: ${baseLink}`;
-      }
-      return `${greeting}! ✅ We have received your payment for order (Code: ${code}). Your order is now confirmed and being processed. Track your order here: ${baseLink}`;
-    }
-
-    if (payment === "partially_paid") {
-      const paidAmt = Number(orderObj.amountPaid || 0).toFixed(2);
-      const shortfall = Math.max(0, displayedTotal - Number(orderObj.amountPaid || 0)).toFixed(2);
-      return `${greeting}! ⚠️ Please fulfill your remaining payment for order (Code: ${code}).\n\nTotal: ${totalBirr} Birr\nAlready Paid: ${paidAmt} Birr\nRemaining to Fulfill: ${shortfall} Birr\n\nPlease transfer the remaining ${shortfall} Birr and upload your screenshot on your tracking page:\n${baseLink}\n\nAccounts:\n🏦 CBE: 1000528463243\n📱 Telebirr / CBEBirr: 0954724664`;
-    }
-
-    return `${greeting}! 💳 Payment is still required for your order (Code: ${code}).\n\nAmount to pay: ${totalBirr} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\n🏦 CBE: 1000528463243 (Abdurazak Mohammed)\n📱 Telebirr / CBEBirr: 0954724664 (Abdurazak Mohammed)\n\n📸 After payment, upload your screenshot on tracking page:\n${baseLink}\nTelegram: https://t.me/ABDURAZACQ`;
-  };
-
-  const buildManualOrderSmsMessage = (orderObj = orderSuccessModal || tracking) => {
-    const isOnlineUnpaid =
-      orderObj?.paymentMethod === "online" &&
-      String(orderObj?.paymentStatus || "").toLowerCase() !== "paid";
-    return isOnlineUnpaid
-      ? buildPaymentMessage(orderObj)
-      : buildTrackingMessage(orderObj);
-  };
 
   const handleResetForNextOrder = () => {
     setCustomer({
