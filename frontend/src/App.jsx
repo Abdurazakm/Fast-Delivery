@@ -272,6 +272,25 @@ function App() {
   useEffect(() => {
     const socket = getSocket();
 
+    const playNotificationChime = () => {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.28);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+      } catch {}
+    };
+
     const showNativeNotification = async (payload) => {
       if (!("Notification" in window)) return false;
       if (Notification.permission !== "granted") return false;
@@ -281,10 +300,15 @@ function App() {
       const url =
         payload.url ||
         (payload.trackingCode ? `/track/${payload.trackingCode}` : "/");
+      const statusPart = payload.status
+        ? `-${payload.status}`
+        : payload.paymentStatus
+          ? `-${payload.paymentStatus}`
+          : "";
       const unifiedTag = payload.orderId
-        ? `order-${payload.orderId}`
+        ? `order-${payload.orderId}${statusPart}`
         : payload.trackingCode
-          ? `order-${payload.trackingCode}`
+          ? `order-${payload.trackingCode}${statusPart}`
           : "fetan-update";
 
       try {
@@ -331,19 +355,32 @@ function App() {
       // Prevent duplicate notification popups if both Socket and FCM deliver
       if (isDuplicateNotification(payload)) return;
 
+      // Play soft alert chime
+      playNotificationChime();
+
       // 1. Save directly into notification collection for top-right bell dropdown
       saveNotificationToCollection(payload);
 
       // 2. If the user is currently viewing the website, show the in-app interactive toast
       if (typeof document !== "undefined" && !document.hidden) {
         const title = payload.title ? `${payload.title}: ` : "";
-        setNotificationToast({
-          type:
-            payload.type === "payment"
-              ? "payment"
-              : payload.type === "status"
+        let toastType = "info";
+        if (payload.type === "payment" || payload.type === "payment-status") {
+          toastType =
+            payload.paymentStatus === "rejected"
+              ? "error"
+              : payload.paymentStatus === "paid"
                 ? "success"
-                : "info",
+                : "payment";
+        } else if (payload.type === "status") {
+          toastType =
+            payload.status === "canceled" || payload.status === "no_show"
+              ? "error"
+              : "success";
+        }
+
+        setNotificationToast({
+          type: toastType,
           message: `${title}${payload.message}`,
           url:
             payload.url ||
@@ -380,6 +417,7 @@ function App() {
         orderId: fcmPayload.data?.orderId,
         trackingCode: fcmPayload.data?.trackingCode,
         status: fcmPayload.data?.status,
+        paymentStatus: fcmPayload.data?.paymentStatus,
       };
       if (data.message) {
         handleNotification(data);
@@ -400,37 +438,44 @@ function App() {
     };
   }, [user?.role]);
 
-  // Join targeted user/phone/order socket rooms
+  // Join targeted user/phone/order socket rooms with automatic reconnect handling
   useEffect(() => {
     const socket = getSocket();
 
-    if (user?.role === "admin") {
-      socket.emit("join-admin");
-    } else {
-      socket.emit("leave-admin");
-    }
+    const syncRooms = () => {
+      if (user?.role === "admin") {
+        socket.emit("join-admin");
+      } else {
+        socket.emit("leave-admin");
+      }
 
-    if (user?.id) {
-      socket.emit("join-user", user.id);
-    }
-    if (user?.phone) {
-      socket.emit("join-phone", user.phone);
-    }
+      if (user?.id) {
+        socket.emit("join-user", user.id);
+      }
+      if (user?.phone) {
+        socket.emit("join-phone", user.phone);
+      }
 
-    // Guest phone and tracking code rooms
-    const guestPhone = localStorage.getItem("last_order_phone");
-    if (guestPhone) {
-      socket.emit("join-phone", guestPhone);
-    }
+      // Guest phone and tracking code rooms
+      const guestPhone = localStorage.getItem("last_order_phone");
+      if (guestPhone) {
+        socket.emit("join-phone", guestPhone);
+      }
 
-    const lastTracking = localStorage.getItem("last_order_tracking");
-    if (lastTracking) {
-      socket.emit("join-order", lastTracking);
-    }
+      const lastTracking = localStorage.getItem("last_order_tracking");
+      if (lastTracking) {
+        socket.emit("join-order", lastTracking);
+      }
+    };
+
+    syncRooms();
+    socket.on("connect", syncRooms);
 
     return () => {
+      socket.off("connect", syncRooms);
       if (user?.id) socket.emit("leave-user", user.id);
       if (user?.phone) socket.emit("leave-phone", user.phone);
+      const guestPhone = localStorage.getItem("last_order_phone");
       if (guestPhone) socket.emit("leave-phone", guestPhone);
     };
   }, [user?.id, user?.phone, user?.role]);

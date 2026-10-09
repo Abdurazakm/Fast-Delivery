@@ -20,10 +20,15 @@ async function sendNotificationToTokens(tokens, { title, body, data = {}, url = 
     return { sent: 0, failed: 0, skipped: true };
   }
 
+  const statusPart = data?.status
+    ? `-${data.status}`
+    : data?.paymentStatus
+      ? `-${data.paymentStatus}`
+      : "";
   const unifiedTag = data?.orderId
-    ? `order-${data.orderId}`
+    ? `order-${data.orderId}${statusPart}`
     : data?.trackingCode
-      ? `order-${data.trackingCode}`
+      ? `order-${data.trackingCode}${statusPart}`
       : "fetan-update";
 
   // Data-only payload prevents FCM SDK from auto-displaying a duplicate notification in the background
@@ -180,6 +185,28 @@ async function sendNotificationForOrder(order, { title, body, data = {}, url }) 
       }
     }
 
+    // Fallback: If order lacks userId, check if a registered user exists with this phone
+    if (!order.userId && order.phone) {
+      const norm = normalizePhone(order.phone);
+      if (norm) {
+        const linkedUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { phone: String(order.phone).trim() },
+              { phone: norm },
+              ...(norm.startsWith("+251")
+                ? [{ phone: "0" + norm.slice(4) }, { phone: norm.slice(4) }]
+                : []),
+            ],
+          },
+          select: { id: true },
+        });
+        if (linkedUser?.id) {
+          whereConditions.push({ userId: linkedUser.id });
+        }
+      }
+    }
+
     if (!whereConditions.length) {
       return { sent: 0, failed: 0, skipped: true };
     }
@@ -194,16 +221,18 @@ async function sendNotificationForOrder(order, { title, body, data = {}, url }) 
       return { sent: 0, failed: 0, skipped: false };
     }
     const tokens = devices.map((d) => d.token);
+    console.log(`📱 [Push] Delivering notification for order #${order.id} (${order.trackingCode}) to ${tokens.length} device token(s)`);
 
     return await sendNotificationToTokens(tokens, {
       title,
       body,
       data: {
         ...data,
-        type: "order-status",
+        type: data.type || "order-status",
         orderId: String(order.id),
         trackingCode: order.trackingCode,
         status: order.status,
+        paymentStatus: order.paymentStatus || "",
       },
       url: url || `/track/${order.trackingCode}`,
     });

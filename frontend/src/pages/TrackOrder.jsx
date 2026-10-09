@@ -61,12 +61,18 @@ export default function TrackOrder() {
       setError("This order was cancelled.");
     };
 
-    socket.emit("join-order", code);
+    const joinCode = () => {
+      socket.emit("join-order", code);
+    };
+    joinCode();
+    socket.on("connect", joinCode);
+
     socket.on("order:updated", handleOrderUpdated);
     socket.on("order:payment-updated", handleOrderUpdated);
     socket.on("order:deleted", handleOrderDeleted);
 
     return () => {
+      socket.off("connect", joinCode);
       socket.off("order:updated", handleOrderUpdated);
       socket.off("order:payment-updated", handleOrderUpdated);
       socket.off("order:deleted", handleOrderDeleted);

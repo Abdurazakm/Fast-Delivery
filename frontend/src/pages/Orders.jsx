@@ -551,6 +551,7 @@ export default function Order() {
             })),
           );
         }
+        setReviewMode(false);
       } catch (err) {
         console.error("Failed to fetch order for edit:", err);
         setMessage("Could not load order for editing.");
@@ -1043,12 +1044,14 @@ export default function Order() {
         duplicatePayload?.code === "EXISTING_PHONE_ORDER"
       ) {
         setDuplicateOrderHint(duplicatePayload.existingOrder || null);
+        setMessage("");
+      } else {
+        setMessage(
+          err.response?.data?.message ||
+            err.message ||
+            "Failed to place order. Try again.",
+        );
       }
-      setMessage(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to place order. Try again.",
-      );
     } finally {
       setLoading(false);
     }
@@ -1122,6 +1125,92 @@ export default function Order() {
             onTakeNextOrder={() => setOrderSuccessModal(null)}
             onGoDashboard={() => navigate("/admin")}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Floating Duplicate Order Notification */}
+      <AnimatePresence>
+        {duplicateOrderHint?.trackingCode && (
+          <motion.div
+            initial={{ opacity: 0, y: -24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.96 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="fixed top-4 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-lg z-50 pointer-events-auto"
+          >
+            <div className="bg-white rounded-2xl border border-amber-300 shadow-2xl p-4 sm:p-5 text-gray-900 space-y-3.5 ring-1 ring-black/10">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0 text-amber-700">
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm sm:text-base text-gray-900 leading-tight">
+                      Active Order Already Exists
+                    </h3>
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1 leading-relaxed">
+                      A recent active order already exists for this phone number. Edit the previous order instead of creating a new one.
+                    </p>
+                    <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-200 text-xs font-medium text-gray-700">
+                      <span>Existing Order:</span>
+                      <span className="font-mono font-bold text-gray-900">
+                        {duplicateOrderHint.trackingCode}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDuplicateOrderHint(null)}
+                  className="p-1.5 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition shrink-0 cursor-pointer"
+                  aria-label="Dismiss alert"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = duplicateOrderHint.trackingCode;
+                    setDuplicateOrderHint(null);
+                    navigate(`/order?edit=${encodeURIComponent(code)}`);
+                  }}
+                  className="flex-1 min-w-[150px] py-2.5 px-3.5 rounded-xl bg-gray-900 hover:bg-black active:scale-98 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Edit Previous Order</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const code = duplicateOrderHint.trackingCode;
+                    setDuplicateOrderHint(null);
+                    navigate(`/track/${encodeURIComponent(code)}`);
+                  }}
+                  className="py-2.5 px-3.5 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-800 font-semibold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                >
+                  <span>View Order</span>
+                </button>
+
+                {isUserAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDuplicateOrderHint(null);
+                      handleConfirmOrder({ forceCreateDuplicate: true });
+                    }}
+                    disabled={loading}
+                    className="py-2.5 px-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-98 text-white font-bold text-xs transition cursor-pointer"
+                  >
+                    Create Anyway (Admin)
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1218,42 +1307,6 @@ export default function Order() {
             >
               <X className="w-4 h-4" />
             </button>
-          </div>
-        )}
-
-        {/* Possible Duplicate Order Notice */}
-        {duplicateOrderHint?.trackingCode && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm space-y-2.5 shadow-xs">
-            <div className="font-bold flex items-center gap-2">
-              <span>Possible duplicate order detected</span>
-            </div>
-            <p className="text-gray-700 text-xs">
-              An order for this phone is already active today (Code:{" "}
-              <strong>{duplicateOrderHint.trackingCode}</strong>).
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(`/track/${duplicateOrderHint.trackingCode}`)
-                }
-                className="px-3 py-1.5 rounded-xl bg-white border border-amber-300 text-amber-900 font-semibold text-xs hover:bg-amber-100 transition"
-              >
-                View Existing Order
-              </button>
-              {isUserAdmin && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleConfirmOrder({ forceCreateDuplicate: true })
-                  }
-                  disabled={loading}
-                  className="px-3 py-1.5 rounded-xl bg-rose-600 text-white font-semibold text-xs hover:bg-rose-700 transition"
-                >
-                  Create Anyway (Admin)
-                </button>
-              )}
-            </div>
           </div>
         )}
 

@@ -519,6 +519,28 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
         url: `/track/${order.trackingCode}#payment-card`,
         type: "payment",
       });
+    } else {
+      sendNotificationForOrder(order, {
+        title: `Order (${maskedCode}) Placed 🎉`,
+        body: `Hi ${customerName}, your order (${maskedCode}) has been placed. Total: ${total} Birr.`,
+        url: `/track/${order.trackingCode}`,
+        data: {
+          orderId: order.id,
+          trackingCode: order.trackingCode,
+          type: "status",
+          status: order.status || "pending",
+          url: `/track/${order.trackingCode}`,
+        },
+      }).catch((err) => console.error("❌ Manual order confirmation push failed:", err?.message));
+
+      emitTargetedOrderNotification(order, {
+        title: `Order (${maskedCode}) Placed 🎉`,
+        message: `Your order (${maskedCode}) has been placed. Total: ${total} Birr.`,
+        trackingCode: order.trackingCode,
+        url: `/track/${order.trackingCode}`,
+        type: "status",
+        status: order.status || "pending",
+      });
     }
 
     // Optional SMS
@@ -555,6 +577,101 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 });
+
+/**
+ * ------------------------
+ *  Notification Content Builders
+ * ------------------------
+ */
+function getOrderStatusNotification(status, trackingCode) {
+  const maskedCode = maskTrackingCode(trackingCode);
+  switch (status) {
+    case "pending":
+      return {
+        title: `Order (${maskedCode}) Received 📋`,
+        message: `Your order (${maskedCode}) has been received and queued in the kitchen.`,
+      };
+    case "in_progress":
+      return {
+        title: `Cooking Order (${maskedCode}) 🍳`,
+        message: `The kitchen is preparing your meal! Your rider will pick it up soon.`,
+      };
+    case "arrived":
+      return {
+        title: `Rider Arrived! (${maskedCode}) 🛵`,
+        message: `Your rider has arrived at your block! Please meet them to pick up your order.`,
+      };
+    case "delivered":
+      return {
+        title: `Order (${maskedCode}) Delivered 🎉`,
+        message: `Your order has been delivered successfully. Enjoy your delicious meal!`,
+      };
+    case "canceled":
+      return {
+        title: `Order (${maskedCode}) Canceled ❌`,
+        message: `Your order (${maskedCode}) has been canceled. Please contact support if you need help.`,
+      };
+    case "no_show":
+      return {
+        title: `Rider Waiting for (${maskedCode}) ⚠️`,
+        message: `Your rider is waiting at your delivery point but couldn't reach you. Please meet them or call back!`,
+      };
+    default: {
+      const formatted = String(status || "").replace("_", " ");
+      return {
+        title: `Order (${maskedCode}) Updated 🛵`,
+        message: `Your order (${maskedCode}) status is now ${formatted}.`,
+      };
+    }
+  }
+}
+
+function getOrderPaymentNotification(paymentStatus, updatedOrder) {
+  const maskedCode = maskTrackingCode(updatedOrder.trackingCode);
+  const total = updatedOrder.total ?? 0;
+  const paid = updatedOrder.amountPaid ?? 0;
+  const remaining = Math.max(0, total - paid);
+
+  switch (paymentStatus) {
+    case "paid":
+      return {
+        title: `Payment Confirmed! ✅`,
+        message: `Payment for order (${maskedCode}) has been verified and confirmed. Thank you!`,
+      };
+    case "rejected":
+      return {
+        title: `Payment Proof Rejected ❌`,
+        message: `Payment verification for order (${maskedCode}) could not be confirmed. Please check your transaction details or re-upload proof.`,
+      };
+    case "partially_paid":
+      return {
+        title: `Partial Payment Recorded ⚠️`,
+        message: `Partial payment of ${paid} ETB received for order (${maskedCode}). Remaining balance is ${remaining} ETB.`,
+      };
+    case "verifying":
+      return {
+        title: `Payment Under Review ⏳`,
+        message: `Payment proof for order (${maskedCode}) is currently being reviewed by our team.`,
+      };
+    case "pending_cash":
+      return {
+        title: `Cash on Delivery Selected 💵`,
+        message: `Order (${maskedCode}) will be paid in cash upon delivery (${total} Birr). Please prepare exact change.`,
+      };
+    case "unpaid":
+      return {
+        title: `Payment Status: Unpaid ℹ️`,
+        message: `Order (${maskedCode}) payment status is marked as unpaid.`,
+      };
+    default: {
+      const formatted = String(paymentStatus || "").replace("_", " ");
+      return {
+        title: `Payment Status Updated 💳`,
+        message: `Payment status for order (${maskedCode}) is now ${formatted}.`,
+      };
+    }
+  }
+}
 
 /**
  * ------------------------
@@ -600,25 +717,29 @@ router.put(
 
       emitOrderUpdated(updatedOrder, "status");
 
-      const maskedCode = maskTrackingCode(updatedOrder.trackingCode);
-      const formattedStatus = status.replace("_", " ");
-      const notificationTitle = `Order (${maskedCode}) Updated 🛵`;
-      const notificationMessage = `Your order (${maskedCode}) is now ${formattedStatus}.`;
+      const { title: notificationTitle, message: notificationMessage } =
+        getOrderStatusNotification(status, updatedOrder.trackingCode);
 
       // Send push notification ONLY to the customer device(s) that placed this order
       sendNotificationForOrder(updatedOrder, {
         title: notificationTitle,
         body: notificationMessage,
         url: `/track/${updatedOrder.trackingCode}`,
+        data: {
+          type: "status",
+          status,
+          orderId: String(updatedOrder.id),
+          trackingCode: updatedOrder.trackingCode,
+        },
       }).catch((err) => console.error("❌ Customer push failed:", err?.message));
 
       // Real-time targeted socket update ONLY to this order's owner and watching screens
       emitTargetedOrderNotification(updatedOrder, {
         type: "status",
+        status,
         title: notificationTitle,
         message: notificationMessage,
       });
-
 
       res.json({ message: "Status updated", orderId: order.id });
     } catch (err) {
@@ -675,6 +796,32 @@ router.put(
       if (socket) {
         socket.to(`order:${order.trackingCode}`).emit("order:payment-updated", updatedOrder);
       }
+
+      const { title: payTitle, message: payMsg } = getOrderPaymentNotification(
+        paymentStatus,
+        updatedOrder,
+      );
+
+      // Send push notification ONLY to the customer device(s) that placed this order
+      sendNotificationForOrder(updatedOrder, {
+        title: payTitle,
+        body: payMsg,
+        url: `/track/${updatedOrder.trackingCode}#payment-card`,
+        data: {
+          type: "payment-status",
+          paymentStatus,
+          orderId: String(updatedOrder.id),
+          trackingCode: updatedOrder.trackingCode,
+        },
+      }).catch((err) => console.error("❌ Customer payment push failed:", err?.message));
+
+      // Real-time targeted socket update ONLY to this order's owner and watching screens
+      emitTargetedOrderNotification(updatedOrder, {
+        type: "payment-status",
+        paymentStatus,
+        title: payTitle,
+        message: payMsg,
+      });
 
       res.json({
         message: "Payment status updated",
@@ -856,6 +1003,13 @@ router.post(
       if (socket) {
         socket.to(`order:${order.trackingCode}`).emit("order:payment-updated", updatedOrder);
       }
+
+      emitTargetedOrderNotification(updatedOrder, {
+        type: "payment-status",
+        paymentStatus: "verifying",
+        title: "Payment Receipt Submitted ⏳",
+        message: `Your payment receipt for (${maskedCode}) has been received and is under review.`,
+      });
 
       res.json({
         message: "Payment proof submitted successfully",
@@ -1144,6 +1298,29 @@ router.delete(
 
       emitOrderDeleted(order);
 
+      const maskedCode = maskTrackingCode(order.trackingCode);
+      const cancelTitle = `Order (${maskedCode}) Canceled ❌`;
+      const cancelMsg = `Your order (${maskedCode}) has been canceled.`;
+
+      sendNotificationForOrder(order, {
+        title: cancelTitle,
+        body: cancelMsg,
+        url: `/track/${order.trackingCode}`,
+        data: {
+          type: "status",
+          status: "canceled",
+          orderId: String(order.id),
+          trackingCode: order.trackingCode,
+        },
+      }).catch((err) => console.error("❌ Customer cancellation push failed:", err?.message));
+
+      emitTargetedOrderNotification(order, {
+        type: "status",
+        status: "canceled",
+        title: cancelTitle,
+        message: cancelMsg,
+      });
+
       res.json({ message: "Order deleted successfully" });
     } catch (err) {
       console.error("❌ Error deleting order by tracking code:", err);
@@ -1322,6 +1499,30 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
 
     await prisma.order.delete({ where: { id: parseInt(id) } });
     emitOrderDeleted(order);
+
+    const maskedCode = maskTrackingCode(order.trackingCode);
+    const cancelTitle = `Order (${maskedCode}) Canceled ❌`;
+    const cancelMsg = `Your order (${maskedCode}) has been canceled by staff.`;
+
+    sendNotificationForOrder(order, {
+      title: cancelTitle,
+      body: cancelMsg,
+      url: `/track/${order.trackingCode}`,
+      data: {
+        type: "status",
+        status: "canceled",
+        orderId: String(order.id),
+        trackingCode: order.trackingCode,
+      },
+    }).catch((err) => console.error("❌ Admin delete push failed:", err?.message));
+
+    emitTargetedOrderNotification(order, {
+      type: "status",
+      status: "canceled",
+      title: cancelTitle,
+      message: cancelMsg,
+    });
+
     res.json({ message: "Order deleted successfully" });
   } catch (err) {
     console.error("❌ Error deleting order:", err);

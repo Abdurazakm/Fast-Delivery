@@ -19,7 +19,7 @@ let lastShownTime = 0;
 
 function shouldDisplayNotification(tag) {
   const now = Date.now();
-  if (lastShownTag && lastShownTag === tag && now - lastShownTime < 5000) {
+  if (lastShownTag && lastShownTag === tag && now - lastShownTime < 1500) {
     return false;
   }
   lastShownTag = tag;
@@ -29,12 +29,17 @@ function shouldDisplayNotification(tag) {
 
 messaging.onBackgroundMessage((payload) => {
   const data = payload.data || {};
+  const statusPart = data.status
+    ? `-${data.status}`
+    : data.paymentStatus
+      ? `-${data.paymentStatus}`
+      : "";
   const tag =
     data.tag ||
     (data.orderId
-      ? `order-${data.orderId}`
+      ? `order-${data.orderId}${statusPart}`
       : data.trackingCode
-        ? `order-${data.trackingCode}`
+        ? `order-${data.trackingCode}${statusPart}`
         : "fetan-update");
 
   if (!shouldDisplayNotification(tag)) return;

@@ -541,7 +541,7 @@ export default function PaymentInstructionsCard({
               <p className="text-xs font-black uppercase tracking-wider text-gray-700">
                 {paymentStatus === "partially_paid"
                   ? "2. Upload Screenshot for Remaining Balance"
-                  : "2. Upload Screenshot (Instant OCR Scan)"}
+                  : "2. Upload Screenshot"}
               </p>
               {showReuploadForm && (
                 <button
