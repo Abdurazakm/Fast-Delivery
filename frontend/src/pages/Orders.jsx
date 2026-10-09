@@ -2565,18 +2565,6 @@ export default function Order({ user: propUser } = {}) {
                     </button>
                   )}
                 </div>
-
-                {isUserAdmin && (
-                  <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-3 text-xs text-blue-900 space-y-0.5">
-                    <p className="font-extrabold text-blue-950">
-                      Fill Customer's Information
-                    </p>
-                    <p className="text-blue-700 font-medium text-[11px] leading-relaxed">
-                      Customer name defaults to "{DEFAULT_CUSTOMER_NAME}". Simply enter their phone number and dorm block. After confirming, you can immediately send an SMS to the customer.
-                    </p>
-                  </div>
-                )}
-
                 <div className="space-y-3.5">
                   {/* Name Input */}
                   <div>
