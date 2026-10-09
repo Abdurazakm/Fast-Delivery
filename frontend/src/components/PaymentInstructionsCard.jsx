@@ -224,28 +224,25 @@ export default function PaymentInstructionsCard({
           </span>
         </div>
 
-        <div className="p-4 space-y-3.5 text-gray-800">
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-100/60 p-3.5 text-emerald-950">
-            <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
-              Order Total to Pay
-            </p>
-            <p className="mt-1 text-2xl font-black text-emerald-950">
-              {currentTotal.toFixed(2)} Birr
-            </p>
-            <p className="mt-1 text-xs text-emerald-800 font-semibold">
-              Location: {order?.location || "Your specified dorm"}
-            </p>
+        <div className="p-4 space-y-3 text-gray-800">
+          <div className="flex items-center justify-between p-3.5 rounded-xl border border-emerald-200 bg-emerald-100/70 text-emerald-950">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">
+                Amount to Pay
+              </p>
+              <p className="mt-0.5 text-2xl font-black text-emerald-950">
+                {currentTotal.toFixed(2)} Birr
+              </p>
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-xs">
+              <Banknote className="w-4 h-4" />
+              Pay on Delivery
+            </span>
           </div>
 
-          <div className="rounded-xl border border-emerald-200 bg-white/80 p-3.5 text-xs sm:text-sm leading-relaxed text-gray-800 space-y-1">
-            <p className="font-extrabold text-emerald-950 flex items-center gap-2">
-              <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Cash payment upon arrival</span>
-            </p>
-            <p className="text-gray-600 text-xs">
-              Please have <strong>{currentTotal.toFixed(0)} Birr</strong> ready in cash when your runner delivers your food to your door.
-            </p>
-          </div>
+          <p className="text-xs text-emerald-900 font-medium px-1">
+            Please have <strong>{currentTotal.toFixed(0)} Birr</strong> cash ready when your runner arrives at {order?.location || "your dorm room"}.
+          </p>
         </div>
       </div>
     );

@@ -18,6 +18,9 @@ import {
   Banknote,
   Smartphone,
   Pencil,
+  Zap,
+  Copy,
+  Check,
 } from "lucide-react";
 import { FaPaperPlane as FaPaperPlaneIcon } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +28,7 @@ import Toast from "./Toast";
 import API from "../api";
 import { getSocket } from "../socket";
 import Navbar from "../components/Navbar";
+import OrdersMenuWaitingCard from "../components/OrdersMenuWaitingCard";
 
 const FETIRA_DEFAULT_EGGS = 3;
 const DONUT_PACKAGE_OPTIONS = [1, 2];
@@ -99,6 +103,39 @@ function getDonutPackageUnitPrice(item, pricing) {
     Number(pricing.donut1PairPackagePrice) ||
     (Number(pricing.donut2PairPackagePrice) || 0) / 2;
   return Math.max(0, pairs * perPairRate);
+}
+
+export function areItemsSameSpec(a, b) {
+  if (!a || !b) return false;
+  if (a.foodType !== b.foodType) return false;
+
+  if (a.foodType === "ertib") {
+    return (
+      (a.ertibType || "normal") === (b.ertibType || "normal") &&
+      Boolean(a.Felafil !== false) === Boolean(b.Felafil !== false) &&
+      Boolean(a.ketchup !== false) === Boolean(b.ketchup !== false) &&
+      Boolean(a.spices !== false) === Boolean(b.spices !== false) &&
+      Boolean(a.extraKetchup) === Boolean(b.extraKetchup) &&
+      Boolean(a.doubleFelafil) === Boolean(b.doubleFelafil)
+    );
+  }
+
+  if (a.foodType === "fetira") {
+    return (Number(a.extraEggs) || 0) === (Number(b.extraEggs) || 0);
+  }
+
+  if (a.foodType === "donut") {
+    return (
+      (Number(a.donutPairsPerPackage) || 1) ===
+      (Number(b.donutPairsPerPackage) || 1)
+    );
+  }
+
+  if (a.foodType === "sambusa" || a.foodType === "boiled_egg") {
+    return true;
+  }
+
+  return true;
 }
 
 // Post-Order Celebratory Splash Modal with Role-Aware Experience
@@ -244,7 +281,7 @@ function OrderSuccessModal({
                   onClick={onGoDashboard}
                   className="flex-1 min-h-[46px] py-2.5 px-3 rounded-xl bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 text-xs sm:text-sm font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
                 >
-                  <span>📊 Dashboard</span>
+                  <span>Dashboard</span>
                 </button>
               </div>
 
@@ -317,6 +354,30 @@ export default function Order() {
   const [paymentMethod, setPaymentMethod] = useState("cod"); // default to COD for campus convenience
   const [isEditingDelivery, setIsEditingDelivery] = useState(false);
   const [activeItemIndex, setActiveItemIndex] = useState(0);
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [copiedField, setCopiedField] = useState(null);
+  const [lastOrderPreset, setLastOrderPreset] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = localStorage.getItem("ertib_last_order");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleCopyText = (text, fieldKey) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+      setCopiedField(fieldKey);
+      setTimeout(() => setCopiedField(null), 2000);
+      setToast({
+        type: "success",
+        message: `Copied "${text}" to clipboard!`,
+      });
+    }
+  };
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -557,6 +618,9 @@ export default function Order() {
 
   const handleCustomerChange = (e) => {
     const { name, value } = e.target;
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({ ...prev, [name]: false }));
+    }
     setCustomer((prev) => {
       const next = { ...prev, [name]: value };
       if (!user) {
@@ -612,21 +676,86 @@ export default function Order() {
     );
   };
 
-  const addItem = () => {
-    const selectable = getSelectableFoodTypes();
-    const fallbackFoodType = selectable.length > 0 ? selectable[0] : "ertib";
+  const handleDoneCustomizing = (targetIdx = activeItemIndex) => {
+    if (targetIdx == null) {
+      setActiveItemIndex(null);
+      return;
+    }
+
     setItems((prev) => {
-      const next = [...prev, buildDefaultItem(fallbackFoodType)];
-      setActiveItemIndex(next.length - 1);
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const current = prev[targetIdx];
+
+      // Check if another item in cart matches the exact same specifications
+      const matchIdx = prev.findIndex(
+        (it, idx) => idx !== targetIdx && areItemsSameSpec(it, current),
+      );
+
+      if (matchIdx !== -1) {
+        const addedQty = Number(current.quantity) || 1;
+        const newQty = (Number(prev[matchIdx].quantity) || 1) + addedQty;
+        const foodName = FOOD_TYPE_LABELS[current.foodType] || "Item";
+
+        setToast({
+          type: "info",
+          message: `Same specs: combined into 1 ${foodName} (Quantity: ${newQty})`,
+        });
+
+        // Add quantity to matched item, and remove the duplicate entry
+        return prev
+          .map((it, idx) =>
+            idx === matchIdx ? { ...it, quantity: newQty } : it,
+          )
+          .filter((_, idx) => idx !== targetIdx);
+      }
+
+      return prev;
+    });
+
+    setActiveItemIndex(null);
+  };
+
+  const addItem = (foodType) => {
+    const selectable = getSelectableFoodTypes();
+    const targetType =
+      foodType || (selectable.length > 0 ? selectable[0] : "ertib");
+    const isSimpleItem =
+      targetType === "sambusa" || targetType === "boiled_egg";
+
+    setItems((prev) => {
+      // If simple item already in cart, increment quantity directly
+      if (isSimpleItem) {
+        const existingIdx = prev.findIndex((it) => it.foodType === targetType);
+        if (existingIdx !== -1) {
+          return prev.map((it, idx) =>
+            idx === existingIdx
+              ? { ...it, quantity: (Number(it.quantity) || 1) + 1 }
+              : it,
+          );
+        }
+      }
+      const next = [...prev, buildDefaultItem(targetType)];
+      if (!isSimpleItem) {
+        setActiveItemIndex(next.length - 1);
+      } else {
+        setActiveItemIndex(null);
+      }
       return next;
     });
+
+    setShowAddMenu(false);
   };
 
   const removeItem = (index) => {
     setItems((prev) => {
       const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) {
+        setActiveItemIndex(null);
+        setShowAddMenu(true);
+        return [];
+      }
       setActiveItemIndex((curr) => {
-        if (curr === index) return Math.max(0, next.length - 1);
+        if (curr === index) return null;
         if (curr > index) return curr - 1;
         return curr;
       });
@@ -641,53 +770,108 @@ export default function Order() {
     );
   };
 
-  const describeItem = (item) => {
+  const describeItem = (item, { includeQuantity = true } = {}) => {
+    const qtyPrefix = includeQuantity ? `${item.quantity} × ` : "";
+
     if (item.foodType === "sambusa") {
-      return `${item.quantity} × Sambusa`;
+      return `${qtyPrefix}Sambusa`;
     }
 
     if (item.foodType === "boiled_egg") {
-      return `${item.quantity} × Boiled Egg`;
+      return `${qtyPrefix}Boiled Egg`;
     }
 
     if (item.foodType === "fetira") {
       const extraEggs = Math.max(0, Number(item.extraEggs) || 0);
       return extraEggs > 0
-        ? `${item.quantity} × Fetira (+${extraEggs} extra egg${extraEggs > 1 ? "s" : ""})`
-        : `${item.quantity} × Fetira`;
+        ? `${qtyPrefix}Fetira (+${extraEggs} extra egg${extraEggs > 1 ? "s" : ""})`
+        : `${qtyPrefix}Fetira (3 eggs)`;
     }
 
     if (item.foodType === "donut") {
       const pairs = Number(item.donutPairsPerPackage) || 1;
-      const packages = Number(item.quantity) || 0;
-      return `${packages} × Donut (${pairs} pair${pairs > 1 ? "s" : ""} / ${pairs * 2} donuts)`;
+      return `${qtyPrefix}Donut (${pairs} pair${pairs > 1 ? "s" : ""} / ${pairs * 2} donuts)`;
     }
 
-    let desc = `${item.quantity} × ${item.ertibType} Ertib`;
-    if (item.spices && item.ketchup) desc += " (Spices & Ketchup)";
-    else if (item.spices && !item.ketchup) desc += " (Only Spices)";
-    else if (!item.spices && item.ketchup) desc += " (Only Ketchup)";
-    else desc += " (No spices/ketchup)";
+    const typeLabel = item.ertibType === "special" ? "Special" : "Normal";
+    const condiments = [];
+    if (item.Felafil !== false) condiments.push("Felafil");
+    if (item.ketchup !== false) condiments.push("Ketchup");
+    if (item.spices !== false) condiments.push("Spices");
+    if (item.extraKetchup) condiments.push("+Ex Ketchup");
+    if (item.doubleFelafil) condiments.push("+2x Felafil");
+    if (item.Felafil === false) condiments.push("No Felafil");
 
-    if (item.extraKetchup) desc += " + extra ketchup";
-    if (item.doubleFelafil) desc += " + double felafil";
-    else if (item.Felafil === false) desc += " + no felafil";
-
-    return desc;
+    const condStr = condiments.length > 0 ? condiments.join(", ") : "Plain";
+    return `${qtyPrefix}${typeLabel} Ertib (${condStr})`;
   };
 
   const handleReview = (e) => {
     e.preventDefault();
-    if (
-      !customer.customerName?.trim() ||
-      !customer.phone?.trim() ||
-      !customer.location?.trim()
-    ) {
-      setIsEditingDelivery(true);
-      setMessage("Please fill in all delivery details.");
+
+    // Auto-merge any duplicate items with identical specifications before proceeding
+    let currentItems = items;
+    const merged = [];
+    let didMerge = false;
+    for (const it of currentItems) {
+      const matchIdx = merged.findIndex((m) => areItemsSameSpec(m, it));
+      if (matchIdx !== -1) {
+        didMerge = true;
+        merged[matchIdx] = {
+          ...merged[matchIdx],
+          quantity:
+            (Number(merged[matchIdx].quantity) || 1) +
+            (Number(it.quantity) || 1),
+        };
+      } else {
+        merged.push({ ...it });
+      }
+    }
+    if (didMerge) {
+      currentItems = merged;
+      setItems(merged);
+    }
+    setActiveItemIndex(null);
+
+    if (currentItems.length === 0) {
+      setMessage("Your cart is empty. Please add at least one item to order.");
+      setShowAddMenu(true);
       return;
     }
+
+    const errors = {};
+    if (!customer.customerName?.trim()) errors.customerName = true;
+    if (!customer.phone?.trim() || customer.phone.trim().length < 9)
+      errors.phone = true;
+    if (!customer.location?.trim()) errors.location = true;
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setIsEditingDelivery(true);
+      const firstField = Object.keys(errors)[0];
+      const friendlyName =
+        firstField === "customerName"
+          ? "your name"
+          : firstField === "phone"
+            ? "a valid phone number"
+            : "your AASTU dorm block / room";
+      setMessage(`Please provide ${friendlyName} for delivery.`);
+
+      setTimeout(() => {
+        const input =
+          document.querySelector(`input[name="${firstField}"]`) ||
+          document.getElementById("dorm-block-input");
+        if (input) {
+          input.scrollIntoView({ behavior: "smooth", block: "center" });
+          input.focus();
+        }
+      }, 80);
+      return;
+    }
+
+    setFieldErrors({});
     setReviewMode(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleConfirmOrder = async ({ forceCreateDuplicate = false } = {}) => {
@@ -791,6 +975,19 @@ export default function Order() {
           } catch {}
         }
 
+        try {
+          localStorage.setItem(
+            "ertib_last_order",
+            JSON.stringify({
+              items,
+              customerName: customer.customerName,
+              phone: finalPhone,
+              location: customer.location,
+              paymentMethod,
+            })
+          );
+        } catch {}
+
         const socket = getSocket();
         if (socket) {
           socket.emit("join-order", finalTrackingCode);
@@ -857,7 +1054,10 @@ export default function Order() {
     }
   };
 
-  const handleBack = () => setReviewMode(false);
+  const handleBack = () => {
+    setReviewMode(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const handleTrackNow = (targetCode = orderSuccessModal?.trackingCode) => {
     const code = targetCode || orderSuccessModal?.trackingCode;
@@ -893,6 +1093,11 @@ export default function Order() {
     0,
   );
 
+  const totalItemsCount = items.reduce(
+    (sum, item) => sum + (Number(item.quantity) || 1),
+    0,
+  );
+
 
   return (
     <div className="min-h-screen bg-gray-50/70 text-gray-900 pb-20 selection:bg-amber-100 selection:text-amber-900">
@@ -925,27 +1130,85 @@ export default function Order() {
 
       {/* Sub Header for Order Context */}
       <div className="bg-amber-50/70 border-b border-amber-100 py-2.5 px-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
           <Link
             to="/menu"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 hover:text-amber-950 transition"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 hover:text-amber-950 transition shrink-0"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Menu</span>
+            <span>Menu</span>
           </Link>
 
-          <span className="text-xs sm:text-sm font-black text-gray-950">
-            {editMode ? "Modify Your Order" : "Place Campus Delivery Order"}
-          </span>
+          {/* Campus Delivery Status Badge */}
+          <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-black text-amber-950 bg-white/95 border border-amber-200/90 px-2.5 py-1 rounded-full shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+            <span>AASTU Blocks 1–28</span>
+          </div>
 
-          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-white border border-amber-200 text-amber-800 hidden sm:inline">
-            AASTU Blocks 1–28
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100/90 text-amber-900 hidden sm:inline">
+            Kitchen Active
           </span>
         </div>
       </div>
 
       {/* Main Container */}
-      <main className="max-w-2xl mx-auto px-4 pt-4 sm:pt-6 pb-28 sm:pb-12 space-y-5">
+      <main className="max-w-2xl mx-auto px-4 pt-4 sm:pt-6 pb-44 sm:pb-12 space-y-5">
+        {/* "The Usual" 1-Tap Quick Reorder Card */}
+        {lastOrderPreset &&
+          lastOrderPreset.items?.length > 0 &&
+          !reviewMode && (
+            <div className="bg-gradient-to-r from-amber-500 via-amber-500 to-amber-600 rounded-3xl p-4 sm:p-5 text-white shadow-md shadow-amber-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+              <div className="min-w-0 space-y-0.5">
+                <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-200">
+                  <Zap className="w-3.5 h-3.5 fill-amber-200" />
+                  <span>Reorder Your Usual?</span>
+                </div>
+                <p className="font-extrabold text-sm sm:text-base text-white truncate">
+                  {lastOrderPreset.items.map((it) => describeItem(it)).join(", ")}
+                </p>
+                {lastOrderPreset.location && (
+                  <p className="text-xs text-amber-100/90 font-medium">
+                    Deliver to:{" "}
+                    <strong className="font-bold text-white">
+                      {lastOrderPreset.location}
+                    </strong>{" "}
+                    ({lastOrderPreset.customerName || "You"})
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setItems(lastOrderPreset.items);
+                  if (
+                    lastOrderPreset.customerName ||
+                    lastOrderPreset.phone ||
+                    lastOrderPreset.location
+                  ) {
+                    setCustomer({
+                      customerName: lastOrderPreset.customerName || "",
+                      phone: lastOrderPreset.phone || "",
+                      location: lastOrderPreset.location || "",
+                    });
+                  }
+                  if (lastOrderPreset.paymentMethod) {
+                    setPaymentMethod(lastOrderPreset.paymentMethod);
+                  }
+                  setActiveItemIndex(null);
+                  setToast({
+                    type: "success",
+                    message: "Loaded your usual order! Ready to review.",
+                  });
+                }}
+                className="px-4 py-2.5 rounded-2xl bg-white text-amber-950 font-black text-xs sm:text-sm hover:bg-amber-50 active:scale-95 transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Zap className="w-4 h-4 text-amber-600 fill-amber-500" />
+                <span>Load The Usual</span>
+              </button>
+            </div>
+          )}
+
         {/* Error / Status Alert */}
         {message && (
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
@@ -966,7 +1229,7 @@ export default function Order() {
         {duplicateOrderHint?.trackingCode && (
           <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs sm:text-sm space-y-2.5 shadow-xs">
             <div className="font-bold flex items-center gap-2">
-              <span>⚠️ Possible duplicate order detected</span>
+              <span>Possible duplicate order detected</span>
             </div>
             <p className="text-gray-700 text-xs">
               An order for this phone is already active today (Code:{" "}
@@ -1000,15 +1263,7 @@ export default function Order() {
 
         {/* ORDER FORM VS REVIEW SCREEN */}
         {loadingPricing && !pricing ? (
-          <div className="bg-white rounded-3xl border border-gray-100 p-8 sm:p-12 text-center space-y-4 shadow-sm">
-            <div className="w-10 h-10 border-3 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-sm sm:text-base font-extrabold text-gray-900">
-              Loading live menu prices from database...
-            </p>
-            <p className="text-xs text-gray-500 font-medium">
-              Connecting directly to live database pricing.
-            </p>
-          </div>
+          <OrdersMenuWaitingCard />
         ) : !reviewMode ? (
           <form onSubmit={handleReview} className="space-y-5">
             {/* Food Items List */}
@@ -1021,53 +1276,119 @@ export default function Order() {
                 <span className="text-xs font-semibold text-gray-600">Customize below</span>
               </div>
 
+              {/* Empty Cart Banner */}
+              {items.length === 0 && (
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border-2 border-dashed border-amber-200 text-center space-y-2.5">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto shadow-2xs">
+                    <Receipt className="w-6 h-6" />
+                  </div>
+                  <p className="font-extrabold text-sm sm:text-base text-gray-950">
+                    Your cart is currently empty
+                  </p>
+                  <p className="text-xs text-gray-500 font-medium max-w-xs mx-auto">
+                    Select a food item below to start your campus order.
+                  </p>
+                </div>
+              )}
+
               {items.map((item, index) => {
                 const unitPrice = getUnitPrice(item);
                 const lineTotal = unitPrice * (Number(item.quantity) || 1);
-                const isItemExpanded =
-                  items.length === 1 || activeItemIndex === index;
+                const isItemExpanded = activeItemIndex === index;
 
                 if (!isItemExpanded) {
+                  const summaryText = describeItem(item, {
+                    includeQuantity: false,
+                  });
+
                   return (
                     <div
                       key={index}
-                      className="bg-white rounded-2xl p-3.5 sm:p-4 border border-gray-100 shadow-2xs flex items-center justify-between gap-3 group transition hover:border-amber-300"
+                      className="bg-white rounded-2xl p-3.5 sm:p-4 border border-gray-200/90 shadow-2xs hover:border-amber-300 transition-all space-y-2"
                     >
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full shrink-0">
-                            Item #{index + 1}
-                          </span>
+                      {/* Top Row: Stepper + Food Name + Price + Actions */}
+                      <div className="flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {/* Quick Stepper */}
+                          <div className="flex items-center gap-1 bg-gray-100/90 rounded-xl p-0.5 border border-gray-200/80 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (item.quantity > 1) {
+                                  updateItemQuantity(index, -1);
+                                } else {
+                                  removeItem(index);
+                                }
+                              }}
+                              className="w-6 h-6 rounded-lg bg-white hover:bg-rose-50 text-gray-700 hover:text-rose-600 flex items-center justify-center text-xs font-black transition cursor-pointer active:scale-90 shadow-2xs"
+                              title={
+                                item.quantity > 1
+                                  ? "Decrease quantity"
+                                  : "Remove item"
+                              }
+                            >
+                              {item.quantity > 1 ? (
+                                <Minus className="w-3 h-3" />
+                              ) : (
+                                <Trash2 className="w-3 h-3" />
+                              )}
+                            </button>
+                            <span className="text-xs font-black text-gray-950 min-w-[16px] text-center">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateItemQuantity(index, 1)}
+                              className="w-6 h-6 rounded-lg bg-white hover:bg-amber-50 text-gray-700 hover:text-amber-800 flex items-center justify-center text-xs font-black transition cursor-pointer active:scale-90 shadow-2xs"
+                              title="Increase quantity"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Food Title */}
                           <span className="font-extrabold text-sm sm:text-base text-gray-950 truncate">
                             {FOOD_TYPE_LABELS[item.foodType]}
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500 truncate font-medium">
-                          {describeItem(item)} • {item.quantity} × {unitPrice} Birr
-                        </p>
+
+                        {/* Right: Line total + Edit & Remove actions */}
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                          <span className="font-black text-xs sm:text-sm text-amber-950">
+                            {lineTotal} Birr
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleDoneCustomizing();
+                              setActiveItemIndex(index);
+                              setShowAddMenu(false);
+                            }}
+                            className="px-2.5 py-1 rounded-lg border border-gray-200 bg-gray-50 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800 text-gray-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                            title="Edit item"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeItem(index)}
+                            className="w-7 h-7 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition cursor-pointer"
+                            title="Remove item"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="font-black text-sm sm:text-base text-amber-950">
-                          {lineTotal} Birr
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setActiveItemIndex(index)}
-                          className="px-3 py-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800 text-gray-800 text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="w-8 h-8 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition cursor-pointer"
-                          title="Remove item"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+                      {/* Bottom Row: Full Customization Summary Pill (Visible on all devices without truncation!) */}
+                      {summaryText && (
+                        <div className="pt-0.5">
+                          <span className="text-xs text-amber-950/80 bg-amber-50/80 border border-amber-200/60 px-2.5 py-1 rounded-xl font-medium inline-block leading-relaxed break-words">
+                            {summaryText}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   );
                 }
@@ -1080,19 +1401,18 @@ export default function Order() {
                     {/* Item Header & Remove/Done */}
                     <div className="flex items-center justify-between pb-1 border-b border-gray-100">
                       <span className="text-xs font-black uppercase tracking-wider text-gray-700">
-                        {items.length > 1 ? `Editing Item #${index + 1}` : "Select Food"}
+                        {items.length > 1 ? `Editing Item #${index + 1}` : "Customize Food"}
                       </span>
 
                       <div className="flex items-center gap-2">
-                        {items.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => setActiveItemIndex(null)}
-                            className="text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-xl border border-amber-200 transition cursor-pointer"
-                          >
-                            Done ✓
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDoneCustomizing(index)}
+                          className="text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1 rounded-xl border border-amber-200 transition cursor-pointer flex items-center gap-1"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Done</span>
+                        </button>
                         {items.length > 1 && (
                           <button
                             type="button"
@@ -1106,6 +1426,33 @@ export default function Order() {
                         )}
                       </div>
                     </div>
+
+                    {/* Multi-item Specification Clarity Banner */}
+                    {(() => {
+                      const otherSameItems = items.filter(
+                        (it, idx) =>
+                          idx !== index && it.foodType === item.foodType,
+                      );
+                      if (otherSameItems.length > 0) {
+                        const existingSummary = otherSameItems
+                          .map((it) => describeItem(it))
+                          .join(", ");
+                        return (
+                          <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-amber-950 text-xs space-y-1 shadow-2xs">
+                            <div className="font-extrabold flex items-center gap-1.5 text-amber-900">
+                              <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span className="leading-snug break-words">
+                                In Cart: <strong>{existingSummary}</strong>
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-amber-900/80 font-medium leading-relaxed">
+                              Customize this item with <strong>different specifications</strong> below. If you choose the same specifications, the quantity will combine automatically!
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
 
                     {/* Food Selection Chips */}
                     <div className="flex flex-wrap gap-2">
@@ -1187,10 +1534,113 @@ export default function Order() {
                           </div>
                         </div>
 
+                        {/* Quick Condiment Presets (1-Tap Selection) */}
+                        <div className="space-y-1.5 pt-1">
+                          <div className="flex items-center justify-between">
+                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+                              Quick Topping Presets
+                            </label>
+                            <span className="text-[10px] text-gray-500 font-semibold">1-Tap Choice</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setItems((prev) =>
+                                  prev.map((it, i) =>
+                                    i === index
+                                      ? {
+                                          ...it,
+                                          Felafil: true,
+                                          ketchup: true,
+                                          spices: true,
+                                          extraKetchup: false,
+                                          doubleFelafil: false,
+                                        }
+                                      : it,
+                                  ),
+                                );
+                              }}
+                              className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black border-2 transition active:scale-95 cursor-pointer text-center ${
+                                item.Felafil &&
+                                item.ketchup &&
+                                item.spices &&
+                                !item.extraKetchup &&
+                                !item.doubleFelafil
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-amber-50/70 text-amber-950 border-amber-200 hover:border-amber-400"
+                              }`}
+                            >
+                              <span className="block text-xs">Standard</span>
+                              <span className="text-[10px] font-medium opacity-80 block">All Toppings</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setItems((prev) =>
+                                  prev.map((it, i) =>
+                                    i === index
+                                      ? {
+                                          ...it,
+                                          Felafil: true,
+                                          ketchup: true,
+                                          spices: false,
+                                          extraKetchup: false,
+                                          doubleFelafil: false,
+                                        }
+                                      : it,
+                                  ),
+                                );
+                              }}
+                              className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black border-2 transition active:scale-95 cursor-pointer text-center ${
+                                item.Felafil &&
+                                item.ketchup &&
+                                !item.spices &&
+                                !item.extraKetchup &&
+                                !item.doubleFelafil
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-emerald-50/70 text-emerald-950 border-emerald-200 hover:border-emerald-400"
+                              }`}
+                            >
+                              <span className="block text-xs">No Spice</span>
+                              <span className="text-[10px] font-medium opacity-80 block">Mild & Sweet</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setItems((prev) =>
+                                  prev.map((it, i) =>
+                                    i === index
+                                      ? {
+                                          ...it,
+                                          Felafil: true,
+                                          ketchup: true,
+                                          spices: true,
+                                          extraKetchup: true,
+                                          doubleFelafil: true,
+                                        }
+                                      : it,
+                                  ),
+                                );
+                              }}
+                              className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black border-2 transition active:scale-95 cursor-pointer text-center ${
+                                item.extraKetchup && item.doubleFelafil
+                                  ? "bg-amber-500 text-white border-amber-500 shadow-xs"
+                                  : "bg-orange-50/70 text-orange-950 border-orange-200 hover:border-orange-400"
+                              }`}
+                            >
+                              <span className="block text-xs">Loaded</span>
+                              <span className="text-[10px] font-medium opacity-80 block">+2x Felafil & Ketchup</span>
+                            </button>
+                          </div>
+                        </div>
+
                         {/* Seasoning & Extras Pill Toggles */}
                         <div>
                           <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
-                            Seasoning & Extras
+                            Custom Extras & Toggles
                           </label>
                           <div className="flex flex-wrap gap-2 text-xs sm:text-sm">
                             <button
@@ -1202,7 +1652,7 @@ export default function Order() {
                                   : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
-                              {item.spices ? "✓ Spices" : "No Spices"}
+                              {item.spices ? "Spices" : "No Spices"}
                             </button>
 
                             <button
@@ -1214,7 +1664,7 @@ export default function Order() {
                                   : "bg-white text-gray-800 border-gray-200 hover:border-amber-300"
                               }`}
                             >
-                              {item.ketchup ? "✓ Ketchup" : "No Ketchup"}
+                              {item.ketchup ? "Ketchup" : "No Ketchup"}
                             </button>
 
                             <button
@@ -1338,19 +1788,141 @@ export default function Order() {
                         </span>
                       </div>
                     </div>
+
+                    {/* Put in Cart Done Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleDoneCustomizing(index)}
+                      className="w-full mt-3 min-h-[46px] py-2.5 px-4 rounded-2xl bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-900 border border-amber-200/90 font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                      <span>Done Customizing • Put in Cart</span>
+                    </button>
                   </div>
                 );
               })}
 
-              {/* Add Another Item Button */}
-              <button
-                type="button"
-                onClick={addItem}
-                className="w-full min-h-[48px] py-3 border-2 border-dashed border-gray-300 hover:border-amber-400 bg-white hover:bg-amber-50/40 rounded-2xl text-gray-800 hover:text-amber-900 font-extrabold text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-98"
-              >
-                <Plus className="w-4 h-4 text-amber-600" />
-                <span>Add Another Food Item</span>
-              </button>
+              {/* Add Another Item Section: Toggle between Quick-Add Menu and Button */}
+              {!showAddMenu ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDoneCustomizing();
+                    setShowAddMenu(true);
+                  }}
+                  className="w-full min-h-[50px] py-3.5 border-2 border-dashed border-gray-300 hover:border-amber-400 bg-white hover:bg-amber-50/50 rounded-2xl text-gray-900 hover:text-amber-950 font-black text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-98"
+                >
+                  <Plus className="w-4 h-4 text-amber-600" />
+                  <span>+ Add Another Food Item</span>
+                </button>
+              ) : (
+                <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-200 shadow-sm space-y-3.5 transition-all">
+                  {/* Header */}
+                  <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-wider text-gray-950 block">
+                        Add Food to Order
+                      </span>
+                      <p className="text-[11px] font-medium text-gray-500">
+                        Select an item to add to your cart
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddMenu(false)}
+                      className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-900 flex items-center justify-center transition cursor-pointer"
+                      title="Cancel"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Available Food Items Grid (No emojis, unavailable items hidden) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {getSelectableFoodTypes().map((foodType) => {
+                      const basePrice = getBasePriceForFoodType(foodType);
+                      const itemsOfThisType = items.filter(
+                        (it) => it.foodType === foodType,
+                      );
+                      const inCartQty = itemsOfThisType.reduce(
+                        (sum, it) => sum + (Number(it.quantity) || 1),
+                        0,
+                      );
+                      const isCustomizable =
+                        foodType === "ertib" ||
+                        foodType === "fetira" ||
+                        foodType === "donut";
+
+                      return (
+                        <button
+                          key={foodType}
+                          type="button"
+                          onClick={() => {
+                            if (activeItemIndex != null) {
+                              handleDoneCustomizing();
+                            }
+                            addItem(foodType);
+                          }}
+                          className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 text-left group cursor-pointer active:scale-98 shadow-2xs ${
+                            inCartQty > 0
+                              ? "border-amber-300 bg-amber-50/40 hover:border-amber-400 hover:bg-amber-50/70"
+                              : "border-gray-200 bg-white hover:border-amber-400 hover:bg-amber-50/40"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-extrabold text-sm text-gray-950 block truncate group-hover:text-amber-950 transition-colors">
+                                {FOOD_TYPE_LABELS[foodType]}
+                              </span>
+                              {inCartQty > 0 && isCustomizable && (
+                                <span className="text-[10px] font-black tracking-wide text-amber-800 bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded-full inline-flex items-center shadow-2xs">
+                                  <span>With different specs</span>
+                                </span>
+                              )}
+                              {inCartQty > 0 && !isCustomizable && (
+                                <span className="text-[10px] font-bold text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                                  In cart ({inCartQty})
+                                </span>
+                              )}
+                            </div>
+
+                            <span className="text-xs font-black text-amber-800 mt-1 block">
+                              {basePrice != null ? `${basePrice} Birr` : "Price on menu"}
+                            </span>
+
+                            {inCartQty > 0 && isCustomizable && (
+                              <div className="mt-1 space-y-0.5">
+                                <p className="text-[11px] text-amber-950 font-bold leading-snug break-words">
+                                  {itemsOfThisType.map((it) => describeItem(it)).join(", ")} is added in cart
+                                </p>
+                                <p className="text-[10px] text-amber-800 font-semibold leading-snug">
+                                  Tap to add with different specifications
+                                </p>
+                              </div>
+                            )}
+                            {inCartQty > 0 && !isCustomizable && (
+                              <p className="text-[11px] text-gray-500 font-semibold mt-0.5 leading-snug">
+                                Tap to add +1 more
+                              </p>
+                            )}
+                          </div>
+
+                          <span className="inline-flex items-center gap-1 text-xs font-black text-amber-800 bg-amber-100/90 group-hover:bg-amber-500 group-hover:text-white px-3 py-1.5 rounded-xl transition-all shadow-2xs shrink-0">
+                            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                            <span>
+                              {inCartQty > 0 && isCustomizable
+                                ? "New Specs"
+                                : inCartQty > 0
+                                ? "+1 More"
+                                : "Add"}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* SECTION 2: DELIVERY DESTINATION */}
@@ -1377,10 +1949,6 @@ export default function Order() {
                     </div>
                     <div className="min-w-0 space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">
-                          {!user && <Sparkles className="w-2.5 h-2.5 text-amber-700" />}
-                          {user ? "Delivering To" : "Saved on this device"}
-                        </span>
                         <span className="text-xs font-bold text-gray-500 truncate">
                           {customer.customerName} • {customer.phone}
                         </span>
@@ -1431,7 +1999,7 @@ export default function Order() {
                       onClick={() => setIsEditingDelivery(false)}
                       className="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-3 py-1 rounded-xl border border-amber-200 transition cursor-pointer"
                     >
-                      Done ✓
+                      Done
                     </button>
                   )}
                 </div>
@@ -1450,7 +2018,11 @@ export default function Order() {
                         placeholder="e.g. Dawit Kebede"
                         value={customer.customerName}
                         onChange={handleCustomerChange}
-                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                        className={`w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 transition ${
+                          fieldErrors.customerName
+                            ? "border-rose-400 focus:ring-rose-400 focus:border-rose-400 bg-rose-50/20"
+                            : "border-gray-200 focus:ring-amber-400 focus:border-amber-400"
+                        }`}
                         required
                       />
                     </div>
@@ -1469,7 +2041,11 @@ export default function Order() {
                         placeholder="0911 234 567"
                         value={customer.phone}
                         onChange={handleCustomerChange}
-                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                        className={`w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 transition ${
+                          fieldErrors.phone
+                            ? "border-rose-400 focus:ring-rose-400 focus:border-rose-400 bg-rose-50/20"
+                            : "border-gray-200 focus:ring-amber-400 focus:border-amber-400"
+                        }`}
                         required
                       />
                     </div>
@@ -1489,7 +2065,11 @@ export default function Order() {
                         placeholder="e.g. Block 14, Room 204"
                         value={customer.location}
                         onChange={handleCustomerChange}
-                        className="w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 border-gray-200 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 transition"
+                        className={`w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 transition ${
+                          fieldErrors.location
+                            ? "border-rose-400 focus:ring-rose-400 focus:border-rose-400 bg-rose-50/20"
+                            : "border-gray-200 focus:ring-amber-400 focus:border-amber-400"
+                        }`}
                         required
                       />
                       <datalist id="blockOptions">
@@ -1519,22 +2099,44 @@ export default function Order() {
             )}
             </div>
 
-            {/* Total & Review CTA Bar (Mobile First: Sticky bar on mobile, card on desktop) */}
-            <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl -mx-4 px-4 py-3.5 sm:static sm:mx-0 sm:p-5 sm:rounded-3xl sm:border sm:border-gray-100 sm:shadow-sm space-y-3 sm:space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <span className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-gray-600 block">
-                    Total Amount
-                  </span>
-                  <span className="text-xl sm:text-2xl font-black text-amber-950 leading-none">
+            {/* Floating Checkout Bar (Mobile: Stacked on top of mobile nav, Desktop: Clean card) */}
+            <div
+              className="fixed inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-amber-200/80 shadow-[0_-4px_25px_rgba(0,0,0,0.09)] px-4 py-3 sm:static sm:inset-auto sm:z-auto sm:bg-white sm:backdrop-blur-none sm:rounded-3xl sm:border sm:border-gray-100 sm:shadow-sm sm:p-5 sm:mt-6 transition-all"
+              style={{
+                bottom: "calc(58px + env(safe-area-inset-bottom, 0px))",
+              }}
+            >
+              <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-gray-600 block">
+                      Total Amount
+                    </span>
+                    <span className="text-[10px] sm:text-[11px] font-black text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-full inline-flex items-center">
+                      {totalItemsCount} {totalItemsCount === 1 ? "item" : "items"}
+                    </span>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-amber-950 leading-none mt-1">
                     {orderTotal}{" "}
                     <span className="text-xs sm:text-sm text-amber-800 font-bold">Birr</span>
-                  </span>
+                  </div>
+                  {/* Real-time Cart Items Summary */}
+                  {items.length > 0 && (
+                    <p className="text-[11px] text-gray-500 font-semibold truncate max-w-[190px] sm:max-w-xs mt-0.5">
+                      {items
+                        .map(
+                          (it) =>
+                            `${it.quantity}× ${FOOD_TYPE_LABELS[it.foodType]}`,
+                        )
+                        .join(", ")}
+                    </p>
+                  )}
                 </div>
 
                 <button
                   type="submit"
-                  className="min-h-[48px] py-3 px-5 sm:px-6 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm sm:text-base shadow-md shadow-amber-200/60 transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer ml-auto"
+                  disabled={items.length === 0}
+                  className="min-h-[46px] sm:min-h-[48px] py-2.5 sm:py-3 px-5 sm:px-7 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-black text-sm sm:text-base shadow-md shadow-amber-300/60 transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer shrink-0"
                 >
                   <span>Review Order</span>
                   <ArrowRight className="w-4 h-4 shrink-0" />
@@ -1673,11 +2275,88 @@ export default function Order() {
                   </span>
                 </div>
               ) : (
-                <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center gap-2.5 text-xs text-amber-950 font-semibold">
-                  <Smartphone className="w-4 h-4 text-amber-700 shrink-0" />
-                  <span>
-                    Transfer <strong className="font-extrabold text-amber-900">{orderTotal} Birr</strong> via Telebirr or CBE, then upload your screenshot on the tracking page.
-                  </span>
+                <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
+                      <Smartphone className="w-4 h-4 text-amber-700 shrink-0" />
+                      <span>Direct Transfer Account</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(orderTotal.toString(), "amount")}
+                      className="px-2.5 py-1 rounded-lg bg-amber-200/80 hover:bg-amber-300 text-amber-950 text-[11px] font-black transition flex items-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      {copiedField === "amount" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-700" />
+                          <span>Amount Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy {orderTotal} Birr</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Telebirr / CBEBirr Option */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-amber-200 text-xs">
+                    <div>
+                      <span className="font-extrabold text-gray-900 block">
+                        Telebirr / CBEBirr: <span className="text-amber-900 font-black">0954724664</span>
+                      </span>
+                      <span className="text-[11px] text-gray-500 font-medium">Abdurazak Mohammed</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText("0954724664", "telebirr")}
+                      className="px-2.5 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-950 text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      {copiedField === "telebirr" ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* CBE Bank Option */}
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-amber-200 text-xs">
+                    <div>
+                      <span className="font-extrabold text-gray-900 block">
+                        CBE: <span className="text-amber-900 font-black">1000528463243</span>
+                      </span>
+                      <span className="text-[11px] text-gray-500 font-medium">Abdurazak Mohammed</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText("1000528463243", "cbe")}
+                      className="px-2.5 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-950 text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      {copiedField === "cbe" ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-amber-900 font-medium leading-relaxed">
+                    Transfer exact amount, then upload screenshot on the tracking page after confirming.
+                  </p>
                 </div>
               )}
             </div>

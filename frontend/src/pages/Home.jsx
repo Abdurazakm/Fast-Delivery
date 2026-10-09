@@ -425,9 +425,6 @@ export default function Home() {
         {/* Track Order By Code Section (For Guests or Quick Lookup) */}
         {latestOrders.length === 0 && (
           <section id="track-section" className="bg-white rounded-3xl border border-gray-200 shadow-sm p-5 sm:p-8 max-w-xl mx-auto text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mx-auto text-2xl shadow-xs">
-              🔍
-            </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-gray-950">
                 Track Existing Order

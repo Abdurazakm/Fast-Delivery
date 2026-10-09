@@ -6,20 +6,15 @@ import {
   Bike,
   PackageCheck,
   Check,
-  CheckCircle2,
   AlertCircle,
   XCircle,
   X,
   Copy,
-  Share2,
   ExternalLink,
   Edit3,
   Trash2,
-  Info,
   ChevronDown,
-  User,
   MapPin,
-  Calendar,
   Receipt,
 } from "lucide-react";
 import API from "../api";
@@ -162,13 +157,14 @@ export default function TrackingInfoCard({
   const [cutoffTime, setCutoffTime] = useState("18:00");
   const [isAdmin, setIsAdmin] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
+  const [showItems, setShowItems] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
   const statusSteps = [
-    { key: "pending", label: "Received", desc: "Order confirmed", icon: Clock },
-    { key: "in_progress", label: "Preparing", desc: "In kitchen", icon: ChefHat },
-    { key: "arrived", label: "On The Way", desc: "Rider dispatched", icon: Bike },
-    { key: "delivered", label: "Delivered", desc: "At your door", icon: PackageCheck },
+    { key: "pending", label: "Received", icon: Clock },
+    { key: "in_progress", label: "Preparing", icon: ChefHat },
+    { key: "arrived", label: "On The Way", icon: Bike },
+    { key: "delivered", label: "Delivered", icon: PackageCheck },
   ];
 
   const currentStatus = (currentOrder?.status || "pending").toLowerCase();
@@ -185,7 +181,6 @@ export default function TrackingInfoCard({
     pending: {
       label: "Order Received",
       headline: "Order received & confirmed",
-      subtext: "We've accepted your order and sent it to the kitchen queue.",
       accentBg: "bg-amber-500",
       pillBg: "bg-amber-100 text-amber-800 border-amber-200",
       gradient: "from-amber-500/10 via-amber-500/5 to-transparent",
@@ -194,7 +189,6 @@ export default function TrackingInfoCard({
     in_progress: {
       label: "Preparing Food",
       headline: "Kitchen is preparing your order",
-      subtext: "Your delicious food is being freshly made with care.",
       accentBg: "bg-orange-500",
       pillBg: "bg-orange-100 text-orange-800 border-orange-200",
       gradient: "from-orange-500/10 via-orange-500/5 to-transparent",
@@ -203,7 +197,6 @@ export default function TrackingInfoCard({
     arrived: {
       label: "On The Way",
       headline: "Your order is on the way!",
-      subtext: "Our delivery rider is en route to your specified location.",
       accentBg: "bg-sky-500",
       pillBg: "bg-sky-100 text-sky-800 border-sky-200",
       gradient: "from-sky-500/10 via-sky-500/5 to-transparent",
@@ -212,7 +205,6 @@ export default function TrackingInfoCard({
     delivered: {
       label: "Delivered",
       headline: "Delivered! Enjoy your meal 🎉",
-      subtext: "Thank you for choosing Ertib Delivery. We hope you love it!",
       accentBg: "bg-emerald-500",
       pillBg: "bg-emerald-100 text-emerald-800 border-emerald-200",
       gradient: "from-emerald-500/10 via-emerald-500/5 to-transparent",
@@ -221,7 +213,6 @@ export default function TrackingInfoCard({
     canceled: {
       label: "Canceled",
       headline: "Order was canceled",
-      subtext: "This order has been canceled and will not be prepared.",
       accentBg: "bg-rose-500",
       pillBg: "bg-rose-100 text-rose-800 border-rose-200",
       gradient: "from-rose-500/10 via-rose-500/5 to-transparent",
@@ -507,13 +498,9 @@ export default function TrackingInfoCard({
           )}
         </div>
 
-        <p className="text-xs sm:text-sm text-gray-600 mt-3 max-w-xl">
-          {activeConfig.subtext}
-        </p>
-
         {/* 4-Stage Stepper (Only active for non-canceled orders) */}
         {!isCanceled && (
-          <div className="mt-6 pt-5 border-t border-gray-200/60">
+          <div className="mt-5 pt-4 sm:pt-5 border-t border-gray-200/60">
             <div className="relative flex items-center justify-between w-full">
               {/* Background connecting track */}
               <div className="absolute top-5 sm:top-6 left-6 right-6 h-1 bg-gray-200 -z-0" />
@@ -563,9 +550,6 @@ export default function TrackingInfoCard({
                     >
                       {step.label}
                     </span>
-                    <span className="hidden sm:block text-xs text-gray-600 mt-0.5 leading-tight font-medium">
-                      {step.desc}
-                    </span>
                   </div>
                 );
               })}
@@ -575,211 +559,189 @@ export default function TrackingInfoCard({
       </div>
 
       <div className="p-5 sm:p-7 space-y-5">
-        {/* Order Details Metadata Strip */}
-        <div className="rounded-2xl bg-gray-50/80 border border-gray-100 p-4 sm:p-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
-            {/* Tracking Code with Mask & Copy */}
-            <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                <Receipt className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider block">
-                  Tracking Code
-                </span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="font-mono text-base font-black text-gray-950 truncate">
-                    {currentOrder.trackingCode}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopyCode}
-                    className="p-1 rounded-md text-gray-500 hover:text-amber-700 hover:bg-amber-50 transition cursor-pointer"
-                    title="Copy full tracking code"
-                  >
-                    {copiedCode ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </div>
-              </div>
+        {/* Compact Delivery & Order Chip */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gray-50/90 border border-gray-100 text-xs sm:text-sm">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+              <MapPin className="w-4 h-4" />
             </div>
-
-            {/* Customer Name */}
-            {(!isManual || !hideCustomerWhenManual) && currentOrder.customerName && (
-              <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                  <User className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider block">
-                    Recipient
-                  </span>
-                  <p className="font-bold text-gray-950 truncate mt-0.5 text-sm">
-                    {currentOrder.customerName}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Delivery Location */}
-            {currentOrder.location && (
-              <div className="flex items-start gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                  <MapPin className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider block">
-                    Location
-                  </span>
-                  <p className="font-bold text-gray-950 truncate mt-0.5 text-sm">
-                    {currentOrder.location}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Placed Date & Source */}
-            <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-800 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
-                <Calendar className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-extrabold text-gray-700 uppercase tracking-wider block">
-                  Order Placed
-                </span>
-                <p className="font-bold text-gray-950 truncate mt-0.5 text-sm">
-                  {currentOrder.createdAt
-                    ? new Date(currentOrder.createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "Recently"}{" "}
-                  •{" "}
-                  <span className="capitalize text-gray-600 font-semibold">
-                    {(currentOrder.source || "online").toString().replace("_", " ")}
-                  </span>
+            <div className="min-w-0">
+              <p className="font-extrabold text-gray-900 truncate">
+                {currentOrder.location || "Campus Delivery"}
+              </p>
+              {currentOrder.customerName && (
+                <p className="text-gray-500 text-xs truncate">
+                  Recipient: {currentOrder.customerName}
                 </p>
-              </div>
+              )}
             </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              Order #
+            </span>
+            <button
+              type="button"
+              onClick={handleCopyCode}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200/90 hover:border-amber-300 text-gray-800 text-xs font-mono font-black transition shadow-2xs hover:bg-amber-50/50 cursor-pointer active:scale-95"
+              title="Copy tracking code"
+            >
+              <span>{currentOrder.trackingCode}</span>
+              {copiedCode ? (
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+              ) : (
+                <Copy className="w-3.5 h-3.5 text-gray-400" />
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Itemized Receipt Ticket */}
+        {/* Collapsible Order Items Accordion */}
         {currentOrder.items?.length > 0 && (
-          <div className="rounded-2xl border border-gray-100 bg-gray-50/40 p-4 sm:p-5">
-            <div className="flex items-center justify-between pb-3 border-b border-gray-200/80 mb-3">
-              <div className="flex items-center gap-2">
-                <Receipt className="w-4 h-4 text-amber-600" />
-                <h3 className="text-sm sm:text-base font-bold text-gray-900">
-                  Order Items ({currentOrder.items.length})
-                </h3>
-              </div>
-              {(() => {
-                const isCod = (currentOrder?.paymentMethod || "").toLowerCase() === "cod";
-                if (paymentStatus === "paid") {
-                  return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                      ✓ Paid & Confirmed
+          <div className="rounded-2xl border border-gray-200/80 bg-white shadow-2xs overflow-hidden transition-all">
+            <button
+              type="button"
+              onClick={() => setShowItems((prev) => !prev)}
+              className="w-full p-3.5 sm:p-4 flex items-center justify-between text-left hover:bg-gray-50/80 transition-colors cursor-pointer"
+              aria-expanded={showItems}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                  <Receipt className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-black text-gray-900">
+                      Order Summary
                     </span>
-                  );
-                }
-                if (isCod || paymentStatus === "pending_cash") {
-                  return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200">
-                      💵 Cash on Delivery
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                      {currentOrder.items.length} {currentOrder.items.length === 1 ? "item" : "items"}
                     </span>
-                  );
-                }
-                if (paymentStatus === "verifying") {
-                  return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
-                      🔍 Verifying Proof
-                    </span>
-                  );
-                }
-                if (paymentStatus === "partially_paid") {
-                  return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 border border-orange-200">
-                      ⚠️ Partial Paid ({currentOrder.amountPaid || 0} Birr)
-                    </span>
-                  );
-                }
-                if (paymentStatus === "rejected") {
-                  return (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-200">
-                      ✕ Proof Rejected
-                    </span>
-                  );
-                }
-                return (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                    ⚠ Payment Pending
-                  </span>
-                );
-              })()}
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {currentOrder.items.map((item, idx) => {
-                const { name, tags } = getItemDetails(item);
-                const lineTotal = getItemLineTotal(item);
-                const qty = Number(item.quantity) || 1;
-
-                return (
-                  <div
-                    key={idx}
-                    className="py-2.5 flex items-start justify-between gap-3"
-                  >
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <span className="shrink-0 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold mt-0.5">
-                        {qty}×
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 leading-tight">
-                          {name}
-                        </p>
-                        {tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {tags.map((t, tIdx) => (
-                              <span
-                                key={tIdx}
-                                className="inline-block text-[11px] px-1.5 py-0.5 rounded bg-white border border-gray-200 text-gray-600 leading-none"
-                              >
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <span className="text-sm font-bold text-gray-900">
-                        {lineTotal}{" "}
-                        <span className="text-xs font-normal text-gray-500">
-                          Birr
-                        </span>
-                      </span>
-                    </div>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Receipt Grand Total */}
-            <div className="pt-3 mt-3 border-t-2 border-dashed border-gray-200 flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-600">
-                Total Amount
-              </span>
-              <div className="text-right">
-                <span className="text-lg sm:text-xl font-extrabold text-amber-900">
-                  {totalPrice}{" "}
-                  <span className="text-xs font-bold text-amber-700">Birr</span>
-                </span>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Total: <strong className="text-gray-950 font-black">{totalPrice} Birr</strong>
+                  </p>
+                </div>
               </div>
-            </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {(() => {
+                  const isCod = (currentOrder?.paymentMethod || "").toLowerCase() === "cod";
+                  if (paymentStatus === "paid") {
+                    return (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        ✓ Paid
+                      </span>
+                    );
+                  }
+                  if (isCod || paymentStatus === "pending_cash") {
+                    return (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200">
+                        💵 COD
+                      </span>
+                    );
+                  }
+                  if (paymentStatus === "verifying") {
+                    return (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                        🔍 Verifying
+                      </span>
+                    );
+                  }
+                  if (paymentStatus === "partially_paid") {
+                    return (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-50 text-orange-800 border border-orange-200">
+                        ⚠️ Partial
+                      </span>
+                    );
+                  }
+                  if (paymentStatus === "rejected") {
+                    return (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">
+                        ✕ Rejected
+                      </span>
+                    );
+                  }
+                  return (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                      ⚠ Pending
+                    </span>
+                  );
+                })()}
+                <ChevronDown
+                  className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+                    showItems ? "rotate-180 text-amber-600" : ""
+                  }`}
+                />
+              </div>
+            </button>
+
+            {/* Collapsible item details */}
+            <AnimatePresence>
+              {showItems && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="border-t border-gray-100 px-4 py-3 bg-gray-50/50"
+                >
+                  <div className="divide-y divide-gray-100">
+                    {currentOrder.items.map((item, idx) => {
+                      const { name, tags } = getItemDetails(item);
+                      const lineTotal = getItemLineTotal(item);
+                      const qty = Number(item.quantity) || 1;
+
+                      return (
+                        <div
+                          key={idx}
+                          className="py-2.5 flex items-start justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <span className="shrink-0 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold mt-0.5">
+                              {qty}×
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight">
+                                {name}
+                              </p>
+                              {tags.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {tags.map((t, tIdx) => (
+                                    <span
+                                      key={tIdx}
+                                      className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-white border border-gray-200 text-gray-600 leading-none"
+                                    >
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xs sm:text-sm font-bold text-gray-900">
+                              {lineTotal}{" "}
+                              <span className="text-[10px] font-normal text-gray-500">
+                                Birr
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-2.5 mt-2 border-t border-gray-200 flex items-center justify-between text-xs sm:text-sm font-extrabold text-gray-900">
+                    <span>Order Total</span>
+                    <span className="text-amber-900 font-black">
+                      {totalPrice} Birr
+                    </span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
@@ -801,23 +763,6 @@ export default function TrackingInfoCard({
               });
             }}
           />
-        )}
-
-        {/* Cutoff Policy Notice Banner */}
-        {isOrderActive && (
-          <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80 text-amber-900 text-xs sm:text-sm flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <span className="font-semibold">Order modification policy: </span>
-              {isAdmin
-                ? "As admin, you may edit or cancel this order at any time."
-                : isTemporarilyClosed
-                  ? "Service is temporarily closed. Orders cannot be edited or canceled."
-                  : isBeforeCutoff()
-                    ? `You can edit or cancel your order before today's cutoff time (${cutoffTime}).`
-                    : `Cutoff time (${cutoffTime}) has passed. Modifications are locked as food is currently being prepared.`}
-            </div>
-          </div>
         )}
 
         {/* Action Buttons: Edit, Cancel, Full Page Link */}
@@ -874,6 +819,13 @@ export default function TrackingInfoCard({
             </Link>
           )}
         </div>
+
+        {/* Small subtle notice only when editing is locked after cutoff */}
+        {isOrderActive && !canEdit && !isAdmin && (
+          <p className="text-[11px] text-gray-400 text-center font-medium mt-0.5">
+            Order modifications are locked after cutoff ({cutoffTime}).
+          </p>
+        )}
 
         {/* Collapsible Status Timeline & Activity */}
         <div className="pt-4 border-t border-gray-100">

@@ -47,8 +47,8 @@ export default function MobileBottomNav({ user }) {
       label: "Order",
       icon: ShoppingBag,
       path: "/order",
-      isActive: pathname === "/order",
-      highlight: true,
+      isActive: pathname.startsWith("/order"),
+      highlight: !pathname.startsWith("/order"),
     },
     {
       id: "track",
@@ -78,7 +78,10 @@ export default function MobileBottomNav({ user }) {
     <nav
       aria-label="Mobile Navigation"
       className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-lg border-t border-gray-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 sm:hidden transition-all duration-300"
-      style={{ paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))" }}
+      style={{
+        height: "calc(58px + env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "max(0.375rem, env(safe-area-inset-bottom))",
+      }}
     >
       <div className="flex items-center justify-around max-w-md mx-auto">
         {navItems.map((item) => {
