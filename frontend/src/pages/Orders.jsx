@@ -21,6 +21,7 @@ import {
   Zap,
   Copy,
   Check,
+  MessageSquare,
 } from "lucide-react";
 import { FaPaperPlane as FaPaperPlaneIcon } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +31,7 @@ import { getSocket } from "../socket";
 import Navbar from "../components/Navbar";
 import OrdersMenuWaitingCard from "../components/OrdersMenuWaitingCard";
 
+const DEFAULT_CUSTOMER_NAME = "AASTU Student";
 const FETIRA_DEFAULT_EGGS = 3;
 const DONUT_PACKAGE_OPTIONS = [1, 2];
 const FOOD_TYPE_LABELS = {
@@ -152,6 +154,19 @@ function OrderSuccessModal({
   const [serverSmsLoading, setServerSmsLoading] = useState(false);
   const [serverSmsDone, setServerSmsDone] = useState(false);
   const [serverSmsError, setServerSmsError] = useState("");
+  const [showSmsPreview, setShowSmsPreview] = useState(false);
+
+  // If order was placed with "Confirm & Send SMS", immediately trigger device SMS app
+  useEffect(() => {
+    if (isAdmin && order?.autoSendSms && order?.customerPhone) {
+      const messageToSend = buildManualOrderSmsMessage(order);
+      const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
+      const timer = setTimeout(() => {
+        window.location.href = smsUrl;
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isAdmin, order, buildManualOrderSmsMessage]);
 
   // Auto-redirect only for regular customers
   useEffect(() => {
@@ -287,7 +302,18 @@ function OrderSuccessModal({
             <>
               {/* 1. Send SMS section */}
               {order.customerPhone && (
-                <div className="space-y-2 pb-1">
+                <div className="bg-blue-50/70 border border-blue-200/90 rounded-2xl p-3.5 text-left space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-blue-900 flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Immediate Customer SMS</span>
+                    </span>
+                    <span className="text-xs font-mono font-black text-blue-950 bg-blue-100/90 px-2 py-0.5 rounded-md">
+                      {order.customerPhone}
+                    </span>
+                  </div>
+
+                  {/* Primary 1-Tap App SMS Button */}
                   <button
                     type="button"
                     onClick={() => {
@@ -295,43 +321,73 @@ function OrderSuccessModal({
                       const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(messageToSend)}`;
                       window.location.href = smsUrl;
                     }}
-                    className="w-full min-h-[46px] py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full min-h-[46px] py-2.5 px-4 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <FaPaperPlaneIcon className="text-xs" />
                     <span>📱 Send SMS via App ({order.customerPhone})</span>
                   </button>
 
-                  <div className="flex gap-2">
+                  {/* Multi-channel fast actions */}
+                  <div className="grid grid-cols-3 gap-1.5">
                     <button
                       type="button"
                       onClick={handleTriggerServerSms}
                       disabled={serverSmsLoading || serverSmsDone}
-                      className={`flex-1 min-h-[38px] py-2 px-3 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 ${
+                      className={`min-h-[36px] py-1.5 px-2 rounded-xl border text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
                         serverSmsDone
                           ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-                          : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                          : "bg-white border-blue-200 text-blue-900 hover:bg-blue-50"
                       }`}
                     >
                       <span>
                         {serverSmsLoading
                           ? "Sending..."
                           : serverSmsDone
-                            ? "Server SMS Sent ✅"
+                            ? "Sent ✅"
                             : "⚡ Gateway SMS"}
                       </span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={handleCopySms}
-                      className="min-h-[38px] py-2 px-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                      onClick={() => {
+                        const messageToSend = buildManualOrderSmsMessage(order);
+                        const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(order.trackingLink || '')}&text=${encodeURIComponent(messageToSend)}`;
+                        window.open(tgUrl, "_blank");
+                      }}
+                      className="min-h-[36px] py-1.5 px-2 rounded-xl bg-white hover:bg-sky-50 border border-sky-200 text-sky-800 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
                     >
-                      <span>{copiedSms ? "Copied! ✅" : "📋 Copy Text"}</span>
+                      <span>✈️ Telegram</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCopySms}
+                      className="min-h-[36px] py-1.5 px-2 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                    >
+                      <span>{copiedSms ? "Copied! ✅" : "📋 Copy"}</span>
                     </button>
                   </div>
+
                   {serverSmsError && (
                     <p className="text-[11px] text-rose-600 font-semibold">{serverSmsError}</p>
                   )}
+
+                  {/* Toggle Preview Drawer */}
+                  <div className="pt-1 border-t border-blue-100">
+                    <button
+                      type="button"
+                      onClick={() => setShowSmsPreview((prev) => !prev)}
+                      className="text-[10px] font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>{showSmsPreview ? "Hide SMS text ▲" : "Preview SMS text ▼"}</span>
+                    </button>
+                    {showSmsPreview && (
+                      <p className="mt-1.5 text-[11px] text-gray-700 font-mono bg-white p-2.5 rounded-xl border border-blue-200 whitespace-pre-wrap leading-relaxed select-all">
+                        {buildManualOrderSmsMessage(order)}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -488,9 +544,9 @@ export default function Order() {
             location: res.data.location || res.data.block || "",
           });
         } else {
-          // Admin creates orders for customers: keep delivery details empty
+          // Admin creates orders for customers: prefill neutral default customer name, keep phone & block empty
           setCustomer({
-            customerName: "",
+            customerName: DEFAULT_CUSTOMER_NAME,
             phone: "",
             location: "",
           });
@@ -924,7 +980,15 @@ export default function Order() {
     }
 
     const errors = {};
-    if (!customer.customerName?.trim()) errors.customerName = true;
+    let finalCustomerName = (customer.customerName || "").trim();
+    if (!finalCustomerName) {
+      if (isUserAdmin) {
+        finalCustomerName = DEFAULT_CUSTOMER_NAME;
+        setCustomer((prev) => ({ ...prev, customerName: DEFAULT_CUSTOMER_NAME }));
+      } else {
+        errors.customerName = true;
+      }
+    }
     if (!customer.phone?.trim() || customer.phone.trim().length < 9)
       errors.phone = true;
     if (!customer.location?.trim()) errors.location = true;
@@ -958,7 +1022,7 @@ export default function Order() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleConfirmOrder = async ({ forceCreateDuplicate = false } = {}) => {
+  const handleConfirmOrder = async ({ forceCreateDuplicate = false, autoSendSms = false } = {}) => {
     if (!isUserAdmin) {
       const unavailableFoodTypes = Array.from(
         new Set(
@@ -994,8 +1058,13 @@ export default function Order() {
 
     const total = itemList.reduce((sum, i) => sum + i.lineTotal, 0);
     const fcmToken = localStorage.getItem("fcm_token");
+    const effectiveCustomerName =
+      (customer.customerName || "").trim() ||
+      (isUserAdmin ? DEFAULT_CUSTOMER_NAME : "Guest");
+
     const payload = {
       ...customer,
+      customerName: effectiveCustomerName,
       items: itemList,
       total,
       paymentMethod,
@@ -1097,7 +1166,8 @@ export default function Order() {
             trackingLink: orderData.trackUrl,
             createdByAdmin: true,
             customerPhone: finalPhone,
-            customerName: customer.customerName,
+            customerName: effectiveCustomerName,
+            autoSendSms,
             paymentStatus:
               orderData.paymentStatus ||
               (paymentMethod === "cod" ? "pending_cash" : "unpaid"),
@@ -1109,7 +1179,7 @@ export default function Order() {
           setTracking(orderSummary);
 
           // Reset form behind modal so admin can immediately take next phone order
-          setCustomer({ customerName: "", phone: "", location: "" });
+          setCustomer({ customerName: DEFAULT_CUSTOMER_NAME, phone: "", location: "" });
           setItems([buildDefaultItem("ertib")]);
           setActiveItemIndex(0);
           setReviewMode(false);
@@ -1175,18 +1245,22 @@ export default function Order() {
     const paymentStatus = String(
       orderObj.paymentStatus || "unpaid",
     ).toLowerCase();
-    const amount = Number(orderObj.total || 0).toFixed(2);
+    const paymentMethod = String(
+      orderObj.paymentMethod || "cod",
+    ).toLowerCase();
+    const amount = Number(orderObj.total || 0).toFixed(0);
+    const custName = (orderObj.customerName || "").trim() || DEFAULT_CUSTOMER_NAME;
 
-    if (paymentStatus === "paid") {
-      return `Hello, we received your payment for order (Code: ${code}). Your order is confirmed and being prepared. Track: ${trackLink}`;
+    if (paymentMethod === "cod" || paymentStatus === "pending_cash" || paymentStatus === "paid") {
+      return `✅ Hi ${custName}! Your Ertib order (${code}) is confirmed. Total: ${amount} Birr (Cash on delivery). Track live: ${trackLink}`;
     }
 
-    return `Hello, your order (Code: ${code}) has been created, but payment is still required.\n\nAmount to pay: ${amount} Birr\n\nYour order will NOT be confirmed until payment is completed.\n\nPayment options:\nCBE: 1000528463243 (Abdurazak Mohammed)\nTelebirr / CBEBirr: 0954724664 (Abdurazak Mohammed)\n\nAfter payment, upload screenshot on tracking page: ${trackLink}\nTelegram: https://t.me/ABDURAZACQ`;
+    return `💳 Hi ${custName}! Your Ertib order (${code}) total is ${amount} Birr.\n\nPayment options:\nCBE: 1000528463243 (Abdurazak Mohammed)\nTelebirr / CBEBirr: 0954724664 (Abdurazak Mohammed)\n\nTrack & upload screenshot: ${trackLink}`;
   };
 
   const handleResetForNextOrder = () => {
     setCustomer({
-      customerName: "",
+      customerName: isUserAdmin ? DEFAULT_CUSTOMER_NAME : "",
       phone: "",
       location: "",
     });
@@ -1202,7 +1276,7 @@ export default function Order() {
     setIsEditingDelivery(true);
     setToast({
       type: "info",
-      message: "Form cleared! Ready for next customer order.",
+      message: "Ready for next customer order!",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -2228,7 +2302,7 @@ export default function Order() {
                       Fill Customer's Information
                     </p>
                     <p className="text-blue-700 font-medium text-[11px] leading-relaxed">
-                      Enter the customer's real phone and dorm room. Details are empty for manual entry and will not be saved to your admin account.
+                      Customer name defaults to "{DEFAULT_CUSTOMER_NAME}". Simply enter their phone number and dorm block. After confirming, you can immediately send an SMS to the customer.
                     </p>
                   </div>
                 )}
@@ -2236,15 +2310,22 @@ export default function Order() {
                 <div className="space-y-3.5">
                   {/* Name Input */}
                   <div>
-                    <label className="block text-xs sm:text-sm font-extrabold text-gray-800 mb-1.5">
-                      {isUserAdmin ? "Customer Name" : "Your Name"}
-                    </label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs sm:text-sm font-extrabold text-gray-800">
+                        {isUserAdmin ? "Customer Name" : "Your Name"}
+                      </label>
+                      {isUserAdmin && (
+                        <span className="text-[11px] font-bold text-gray-500">
+                          Default: <span className="text-blue-700 font-extrabold">{DEFAULT_CUSTOMER_NAME}</span>
+                        </span>
+                      )}
+                    </div>
                     <div className="relative">
                       <User className="w-5 h-5 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         name="customerName"
-                        placeholder={isUserAdmin ? "Customer's Name (e.g. Abel Tesfaye)" : "e.g. Dawit Kebede"}
+                        placeholder={isUserAdmin ? `Default: "${DEFAULT_CUSTOMER_NAME}" (or custom name)` : "e.g. Dawit Kebede"}
                         value={customer.customerName}
                         onChange={handleCustomerChange}
                         className={`w-full pl-11 pr-4 py-3 min-h-[48px] rounded-xl border-2 text-base sm:text-sm font-semibold text-gray-950 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 transition ${
@@ -2252,9 +2333,51 @@ export default function Order() {
                             ? "border-rose-400 focus:ring-rose-400 focus:border-rose-400 bg-rose-50/20"
                             : "border-gray-200 focus:ring-amber-400 focus:border-amber-400"
                         }`}
-                        required
+                        required={!isUserAdmin}
                       />
                     </div>
+                    {isUserAdmin && (
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        <span className="text-[11px] text-gray-500 font-medium">Quick Presets:</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomer((prev) => ({ ...prev, customerName: DEFAULT_CUSTOMER_NAME }));
+                            if (fieldErrors.customerName) setFieldErrors((prev) => ({ ...prev, customerName: false }));
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border cursor-pointer active:scale-95 ${
+                            customer.customerName === DEFAULT_CUSTOMER_NAME
+                              ? "bg-blue-100 border-blue-300 text-blue-900 shadow-2xs"
+                              : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                          }`}
+                        >
+                          👤 {DEFAULT_CUSTOMER_NAME}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomer((prev) => ({ ...prev, customerName: "Customer" }));
+                            if (fieldErrors.customerName) setFieldErrors((prev) => ({ ...prev, customerName: false }));
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition border cursor-pointer active:scale-95 ${
+                            customer.customerName === "Customer"
+                              ? "bg-blue-100 border-blue-300 text-blue-900 shadow-2xs"
+                              : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                          }`}
+                        >
+                          👤 Customer
+                        </button>
+                        {customer.customerName && (
+                          <button
+                            type="button"
+                            onClick={() => setCustomer((prev) => ({ ...prev, customerName: "" }))}
+                            className="px-2 py-1 rounded-lg text-xs font-semibold text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition cursor-pointer"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Phone Input */}
@@ -2617,21 +2740,57 @@ export default function Order() {
                 <span>Back to Edit</span>
               </button>
 
-              <button
-                type="button"
-                onClick={handleConfirmOrder}
-                disabled={loading}
-                className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
-              >
-                {loading ? (
-                  <span>Placing Order...</span>
-                ) : (
-                  <>
-                    <span>Confirm Order</span>
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  </>
-                )}
-              </button>
+              {isUserAdmin ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmOrder({ autoSendSms: true })}
+                    disabled={loading}
+                    className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:bg-blue-800 text-white font-extrabold text-sm shadow-md shadow-blue-200 transition cursor-pointer flex items-center justify-center gap-2 active:scale-98 disabled:opacity-60"
+                  >
+                    {loading ? (
+                      <span>Placing & Preparing SMS...</span>
+                    ) : (
+                      <>
+                        <FaPaperPlaneIcon className="text-xs" />
+                        <span>Confirm & Send SMS</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleConfirmOrder({ autoSendSms: false })}
+                    disabled={loading}
+                    className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
+                  >
+                    {loading ? (
+                      <span>Placing Order...</span>
+                    ) : (
+                      <>
+                        <span>Confirm Order Only</span>
+                        <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConfirmOrder}
+                  disabled={loading}
+                  className="w-full sm:flex-1 min-h-[50px] py-3.5 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-extrabold text-sm shadow-md shadow-amber-200/60 transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-98 disabled:opacity-60"
+                >
+                  {loading ? (
+                    <span>Placing Order...</span>
+                  ) : (
+                    <>
+                      <span>Confirm Order</span>
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         )}

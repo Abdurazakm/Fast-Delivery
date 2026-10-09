@@ -425,8 +425,9 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
       forceCreateDuplicate,
     } = req.body;
     const pricing = await getActivePricing(prisma);
+    const effectiveCustomerName = (customerName || "").trim() || "AASTU Student";
 
-    if (!customerName || !phone || !location || !items?.length) {
+    if (!phone || !location || !items?.length) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
@@ -500,7 +501,7 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
 
     const order = await prisma.order.create({
       data: {
-        customerName,
+        customerName: effectiveCustomerName,
         phone: normalizedPhone,
         location,
         source: "manual",
@@ -523,7 +524,7 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
     if (order.paymentMethod === "online" && order.paymentStatus !== "paid") {
       sendNotificationForOrder(order, {
         title: `💳 Complete Payment for Order (${maskedCode})`,
-        body: `Hi ${customerName}, please complete your transfer of ${total} Birr via Telebirr or CBE and upload receipt to begin preparation.`,
+        body: `Hi ${effectiveCustomerName}, please complete your transfer of ${total} Birr via Telebirr or CBE and upload receipt to begin preparation.`,
         url: `/track/${order.trackingCode}#payment-card`,
         data: {
           orderId: order.id,
@@ -543,7 +544,7 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
     } else {
       sendNotificationForOrder(order, {
         title: `Order (${maskedCode}) Placed 🎉`,
-        body: `Hi ${customerName}, your order (${maskedCode}) has been placed. Total: ${total} Birr.`,
+        body: `Hi ${effectiveCustomerName}, your order (${maskedCode}) has been placed. Total: ${total} Birr.`,
         url: `/track/${order.trackingCode}`,
         data: {
           orderId: order.id,
@@ -567,8 +568,8 @@ router.post("/manual", authMiddleware, adminMiddleware, async (req, res) => {
     // Optional SMS
     const smsText =
       order.paymentMethod === "online" && order.paymentStatus !== "paid"
-        ? `💳 Hi ${customerName}! Please complete your transfer of ${total} Birr for Ertib order (${maskedCode}) via Telebirr/CBE & upload receipt: ${trackUrl}#payment-card`
-        : `✅ Hi ${customerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
+        ? `💳 Hi ${effectiveCustomerName}! Please complete your transfer of ${total} Birr for Ertib order (${maskedCode}) via Telebirr/CBE & upload receipt: ${trackUrl}#payment-card`
+        : `✅ Hi ${effectiveCustomerName}! Your Ertib order is confirmed. Total: ${total} birr. Track here: ${trackUrl}`;
 
     sendSMS(normalizedPhone, smsText)
       .then((smsResp) =>
@@ -1468,10 +1469,15 @@ router.post(
       if (!order) return res.status(404).json({ message: "Order not found" });
 
       let text;
-      if (type === "confirmation")
-        text = `✅ Hi ${order.customerName}! Your Ertib order is confirmed. Total: ${order.total} birr. Track: ${order.trackUrl}`;
-      else if (type === "arrival")
-        text = `📍 Hi ${order.customerName}, your Ertib has arrived. Please come and take it. Track: ${order.trackUrl}`;
+      const custName = (order.customerName || "").trim() || "AASTU Student";
+      if (type === "confirmation") {
+        if (order.paymentMethod === "online" && order.paymentStatus !== "paid") {
+          text = `💳 Hi ${custName}! Please transfer ${order.total} Birr for Ertib order (${maskTrackingCode(order.trackingCode)}) & upload receipt: ${order.trackUrl}#payment-card`;
+        } else {
+          text = `✅ Hi ${custName}! Your Ertib order is confirmed. Total: ${order.total} birr. Track: ${order.trackUrl}`;
+        }
+      } else if (type === "arrival")
+        text = `📍 Hi ${custName}, your Ertib has arrived. Please come and take it. Track: ${order.trackUrl}`;
       else return res.status(400).json({ message: "Invalid SMS type" });
 
       sendSMS(order.phone, text)
