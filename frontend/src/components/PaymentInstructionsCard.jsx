@@ -207,11 +207,6 @@ export default function PaymentInstructionsCard({
 
   // --- COD VIEW ---
   if (isCod) {
-    const changeRequested = order?.changeRequested || "exact";
-    const numPaid = Number(changeRequested);
-    const hasChange = !isNaN(numPaid) && numPaid > currentTotal;
-    const changeDue = hasChange ? numPaid - currentTotal : 0;
-
     return (
       <div
         id="payment-card"
@@ -242,34 +237,14 @@ export default function PaymentInstructionsCard({
             </p>
           </div>
 
-          {/* Cash & Change Breakdown */}
-          {hasChange ? (
-            <div className="p-3.5 rounded-2xl bg-white border-2 border-emerald-200 space-y-2 text-xs sm:text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 font-semibold">Paying with:</span>
-                <span className="font-black text-gray-950">{numPaid} Birr</span>
-              </div>
-              <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-emerald-900 font-bold">
-                <span className="flex items-center gap-1.5">
-                  <Coins className="w-4 h-4 text-emerald-600 shrink-0" />
-                  Change:
-                </span>
-                <span className="font-black text-emerald-950 text-sm">
-                  {changeDue.toFixed(2)} Birr
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-white border border-gray-200 text-xs sm:text-sm font-bold text-gray-800">
-              <Coins className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Exact Cash (No change needed)</span>
-            </div>
-          )}
-
-          <div className="rounded-xl border border-emerald-200 bg-white/80 p-3 text-xs leading-relaxed text-gray-700">
-            {hasChange
-              ? `💡 Please have ${numPaid} Birr ready. Our delivery runner will hand you ${changeDue.toFixed(0)} Birr change upon delivery!`
-              : `💡 Please have exact cash ready (${currentTotal.toFixed(0)} Birr). Our delivery runner will collect it directly at your door.`}
+          <div className="rounded-xl border border-emerald-200 bg-white/80 p-3.5 text-xs sm:text-sm leading-relaxed text-gray-800 space-y-1">
+            <p className="font-extrabold text-emerald-950 flex items-center gap-2">
+              <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Cash payment upon arrival</span>
+            </p>
+            <p className="text-gray-600 text-xs">
+              Please have <strong>{currentTotal.toFixed(0)} Birr</strong> ready in cash when your runner delivers your food to your door.
+            </p>
           </div>
         </div>
       </div>
