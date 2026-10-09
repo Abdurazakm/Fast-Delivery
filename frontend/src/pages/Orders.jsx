@@ -1129,23 +1129,23 @@ export default function Order() {
       <Navbar user={user} />
 
       {/* Sub Header for Order Context */}
-      <div className="bg-amber-50/70 border-b border-amber-100 py-2.5 px-4">
+      <div className="bg-white/90 backdrop-blur-md border-b border-gray-150 py-2.5 px-4 shadow-2xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2">
           <Link
             to="/menu"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 hover:text-amber-950 transition shrink-0"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 transition shrink-0"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Menu</span>
           </Link>
 
           {/* Campus Delivery Status Badge */}
-          <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-black text-amber-950 bg-white/95 border border-amber-200/90 px-2.5 py-1 rounded-full shadow-2xs">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full">
             <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
             <span>AASTU Blocks 1–28</span>
           </div>
 
-          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100/90 text-amber-900 hidden sm:inline">
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/80 hidden sm:inline">
             Kitchen Active
           </span>
         </div>
@@ -1157,22 +1157,18 @@ export default function Order() {
         {lastOrderPreset &&
           lastOrderPreset.items?.length > 0 &&
           !reviewMode && (
-            <div className="bg-gradient-to-r from-amber-500 via-amber-500 to-amber-600 rounded-3xl p-4 sm:p-5 text-white shadow-md shadow-amber-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+            <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="min-w-0 space-y-0.5">
-                <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-amber-200">
-                  <Zap className="w-3.5 h-3.5 fill-amber-200" />
-                  <span>Reorder Your Usual?</span>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                  <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+                  <span>Reorder The Usual</span>
                 </div>
-                <p className="font-extrabold text-sm sm:text-base text-white truncate">
+                <p className="font-bold text-sm text-gray-900 truncate">
                   {lastOrderPreset.items.map((it) => describeItem(it)).join(", ")}
                 </p>
                 {lastOrderPreset.location && (
-                  <p className="text-xs text-amber-100/90 font-medium">
-                    Deliver to:{" "}
-                    <strong className="font-bold text-white">
-                      {lastOrderPreset.location}
-                    </strong>{" "}
-                    ({lastOrderPreset.customerName || "You"})
+                  <p className="text-xs text-gray-500 font-medium">
+                    Deliver to: <span className="text-gray-800 font-semibold">{lastOrderPreset.location}</span> ({lastOrderPreset.customerName || "You"})
                   </p>
                 )}
               </div>
@@ -1201,10 +1197,10 @@ export default function Order() {
                     message: "Loaded your usual order! Ready to review.",
                   });
                 }}
-                className="px-4 py-2.5 rounded-2xl bg-white text-amber-950 font-black text-xs sm:text-sm hover:bg-amber-50 active:scale-95 transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                className="px-4 py-2 rounded-xl bg-gray-900 hover:bg-black active:scale-95 text-white font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
               >
-                <Zap className="w-4 h-4 text-amber-600 fill-amber-500" />
-                <span>Load The Usual</span>
+                <Zap className="w-3.5 h-3.5" />
+                <span>Load Usual</span>
               </button>
             </div>
           )}
@@ -1354,7 +1350,7 @@ export default function Order() {
 
                         {/* Right: Line total + Edit & Remove actions */}
                         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                          <span className="font-black text-xs sm:text-sm text-amber-950">
+                          <span className="font-extrabold text-xs sm:text-sm text-gray-900">
                             {lineTotal} Birr
                           </span>
                           <button
@@ -1364,10 +1360,10 @@ export default function Order() {
                               setActiveItemIndex(index);
                               setShowAddMenu(false);
                             }}
-                            className="px-2.5 py-1 rounded-lg border border-gray-200 bg-gray-50 hover:bg-amber-50 hover:border-amber-300 hover:text-amber-800 text-gray-700 text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                            className="px-2.5 py-1 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
                             title="Edit item"
                           >
-                            <Pencil className="w-3.5 h-3.5" />
+                            <Pencil className="w-3 h-3 text-gray-500" />
                             <span>Edit</span>
                           </button>
                           <button
@@ -1381,10 +1377,10 @@ export default function Order() {
                         </div>
                       </div>
 
-                      {/* Bottom Row: Full Customization Summary Pill (Visible on all devices without truncation!) */}
+                      {/* Bottom Row: Full Customization Summary Pill */}
                       {summaryText && (
                         <div className="pt-0.5">
-                          <span className="text-xs text-amber-950/80 bg-amber-50/80 border border-amber-200/60 px-2.5 py-1 rounded-xl font-medium inline-block leading-relaxed break-words">
+                          <span className="text-xs text-gray-700 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-xl font-medium inline-block leading-relaxed break-words">
                             {summaryText}
                           </span>
                         </div>
@@ -1400,7 +1396,7 @@ export default function Order() {
                   >
                     {/* Item Header & Remove/Done */}
                     <div className="flex items-center justify-between pb-1 border-b border-gray-100">
-                      <span className="text-xs font-black uppercase tracking-wider text-gray-700">
+                      <span className="text-xs font-bold uppercase tracking-wider text-gray-700">
                         {items.length > 1 ? `Editing Item #${index + 1}` : "Customize Food"}
                       </span>
 
@@ -1408,16 +1404,16 @@ export default function Order() {
                         <button
                           type="button"
                           onClick={() => handleDoneCustomizing(index)}
-                          className="text-xs font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1 rounded-xl border border-amber-200 transition cursor-pointer flex items-center gap-1"
+                          className="text-xs font-bold text-gray-800 hover:text-gray-950 bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-xl border border-gray-200 transition cursor-pointer flex items-center gap-1"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                           <span>Done</span>
                         </button>
                         {items.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeItem(index)}
-                            className="text-xs font-bold text-gray-500 hover:text-rose-600 flex items-center gap-1 transition cursor-pointer py-1 px-2 rounded-lg hover:bg-rose-50"
+                            className="text-xs font-medium text-gray-500 hover:text-rose-600 flex items-center gap-1 transition cursor-pointer py-1 px-2 rounded-lg hover:bg-rose-50"
                             title="Remove item"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1438,15 +1434,15 @@ export default function Order() {
                           .map((it) => describeItem(it))
                           .join(", ");
                         return (
-                          <div className="p-3.5 rounded-2xl bg-amber-50/90 border border-amber-200/90 text-amber-950 text-xs space-y-1 shadow-2xs">
-                            <div className="font-extrabold flex items-center gap-1.5 text-amber-900">
-                              <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                          <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-gray-800 text-xs space-y-1">
+                            <div className="font-bold flex items-center gap-1.5 text-gray-900">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                               <span className="leading-snug break-words">
                                 In Cart: <strong>{existingSummary}</strong>
                               </span>
                             </div>
-                            <p className="text-[11px] text-amber-900/80 font-medium leading-relaxed">
-                              Customize this item with <strong>different specifications</strong> below. If you choose the same specifications, the quantity will combine automatically!
+                            <p className="text-[11px] text-gray-600 font-normal leading-relaxed">
+                              Customize this item with <strong>different specifications</strong> below. If specifications match identically, the quantity will combine automatically.
                             </p>
                           </div>
                         );
@@ -1561,18 +1557,18 @@ export default function Order() {
                                   ),
                                 );
                               }}
-                              className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black border-2 transition active:scale-95 cursor-pointer text-center ${
+                              className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer text-center ${
                                 item.Felafil &&
                                 item.ketchup &&
                                 item.spices &&
                                 !item.extraKetchup &&
                                 !item.doubleFelafil
                                   ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                                  : "bg-amber-50/70 text-amber-950 border-amber-200 hover:border-amber-400"
+                                  : "bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                               }`}
                             >
                               <span className="block text-xs">Standard</span>
-                              <span className="text-[10px] font-medium opacity-80 block">All Toppings</span>
+                              <span className="text-[10px] font-normal opacity-75 block">All Toppings</span>
                             </button>
 
                             <button
@@ -1593,18 +1589,18 @@ export default function Order() {
                                   ),
                                 );
                               }}
-                              className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black border-2 transition active:scale-95 cursor-pointer text-center ${
+                              className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer text-center ${
                                 item.Felafil &&
                                 item.ketchup &&
                                 !item.spices &&
                                 !item.extraKetchup &&
                                 !item.doubleFelafil
                                   ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                                  : "bg-emerald-50/70 text-emerald-950 border-emerald-200 hover:border-emerald-400"
+                                  : "bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                               }`}
                             >
                               <span className="block text-xs">No Spice</span>
-                              <span className="text-[10px] font-medium opacity-80 block">Mild & Sweet</span>
+                              <span className="text-[10px] font-normal opacity-75 block">Mild</span>
                             </button>
 
                             <button
@@ -1625,14 +1621,14 @@ export default function Order() {
                                   ),
                                 );
                               }}
-                              className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-black border-2 transition active:scale-95 cursor-pointer text-center ${
+                              className={`py-2 px-1.5 sm:px-2 rounded-xl text-xs font-bold border transition active:scale-95 cursor-pointer text-center ${
                                 item.extraKetchup && item.doubleFelafil
                                   ? "bg-amber-500 text-white border-amber-500 shadow-xs"
-                                  : "bg-orange-50/70 text-orange-950 border-orange-200 hover:border-orange-400"
+                                  : "bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                               }`}
                             >
                               <span className="block text-xs">Loaded</span>
-                              <span className="text-[10px] font-medium opacity-80 block">+2x Felafil & Ketchup</span>
+                              <span className="text-[10px] font-normal opacity-75 block">Double Extras</span>
                             </button>
                           </div>
                         </div>
@@ -1793,9 +1789,9 @@ export default function Order() {
                     <button
                       type="button"
                       onClick={() => handleDoneCustomizing(index)}
-                      className="w-full mt-3 min-h-[46px] py-2.5 px-4 rounded-2xl bg-amber-50 hover:bg-amber-100 active:bg-amber-200 text-amber-900 border border-amber-200/90 font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-98"
+                      className="w-full mt-3 min-h-[46px] py-2.5 px-4 rounded-2xl bg-gray-900 hover:bg-black active:scale-98 text-white font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs"
                     >
-                      <CheckCircle2 className="w-4 h-4 text-amber-600" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                       <span>Done Customizing • Put in Cart</span>
                     </button>
                   </div>
@@ -1810,10 +1806,10 @@ export default function Order() {
                     handleDoneCustomizing();
                     setShowAddMenu(true);
                   }}
-                  className="w-full min-h-[50px] py-3.5 border-2 border-dashed border-gray-300 hover:border-amber-400 bg-white hover:bg-amber-50/50 rounded-2xl text-gray-900 hover:text-amber-950 font-black text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-98"
+                  className="w-full min-h-[48px] py-3 border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 rounded-2xl text-gray-800 font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-98"
                 >
-                  <Plus className="w-4 h-4 text-amber-600" />
-                  <span>+ Add Another Food Item</span>
+                  <Plus className="w-4 h-4 text-gray-700" />
+                  <span>Add Another Food Item</span>
                 </button>
               ) : (
                 <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-200 shadow-sm space-y-3.5 transition-all">
@@ -1863,51 +1859,47 @@ export default function Order() {
                             }
                             addItem(foodType);
                           }}
-                          className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 text-left group cursor-pointer active:scale-98 shadow-2xs ${
-                            inCartQty > 0
-                              ? "border-amber-300 bg-amber-50/40 hover:border-amber-400 hover:bg-amber-50/70"
-                              : "border-gray-200 bg-white hover:border-amber-400 hover:bg-amber-50/40"
-                          }`}
+                          className="p-3.5 rounded-2xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-xs transition-all flex items-center justify-between gap-3 text-left group cursor-pointer active:scale-98 shadow-2xs"
                         >
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-extrabold text-sm text-gray-950 block truncate group-hover:text-amber-950 transition-colors">
+                              <span className="font-bold text-sm text-gray-900 block truncate transition-colors">
                                 {FOOD_TYPE_LABELS[foodType]}
                               </span>
                               {inCartQty > 0 && isCustomizable && (
-                                <span className="text-[10px] font-black tracking-wide text-amber-800 bg-amber-100 border border-amber-200/80 px-2 py-0.5 rounded-full inline-flex items-center shadow-2xs">
-                                  <span>With different specs</span>
+                                <span className="text-[10px] font-semibold text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full inline-flex items-center">
+                                  <span>Different Specs</span>
                                 </span>
                               )}
                               {inCartQty > 0 && !isCustomizable && (
-                                <span className="text-[10px] font-bold text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                                <span className="text-[10px] font-semibold text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
                                   In cart ({inCartQty})
                                 </span>
                               )}
                             </div>
 
-                            <span className="text-xs font-black text-amber-800 mt-1 block">
+                            <span className="text-xs font-bold text-gray-800 mt-0.5 block">
                               {basePrice != null ? `${basePrice} Birr` : "Price on menu"}
                             </span>
 
                             {inCartQty > 0 && isCustomizable && (
                               <div className="mt-1 space-y-0.5">
-                                <p className="text-[11px] text-amber-950 font-bold leading-snug break-words">
-                                  {itemsOfThisType.map((it) => describeItem(it)).join(", ")} is added in cart
+                                <p className="text-[11px] text-gray-600 font-medium leading-snug break-words">
+                                  {itemsOfThisType.map((it) => describeItem(it)).join(", ")} in cart
                                 </p>
-                                <p className="text-[10px] text-amber-800 font-semibold leading-snug">
+                                <p className="text-[10px] text-gray-500 font-normal leading-snug">
                                   Tap to add with different specifications
                                 </p>
                               </div>
                             )}
                             {inCartQty > 0 && !isCustomizable && (
-                              <p className="text-[11px] text-gray-500 font-semibold mt-0.5 leading-snug">
+                              <p className="text-[11px] text-gray-500 font-normal mt-0.5 leading-snug">
                                 Tap to add +1 more
                               </p>
                             )}
                           </div>
 
-                          <span className="inline-flex items-center gap-1 text-xs font-black text-amber-800 bg-amber-100/90 group-hover:bg-amber-500 group-hover:text-white px-3 py-1.5 rounded-xl transition-all shadow-2xs shrink-0">
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-gray-800 bg-gray-100 group-hover:bg-amber-500 group-hover:text-white px-3 py-1.5 rounded-xl transition-all shadow-2xs shrink-0">
                             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
                             <span>
                               {inCartQty > 0 && isCustomizable
@@ -2101,7 +2093,7 @@ export default function Order() {
 
             {/* Floating Checkout Bar (Mobile: Stacked on top of mobile nav, Desktop: Clean card) */}
             <div
-              className="fixed inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-amber-200/80 shadow-[0_-4px_25px_rgba(0,0,0,0.09)] px-4 py-3 sm:static sm:inset-auto sm:z-auto sm:bg-white sm:backdrop-blur-none sm:rounded-3xl sm:border sm:border-gray-100 sm:shadow-sm sm:p-5 sm:mt-6 transition-all"
+              className="fixed inset-x-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-4 py-3 sm:static sm:inset-auto sm:z-auto sm:bg-white sm:backdrop-blur-none sm:rounded-3xl sm:border sm:border-gray-150 sm:shadow-xs sm:p-5 sm:mt-6 transition-all"
               style={{
                 bottom: "calc(58px + env(safe-area-inset-bottom, 0px))",
               }}
@@ -2109,20 +2101,20 @@ export default function Order() {
               <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-gray-600 block">
-                      Total Amount
+                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-500 block">
+                      Total
                     </span>
-                    <span className="text-[10px] sm:text-[11px] font-black text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-full inline-flex items-center">
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full inline-flex items-center">
                       {totalItemsCount} {totalItemsCount === 1 ? "item" : "items"}
                     </span>
                   </div>
-                  <div className="text-xl sm:text-2xl font-black text-amber-950 leading-none mt-1">
+                  <div className="text-xl sm:text-2xl font-black text-gray-900 leading-none mt-1">
                     {orderTotal}{" "}
-                    <span className="text-xs sm:text-sm text-amber-800 font-bold">Birr</span>
+                    <span className="text-xs sm:text-sm text-gray-500 font-bold">Birr</span>
                   </div>
                   {/* Real-time Cart Items Summary */}
                   {items.length > 0 && (
-                    <p className="text-[11px] text-gray-500 font-semibold truncate max-w-[190px] sm:max-w-xs mt-0.5">
+                    <p className="text-[11px] text-gray-500 font-medium truncate max-w-[190px] sm:max-w-xs mt-0.5">
                       {items
                         .map(
                           (it) =>
@@ -2157,13 +2149,13 @@ export default function Order() {
             </div>
 
             {/* Delivery Recipient Summary */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/60 border border-amber-200/80 text-xs sm:text-sm space-y-1.5">
-              <p className="font-black text-gray-950 text-sm sm:text-base">
+            <div className="p-4 sm:p-5 rounded-2xl bg-gray-50 border border-gray-200 text-xs sm:text-sm space-y-1.5">
+              <p className="font-bold text-gray-900 text-sm sm:text-base">
                 Recipient: {customer.customerName}
               </p>
-              <p className="text-gray-800 font-semibold">Phone: {customer.phone}</p>
-              <p className="text-gray-800 font-bold">
-                Dorm Location: <span className="text-amber-900">{customer.location}</span>
+              <p className="text-gray-700 font-medium">Phone: {customer.phone}</p>
+              <p className="text-gray-700 font-medium">
+                Dorm Location: <span className="text-gray-900 font-bold">{customer.location}</span>
               </p>
             </div>
 
@@ -2275,16 +2267,16 @@ export default function Order() {
                   </span>
                 </div>
               ) : (
-                <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-3">
+                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
-                      <Smartphone className="w-4 h-4 text-amber-700 shrink-0" />
+                    <span className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                      <Smartphone className="w-4 h-4 text-gray-700 shrink-0" />
                       <span>Direct Transfer Account</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => handleCopyText(orderTotal.toString(), "amount")}
-                      className="px-2.5 py-1 rounded-lg bg-amber-200/80 hover:bg-amber-300 text-amber-950 text-[11px] font-black transition flex items-center gap-1 cursor-pointer active:scale-95"
+                      className="px-2.5 py-1 rounded-lg bg-gray-200 hover:bg-gray-300 active:scale-95 text-gray-800 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
                     >
                       {copiedField === "amount" ? (
                         <>
@@ -2301,17 +2293,17 @@ export default function Order() {
                   </div>
 
                   {/* Telebirr / CBEBirr Option */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-amber-200 text-xs">
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-gray-200 text-xs">
                     <div>
-                      <span className="font-extrabold text-gray-900 block">
-                        Telebirr / CBEBirr: <span className="text-amber-900 font-black">0954724664</span>
+                      <span className="font-bold text-gray-900 block">
+                        Telebirr / CBEBirr: <span className="text-gray-900 font-extrabold">0954724664</span>
                       </span>
                       <span className="text-[11px] text-gray-500 font-medium">Abdurazak Mohammed</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleCopyText("0954724664", "telebirr")}
-                      className="px-2.5 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-950 text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95"
+                      className="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 text-xs font-semibold transition flex items-center gap-1 cursor-pointer active:scale-95"
                     >
                       {copiedField === "telebirr" ? (
                         <>
@@ -2328,17 +2320,17 @@ export default function Order() {
                   </div>
 
                   {/* CBE Bank Option */}
-                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-amber-200 text-xs">
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-gray-200 text-xs">
                     <div>
-                      <span className="font-extrabold text-gray-900 block">
-                        CBE: <span className="text-amber-900 font-black">1000528463243</span>
+                      <span className="font-bold text-gray-900 block">
+                        CBE: <span className="text-gray-900 font-extrabold">1000528463243</span>
                       </span>
                       <span className="text-[11px] text-gray-500 font-medium">Abdurazak Mohammed</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleCopyText("1000528463243", "cbe")}
-                      className="px-2.5 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 active:bg-amber-300 text-amber-950 text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95"
+                      className="px-2.5 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 text-xs font-semibold transition flex items-center gap-1 cursor-pointer active:scale-95"
                     >
                       {copiedField === "cbe" ? (
                         <>
@@ -2354,7 +2346,7 @@ export default function Order() {
                     </button>
                   </div>
 
-                  <p className="text-[11px] text-amber-900 font-medium leading-relaxed">
+                  <p className="text-[11px] text-gray-600 font-normal leading-relaxed">
                     Transfer exact amount, then upload screenshot on the tracking page after confirming.
                   </p>
                 </div>

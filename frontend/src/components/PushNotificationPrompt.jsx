@@ -197,7 +197,7 @@ export default function PushNotificationPrompt({
             type="button"
             onClick={handleEnable}
             disabled={loading}
-            className="bg-white text-amber-600 hover:bg-amber-50 font-bold px-5 py-2.5 rounded-xl text-sm shadow-md transition-all duration-150 whitespace-nowrap self-start sm:self-auto disabled:opacity-60 cursor-pointer active:scale-95"
+            className="bg-white text-amber-600 hover:bg-amber-50 font-bold px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-md transition-all duration-150 whitespace-nowrap w-full sm:w-auto text-center shrink-0 disabled:opacity-60 cursor-pointer active:scale-95"
           >
             {loading ? "Enabling..." : "Turn On Live Alerts"}
           </button>

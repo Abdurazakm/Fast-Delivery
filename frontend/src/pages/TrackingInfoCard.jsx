@@ -457,26 +457,26 @@ export default function TrackingInfoCard({
 
       {/* Hero Header Banner */}
       <div
-        className={`relative p-5 sm:p-7 bg-linear-to-b ${activeConfig.gradient} border-b border-gray-100`}
+        className={`relative p-4 sm:p-7 bg-linear-to-b ${activeConfig.gradient} border-b border-gray-100`}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           {/* Status Badge */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <div
-              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl ${activeConfig.accentBg} text-white flex items-center justify-center shadow-md`}
+              className={`w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${activeConfig.accentBg} text-white flex items-center justify-center shadow-md shrink-0`}
             >
-              <HeroIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+              <HeroIcon className="w-4.5 h-4.5 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${activeConfig.pillBg}`}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] sm:text-xs font-bold border ${activeConfig.pillBg}`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
                   {activeConfig.label}
                 </span>
               </div>
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mt-0.5 leading-snug">
+              <h2 className="text-base sm:text-xl font-bold text-gray-900 mt-0.5 leading-snug break-words">
                 {activeConfig.headline}
               </h2>
             </div>
@@ -484,10 +484,10 @@ export default function TrackingInfoCard({
 
           {/* Estimated Delivery Window Pill */}
           {estimatedDelivery && !isCanceled && currentStatus !== "delivered" && (
-            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white border border-gray-200/80 shadow-xs self-start sm:self-auto">
-              <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white border border-gray-200/80 shadow-xs self-start sm:self-auto shrink-0">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 shrink-0" />
               <div className="text-left">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 leading-none">
+                <p className="text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-gray-500 leading-none">
                   Estimated Delivery
                 </p>
                 <p className="text-xs sm:text-sm font-bold text-gray-900 mt-0.5 leading-none">
@@ -500,20 +500,20 @@ export default function TrackingInfoCard({
 
         {/* 4-Stage Stepper (Only active for non-canceled orders) */}
         {!isCanceled && (
-          <div className="mt-5 pt-4 sm:pt-5 border-t border-gray-200/60">
+          <div className="mt-4 sm:mt-5 pt-3.5 sm:pt-5 border-t border-gray-200/60">
             <div className="relative flex items-center justify-between w-full">
               {/* Background connecting track */}
-              <div className="absolute top-5 sm:top-6 left-6 right-6 h-1 bg-gray-200 -z-0" />
+              <div className="absolute top-4 sm:top-5.5 left-5 right-5 sm:left-6 sm:right-6 h-0.5 sm:h-1 bg-gray-200 z-0" />
 
               {/* Dynamic filled track */}
               <div
-                className="absolute top-5 sm:top-6 left-6 h-1 bg-linear-to-r from-amber-500 to-emerald-500 transition-all duration-700 -z-0"
+                className="absolute top-4 sm:top-5.5 left-5 sm:left-6 h-0.5 sm:h-1 bg-linear-to-r from-amber-500 to-emerald-500 transition-all duration-700 z-0"
                 style={{
                   width:
                     currentIndex <= 0
                       ? "0%"
                       : `${(currentIndex / (statusSteps.length - 1)) * 100}%`,
-                  maxWidth: "calc(100% - 3rem)",
+                  maxWidth: "calc(100% - 2.5rem)",
                 }}
               />
 
@@ -526,26 +526,26 @@ export default function TrackingInfoCard({
                 return (
                   <div
                     key={step.key}
-                    className="flex flex-col items-center text-center z-10 flex-1 px-1"
+                    className="flex flex-col items-center text-center z-10 flex-1 px-0.5"
                   >
                     <div
-                      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center transition-all duration-300 ${
                         isCompleted
                           ? "bg-emerald-500 text-white shadow-md shadow-emerald-200"
                           : isCurrent
-                            ? "bg-amber-500 text-white ring-4 ring-amber-100 shadow-lg scale-105"
-                            : "bg-white text-gray-500 border-2 border-gray-300"
+                            ? "bg-amber-500 text-white ring-2 sm:ring-4 ring-amber-100 shadow-md scale-105"
+                            : "bg-white text-gray-500 border border-gray-300"
                       }`}
                     >
-                      <StepIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                      <StepIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <span
-                      className={`mt-2 text-xs sm:text-sm transition-colors ${
+                      className={`mt-1.5 text-[10px] sm:text-xs leading-tight transition-colors break-words ${
                         isCompleted
                           ? "text-emerald-800 font-bold"
                           : isCurrent
                             ? "text-amber-900 font-extrabold"
-                            : "text-gray-600 font-semibold"
+                            : "text-gray-500 font-semibold"
                       }`}
                     >
                       {step.label}
@@ -558,40 +558,37 @@ export default function TrackingInfoCard({
         )}
       </div>
 
-      <div className="p-5 sm:p-7 space-y-5">
+      <div className="p-3.5 sm:p-7 space-y-3.5 sm:space-y-5">
         {/* Compact Delivery & Order Chip */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-gray-50/90 border border-gray-100 text-xs sm:text-sm">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-              <MapPin className="w-4 h-4" />
+        <div className="flex items-center justify-between gap-2.5 p-3 sm:p-4 rounded-2xl bg-gray-50/90 border border-gray-100 text-xs sm:text-sm">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+              <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
-            <div className="min-w-0">
-              <p className="font-extrabold text-gray-900 truncate">
+            <div className="min-w-0 flex-1">
+              <p className="font-extrabold text-gray-900 truncate text-xs sm:text-sm">
                 {currentOrder.location || "Campus Delivery"}
               </p>
               {currentOrder.customerName && (
-                <p className="text-gray-500 text-xs truncate">
+                <p className="text-gray-500 text-[11px] sm:text-xs truncate">
                   Recipient: {currentOrder.customerName}
                 </p>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-              Order #
-            </span>
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={handleCopyCode}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200/90 hover:border-amber-300 text-gray-800 text-xs font-mono font-black transition shadow-2xs hover:bg-amber-50/50 cursor-pointer active:scale-95"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white border border-gray-200/90 hover:border-amber-300 text-gray-800 text-[11px] sm:text-xs font-mono font-black transition shadow-2xs hover:bg-amber-50/50 cursor-pointer active:scale-95"
               title="Copy tracking code"
             >
-              <span>{currentOrder.trackingCode}</span>
+              <span>#{currentOrder.trackingCode}</span>
               {copiedCode ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-600" />
               ) : (
-                <Copy className="w-3.5 h-3.5 text-gray-400" />
+                <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400" />
               )}
             </button>
           </div>
@@ -603,29 +600,29 @@ export default function TrackingInfoCard({
             <button
               type="button"
               onClick={() => setShowItems((prev) => !prev)}
-              className="w-full p-3.5 sm:p-4 flex items-center justify-between text-left hover:bg-gray-50/80 transition-colors cursor-pointer"
+              className="w-full p-3 sm:p-4 flex items-center justify-between text-left hover:bg-gray-50/80 transition-colors cursor-pointer gap-2"
               aria-expanded={showItems}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-                  <Receipt className="w-4 h-4" />
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                  <Receipt className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs sm:text-sm font-black text-gray-900">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs sm:text-sm font-black text-gray-900 truncate">
                       Order Summary
                     </span>
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                    <span className="text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 shrink-0">
                       {currentOrder.items.length} {currentOrder.items.length === 1 ? "item" : "items"}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 truncate">
                     Total: <strong className="text-gray-950 font-black">{totalPrice} Birr</strong>
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {(() => {
                   const isCod = (currentOrder?.paymentMethod || "").toLowerCase() === "cod";
                   if (paymentStatus === "paid") {
@@ -766,20 +763,21 @@ export default function TrackingInfoCard({
         )}
 
         {/* Action Buttons: Edit, Cancel, Full Page Link */}
-        <div className="flex flex-wrap items-center gap-2.5 pt-2">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           {/* Edit Order */}
           {isOrderActive && (
             <button
               onClick={handleEdit}
               disabled={!canEdit}
-              className={`flex-1 min-w-[130px] min-h-[46px] px-4 py-3 rounded-xl font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 min-w-0 min-h-[44px] sm:min-h-[46px] px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 canEdit
                   ? "bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white shadow-md shadow-amber-200/60 active:scale-98"
                   : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
               }`}
               title={canEdit ? "Edit order" : "Cannot edit after cutoff"}
             >
-              <Edit3 className="w-4 h-4" /> Edit Order
+              <Edit3 className="w-4 h-4 shrink-0" />
+              <span className="truncate">Edit Order</span>
             </button>
           )}
 
@@ -797,14 +795,15 @@ export default function TrackingInfoCard({
                   });
               }}
               disabled={!canCancel}
-              className={`flex-1 min-w-[130px] min-h-[46px] px-4 py-3 rounded-xl font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`flex-1 min-w-0 min-h-[44px] sm:min-h-[46px] px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-extrabold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 canCancel
                   ? "bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-700 border border-rose-300 active:scale-98"
                   : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
               }`}
               title={canCancel ? "Cancel order" : "Cannot cancel after cutoff"}
             >
-              <Trash2 className="w-4 h-4" /> Cancel Order
+              <Trash2 className="w-4 h-4 shrink-0" />
+              <span className="truncate">Cancel Order</span>
             </button>
           )}
 
@@ -812,10 +811,10 @@ export default function TrackingInfoCard({
           {!isDedicatedPage && currentOrder.trackingCode && (
             <Link
               to={`/orders/track/${encodeURIComponent(currentOrder.trackingCode)}`}
-              className="w-full sm:w-auto min-h-[46px] px-4 py-3 bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border-2 border-gray-200 text-xs sm:text-sm font-extrabold rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs active:scale-98"
+              className="w-full sm:w-auto min-h-[44px] sm:min-h-[46px] px-3 sm:px-4 py-2.5 sm:py-3 bg-white hover:bg-gray-100 active:bg-gray-200 text-gray-900 border border-gray-200 text-xs sm:text-sm font-extrabold rounded-xl transition flex items-center justify-center gap-1.5 shadow-2xs active:scale-98"
             >
-              <span>Dedicated Tracking Page</span>
-              <ExternalLink className="w-4 h-4" />
+              <span className="truncate">Dedicated Tracking Page</span>
+              <ExternalLink className="w-4 h-4 shrink-0" />
             </Link>
           )}
         </div>

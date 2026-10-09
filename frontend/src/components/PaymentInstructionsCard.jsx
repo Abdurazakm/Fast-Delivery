@@ -224,23 +224,23 @@ export default function PaymentInstructionsCard({
           </span>
         </div>
 
-        <div className="p-4 space-y-3 text-gray-800">
-          <div className="flex items-center justify-between p-3.5 rounded-xl border border-emerald-200 bg-emerald-100/70 text-emerald-950">
+        <div className="p-3.5 sm:p-4 space-y-2.5 sm:space-y-3 text-gray-800">
+          <div className="flex items-center justify-between gap-2 p-3 sm:p-3.5 rounded-xl border border-emerald-200 bg-emerald-100/70 text-emerald-950">
             <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">
+              <p className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">
                 Amount to Pay
               </p>
-              <p className="mt-0.5 text-2xl font-black text-emerald-950">
+              <p className="mt-0.5 text-xl sm:text-2xl font-black text-emerald-950">
                 {currentTotal.toFixed(2)} Birr
               </p>
             </div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-xs">
-              <Banknote className="w-4 h-4" />
+            <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-[11px] sm:text-xs font-black shadow-xs shrink-0">
+              <Banknote className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               Pay on Delivery
             </span>
           </div>
 
-          <p className="text-xs text-emerald-900 font-medium px-1">
+          <p className="text-xs text-emerald-900 font-medium px-1 leading-relaxed">
             Please have <strong>{currentTotal.toFixed(0)} Birr</strong> cash ready when your runner arrives at {order?.location || "your dorm room"}.
           </p>
         </div>
@@ -504,17 +504,17 @@ export default function PaymentInstructionsCard({
                     </span>
                   )}
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-mono text-base font-black tracking-wide text-gray-950">
+                <div className="flex items-center justify-between gap-2 sm:gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-sm sm:text-base font-black tracking-wide text-gray-950 truncate">
                       {method.accountNumber}
                     </p>
-                    <p className="text-xs font-bold text-gray-700">{method.accountName}</p>
+                    <p className="text-xs font-bold text-gray-700 truncate">{method.accountName}</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleCopy(method)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border-2 border-gray-200 bg-gray-50 px-3.5 py-2 min-h-[40px] text-xs font-extrabold text-gray-800 hover:bg-amber-50 hover:border-amber-300 active:scale-95 transition cursor-pointer"
+                    className="inline-flex items-center gap-1 sm:gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-2.5 sm:px-3.5 py-1.5 sm:py-2 min-h-[38px] text-xs font-extrabold text-gray-800 hover:bg-amber-50 hover:border-amber-300 active:scale-95 transition cursor-pointer shrink-0"
                   >
                     {copiedKey === method.key ? (
                       <>
@@ -738,13 +738,13 @@ export default function PaymentInstructionsCard({
         )}
 
         {/* Telegram fallback link */}
-        <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-xs leading-relaxed text-gray-600 flex items-center justify-between">
+        <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-3 text-xs leading-relaxed text-gray-600 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
           <span>Need help or having issues uploading?</span>
           <a
             href={`https://t.me/ABDURAZACQ?text=Payment%20help%20for%20order%20${currentTrackingCode}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-bold text-amber-700 underline flex items-center gap-1 shrink-0 ml-2"
+            className="font-bold text-amber-700 underline flex items-center gap-1 self-start sm:self-auto shrink-0"
           >
             Telegram @ABDURAZACQ
             <ExternalLink className="w-3 h-3" />

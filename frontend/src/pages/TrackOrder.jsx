@@ -172,23 +172,23 @@ export default function TrackOrder() {
     <div className="min-h-screen bg-gray-50/70 pb-28 sm:pb-16">
       {/* Sticky Top Navigation */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
-        <div className="max-w-3xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between gap-3">
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
           {/* Back to Home Button */}
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-extrabold text-gray-800 hover:text-amber-700 transition py-2 px-3 rounded-xl hover:bg-amber-50 shrink-0 active:scale-95"
+            className="inline-flex items-center gap-1 text-xs sm:text-sm font-extrabold text-gray-800 hover:text-amber-700 transition py-1.5 px-2.5 sm:px-3 rounded-xl hover:bg-amber-50 shrink-0 active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Menu</span>
+            <span className="hidden xs:inline sm:inline">Menu</span>
           </Link>
 
           {/* Center Title & Live Pulse */}
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-sm font-black text-gray-950 truncate">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <span className="text-xs sm:text-sm font-black text-gray-950 truncate">
               Order Tracking
             </span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 shrink-0">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 shrink-0">
+              <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-500 animate-pulse" />
               Live
             </span>
           </div>
@@ -197,7 +197,7 @@ export default function TrackOrder() {
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={handleCopyShare}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer active:scale-95"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition cursor-pointer active:scale-95"
               title="Share or copy tracking link"
             >
               {copiedLink ? (
@@ -219,7 +219,7 @@ export default function TrackOrder() {
       </header>
 
       {/* Main Content Area */}
-      <main className="max-w-3xl mx-auto px-4 pt-4 sm:pt-6 space-y-4 sm:space-y-6">
+      <main className="max-w-3xl mx-auto px-3 sm:px-4 pt-3 sm:pt-6 space-y-3 sm:space-y-5">
         {/* Celebratory Post-Order Welcome Banner */}
         {justPlaced && (
           <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex items-center gap-3 shadow-xs">
