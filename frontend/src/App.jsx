@@ -31,6 +31,183 @@ import MobileBottomNav from "./components/MobileBottomNav";
 import PageLoader from "./components/PageLoader";
 
 
+/* ------------------ Modal ------------------ */
+function Modal({ title, message, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-lg p-6 max-w-md w-[90%] z-10">
+        <h3 className="text-xl font-semibold text-center mb-4">{title}</h3>
+        <div className="text-gray-700 text-center space-y-1 mb-6">
+          {message}
+        </div>
+        <div className="flex justify-center">
+          <button
+            onClick={onClose}
+            className="bg-amber-600 hover:bg-amber-700 transition text-white px-4 py-2 rounded-md"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Dynamic Availability ---------------- */
+const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+const getEATNowParts = (referenceDate = new Date()) => {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Addis_Ababa",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+  });
+
+  const parts = formatter.formatToParts(referenceDate);
+  const dayStr = parts.find((p) => p.type === "weekday")?.value;
+
+  return {
+    day: dayMap[dayStr],
+    hour: Number(parts.find((p) => p.type === "hour")?.value ?? 0),
+    minute: Number(parts.find((p) => p.type === "minute")?.value ?? 0),
+  };
+};
+
+const checkAvailability = (availability, serverOffsetMs) => {
+  if (!availability) return true; // default: available
+
+  const now = new Date(Date.now() + serverOffsetMs);
+  const { day, hour, minute } = getEATNowParts(now);
+
+  const workingDay = availability.weeklyDays?.some((d) => dayMap[d] === day);
+
+  const [cutoffHour, cutoffMinute] = availability.cutoffTime
+    .split(":")
+    .map(Number);
+  const beforeClosing =
+    hour < cutoffHour || (hour === cutoffHour && minute <= cutoffMinute);
+
+  if (availability.isTemporarilyClosed) return false;
+
+  return workingDay && beforeClosing;
+};
+
+/* ---------------- Protected Route ---------------- */
+function ProtectedRoute({ children, user, loadingUser, availability, serverOffsetMs }) {
+  const navigate = useNavigate();
+
+  if (loadingUser) {
+    return (
+      <PageLoader
+        message="Checking order availability..."
+        subtext="Preparing your campus menu session"
+      />
+    );
+  }
+  if (user?.role === "admin") return children;
+
+  const serviceAvailable = checkAvailability(availability, serverOffsetMs);
+
+  if (!serviceAvailable) {
+    const now = new Date(Date.now() + serverOffsetMs);
+    const { day } = getEATNowParts(now);
+    const workingDay = availability?.weeklyDays?.some(
+      (d) => dayMap[d] === day,
+    );
+
+    if (availability?.isTemporarilyClosed) {
+      return (
+        <Modal
+          title="⚠️ Service Temporarily Closed"
+          message={
+            availability.tempCloseReason || "We are temporarily closed."
+          }
+          onClose={() => navigate("/")}
+        />
+      );
+    }
+
+    return (
+      <Modal
+        title={
+          workingDay ? "⏰ Ordering Time is Over" : "⚠️ Service Unavailable"
+        }
+        message={
+          workingDay ? (
+            <>
+              <span>
+                You can call us directly if we’re still at the Ertib place.
+              </span>
+              <a href="tel:+251954724664">📞 +251954724664</a>
+            </>
+          ) : (
+            <span>We’re open only on selected days.</span>
+          )
+        }
+        onClose={() => navigate("/")}
+      />
+    );
+  }
+
+  return children;
+}
+/* ---------------- Staff Protected Route ---------------- */
+function AdminOrEmployRoute({ children, user, loadingUser }) {
+  const navigate = useNavigate();
+  const role = (user?.role || "").toLowerCase();
+  const isStaff =
+    role === "employ" || role === "employee" || role === "supleyer";
+
+  if (loadingUser) {
+    return (
+      <PageLoader
+        message="Verifying staff permissions..."
+        subtext="Connecting to Fetan Staff portal"
+      />
+    );
+  }
+  if (!user || (role !== "admin" && !isStaff)) {
+    return (
+      <Modal
+        title="⛔ Access Denied"
+        message="Only admin or employ accounts can access this page."
+        onClose={() => navigate("/")}
+      />
+    );
+  }
+
+  return children;
+}
+
+function AdminRoute({ children, user, loadingUser }) {
+  const navigate = useNavigate();
+  const role = (user?.role || "").toLowerCase();
+
+  if (loadingUser) {
+    return (
+      <PageLoader
+        message="Verifying admin permissions..."
+        subtext="Connecting to Fetan Admin portal"
+      />
+    );
+  }
+  if (!user || role !== "admin") {
+    return (
+      <Modal
+        title="⛔ Access Denied"
+        message="Only administrators can access this page."
+        onClose={() => navigate("/")}
+      />
+    );
+  }
+
+  return children;
+}
+
 /* ---------------- Main App ---------------- */
 function App() {
   const [user, setUser] = useState(null);
@@ -69,183 +246,6 @@ function App() {
 
     fetchUser();
   }, []);
-
-  /* ------------------ Modal ------------------ */
-  function Modal({ title, message, onClose }) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-        <div className="relative bg-white rounded-xl shadow-lg p-6 max-w-md w-[90%] z-10">
-          <h3 className="text-xl font-semibold text-center mb-4">{title}</h3>
-          <div className="text-gray-700 text-center space-y-1 mb-6">
-            {message}
-          </div>
-          <div className="flex justify-center">
-            <button
-              onClick={onClose}
-              className="bg-amber-600 hover:bg-amber-700 transition text-white px-4 py-2 rounded-md"
-            >
-              Back to Home
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ---------------- Dynamic Availability ---------------- */
-  const dayMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-  const getEATNowParts = (referenceDate = new Date()) => {
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Africa/Addis_Ababa",
-      weekday: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      hourCycle: "h23",
-    });
-
-    const parts = formatter.formatToParts(referenceDate);
-    const dayStr = parts.find((p) => p.type === "weekday")?.value;
-
-    return {
-      day: dayMap[dayStr],
-      hour: Number(parts.find((p) => p.type === "hour")?.value ?? 0),
-      minute: Number(parts.find((p) => p.type === "minute")?.value ?? 0),
-    };
-  };
-
-  const checkAvailability = (availability) => {
-    if (!availability) return true; // default: available
-
-    const now = new Date(Date.now() + serverOffsetMs);
-    const { day, hour, minute } = getEATNowParts(now);
-
-    const workingDay = availability.weeklyDays?.some((d) => dayMap[d] === day);
-
-    const [cutoffHour, cutoffMinute] = availability.cutoffTime
-      .split(":")
-      .map(Number);
-    const beforeClosing =
-      hour < cutoffHour || (hour === cutoffHour && minute <= cutoffMinute);
-
-    if (availability.isTemporarilyClosed) return false;
-
-    return workingDay && beforeClosing;
-  };
-
-  /* ---------------- Protected Route ---------------- */
-  function ProtectedRoute({ children, user, loadingUser, availability }) {
-    const navigate = useNavigate();
-
-    if (loadingUser) {
-      return (
-        <PageLoader
-          message="Checking order availability..."
-          subtext="Preparing your campus menu session"
-        />
-      );
-    }
-    if (user?.role === "admin") return children;
-
-    const serviceAvailable = checkAvailability(availability);
-
-    if (!serviceAvailable) {
-      const now = new Date(Date.now() + serverOffsetMs);
-      const { day } = getEATNowParts(now);
-      const workingDay = availability?.weeklyDays?.some(
-        (d) => dayMap[d] === day,
-      );
-
-      if (availability?.isTemporarilyClosed) {
-        return (
-          <Modal
-            title="⚠️ Service Temporarily Closed"
-            message={
-              availability.tempCloseReason || "We are temporarily closed."
-            }
-            onClose={() => navigate("/")}
-          />
-        );
-      }
-
-      return (
-        <Modal
-          title={
-            workingDay ? "⏰ Ordering Time is Over" : "⚠️ Service Unavailable"
-          }
-          message={
-            workingDay ? (
-              <>
-                <span>
-                  You can call us directly if we’re still at the Ertib place.
-                </span>
-                <a href="tel:+251954724664">📞 +251954724664</a>
-              </>
-            ) : (
-              <span>We’re open only on selected days.</span>
-            )
-          }
-          onClose={() => navigate("/")}
-        />
-      );
-    }
-
-    return children;
-  }
-  /* ---------------- Staff Protected Route ---------------- */
-  function AdminOrEmployRoute({ children, user, loadingUser }) {
-    const navigate = useNavigate();
-    const role = (user?.role || "").toLowerCase();
-    const isStaff =
-      role === "employ" || role === "employee" || role === "supleyer";
-
-    if (loadingUser) {
-      return (
-        <PageLoader
-          message="Verifying staff permissions..."
-          subtext="Connecting to Fetan Staff portal"
-        />
-      );
-    }
-    if (!user || (role !== "admin" && !isStaff)) {
-      return (
-        <Modal
-          title="⛔ Access Denied"
-          message="Only admin or employ accounts can access this page."
-          onClose={() => navigate("/")}
-        />
-      );
-    }
-
-    return children;
-  }
-
-  function AdminRoute({ children, user, loadingUser }) {
-    const navigate = useNavigate();
-    const role = (user?.role || "").toLowerCase();
-
-    if (loadingUser) {
-      return (
-        <PageLoader
-          message="Verifying admin permissions..."
-          subtext="Connecting to Fetan Admin portal"
-        />
-      );
-    }
-    if (!user || role !== "admin") {
-      return (
-        <Modal
-          title="⛔ Access Denied"
-          message="Only administrators can access this page."
-          onClose={() => navigate("/")}
-        />
-      );
-    }
-
-    return children;
-  }
 
   // Fetch availability and server time
   useEffect(() => {
@@ -691,6 +691,7 @@ function App() {
               user={user}
               loadingUser={loadingUser}
               availability={availability}
+              serverOffsetMs={serverOffsetMs}
             >
               <Orders user={user} serverOffsetMs={serverOffsetMs} />
             </ProtectedRoute>
