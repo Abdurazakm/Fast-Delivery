@@ -155,9 +155,7 @@ function OrderSuccessModal({
   );
   const [copiedSms, setCopiedSms] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [serverSmsLoading, setServerSmsLoading] = useState(false);
-  const [serverSmsDone, setServerSmsDone] = useState(false);
-  const [serverSmsError, setServerSmsError] = useState("");
+  const [smsOpened, setSmsOpened] = useState(false);
 
   // Keep messageText in sync if order changes
   useEffect(() => {
@@ -171,6 +169,7 @@ function OrderSuccessModal({
     if (isAdmin && order?.autoSendSms && order?.customerPhone) {
       const msg = messageText || buildManualOrderSmsMessage(order);
       const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(msg)}`;
+      setSmsOpened(true);
       const timer = setTimeout(() => {
         window.location.href = smsUrl;
       }, 100);
@@ -215,6 +214,7 @@ function OrderSuccessModal({
     if (!order?.customerPhone) return;
     const text = messageText || buildManualOrderSmsMessage(order);
     const smsUrl = `sms:${order.customerPhone}?body=${encodeURIComponent(text)}`;
+    setSmsOpened(true);
     window.location.href = smsUrl;
   };
 
@@ -224,26 +224,9 @@ function OrderSuccessModal({
     window.open(tgUrl, "_blank");
   };
 
-  const handleTriggerServerSms = async () => {
-    if (!order?.orderId) return;
-    setServerSmsLoading(true);
-    setServerSmsError("");
-    try {
-      const token = localStorage.getItem("token");
-      await API.post(
-        "/orders/resend-sms",
-        { orderId: order.orderId, type: "confirmation" },
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-      );
-      setServerSmsDone(true);
-    } catch (err) {
-      console.error("Failed to trigger server SMS:", err);
-      setServerSmsError(
-        err.response?.data?.message || "Server SMS gateway unavailable"
-      );
-    } finally {
-      setServerSmsLoading(false);
-    }
+  const handleCallCustomer = () => {
+    if (!order?.customerPhone) return;
+    window.location.href = `tel:${order.customerPhone}`;
   };
 
   return (
@@ -390,35 +373,32 @@ function OrderSuccessModal({
               className="w-full min-h-[48px] py-3 px-4 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:bg-blue-800 text-white font-black text-xs sm:text-sm shadow-md shadow-blue-200 transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
             >
               <FaPaperPlaneIcon className="text-xs" />
-              <span>Send Message to {order.customerPhone}</span>
+              <span>📱 Open Mobile SMS App & Send ({order.customerPhone})</span>
             </button>
 
-            {/* Extra Sending Channels: Server Gateway, Telegram, Copy */}
+            {/* Visual confirmation when SMS app is opened */}
+            {smsOpened && (
+              <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-xs text-emerald-800 font-bold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Opened in your mobile SMS app! Tap "Send" in Messages.</span>
+              </div>
+            )}
+
+            {/* Extra Fast Actions: Copy Text, Telegram, Call Customer */}
             <div className="grid grid-cols-3 gap-1.5 pt-0.5">
               <button
                 type="button"
-                onClick={handleTriggerServerSms}
-                disabled={serverSmsLoading || serverSmsDone}
-                className={`min-h-[36px] py-1.5 px-2 rounded-xl border text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95 ${
-                  serverSmsDone
-                    ? "bg-emerald-50 border-emerald-300 text-emerald-700"
-                    : "bg-white border-blue-200 text-blue-900 hover:bg-blue-50"
-                }`}
-                title="Send directly from server SMS gateway"
+                onClick={handleCopySms}
+                className="min-h-[38px] py-1.5 px-2 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-800 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                title="Copy message to clipboard"
               >
-                <span>
-                  {serverSmsLoading
-                    ? "Sending..."
-                    : serverSmsDone
-                      ? "Sent ✅"
-                      : "⚡ Gateway SMS"}
-                </span>
+                <span>{copiedSms ? "Copied! ✅" : "📋 Copy Text"}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleSendTelegram}
-                className="min-h-[36px] py-1.5 px-2 rounded-xl bg-white hover:bg-sky-50 border border-sky-200 text-sky-800 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                className="min-h-[38px] py-1.5 px-2 rounded-xl bg-white hover:bg-sky-50 border border-sky-200 text-sky-800 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
                 title="Share directly via Telegram"
               >
                 <span>✈️ Telegram</span>
@@ -426,17 +406,13 @@ function OrderSuccessModal({
 
               <button
                 type="button"
-                onClick={handleCopySms}
-                className="min-h-[36px] py-1.5 px-2 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95"
-                title="Copy message to clipboard"
+                onClick={handleCallCustomer}
+                className="min-h-[38px] py-1.5 px-2 rounded-xl bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
+                title="Call customer directly"
               >
-                <span>{copiedSms ? "Copied! ✅" : "📋 Copy Text"}</span>
+                <span>📞 Call</span>
               </button>
             </div>
-
-            {serverSmsError && (
-              <p className="text-[11px] text-rose-600 font-semibold">{serverSmsError}</p>
-            )}
           </div>
         )}
 
@@ -2790,7 +2766,7 @@ export default function Order() {
                     ) : (
                       <>
                         <FaPaperPlaneIcon className="text-xs" />
-                        <span>Confirm & Send SMS</span>
+                        <span>Confirm & Open SMS App</span>
                       </>
                     )}
                   </button>

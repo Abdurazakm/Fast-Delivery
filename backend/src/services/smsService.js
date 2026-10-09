@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const provider = process.env.SMS_PROVIDER || "mobilesmsapi";
+const provider = process.env.SMS_PROVIDER || "none";
 
 async function sendSMS(to, body) {
   if (provider === "none") {
